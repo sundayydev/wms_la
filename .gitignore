@@ -1,0 +1,417 @@
+# ============================================================================
+# GITIGNORE FOR FLUTTER + REACT VITE + ASP.NET CORE 10
+# Generated: 2025-12-26
+# ============================================================================
+
+# ============================================================================
+# GENERAL / OS / IDE
+# ============================================================================
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Editor directories and files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sw?
+*.sublime-workspace
+*.sublime-project
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.local
+
+# ============================================================================
+# FLUTTER / DART
+# ============================================================================
+
+# Dart/Pub related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+pubspec.lock
+
+# Build related
+/build/
+**/build/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+**/.ios/
+**/android/.gradle/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/key.properties
+**/android/*.keystore
+**/android/*.jks
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+*.gr.dart
+*.config.dart
+lib/generated/
+lib/generated_plugin_registrant.dart
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Coverage
+coverage/
+.coverage/
+lcov.info
+
+# FVM (Flutter Version Management)
+.fvm/
+.fvmrc
+
+# Melos
+.melos/
+
+# ============================================================================
+# REACT / VITE / NODE.JS
+# ============================================================================
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/install-state.gz
+
+# Build output
+dist/
+dist-ssr/
+out/
+build/
+.next/
+.nuxt/
+.output/
+.cache/
+
+# Testing
+coverage/
+*.lcov
+.nyc_output/
+lib-cov/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vite specific
+*.local
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ESLint
+.eslintcache
+
+# Prettier
+.prettiercache
+
+# Storybook
+storybook-static/
+
+# Misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npmrc
+
+# ============================================================================
+# ASP.NET CORE / .NET / C#
+# ============================================================================
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.rsuser
+*.userprefs
+*.user
+*.userosscache
+*.sln.docstates
+
+# Mono auto generated files
+mono_crash.*
+
+# User-specific files
+*.suo
+*.user
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# MSBuild
+[Ll]og/
+[Ll]ogs/
+*.binlog
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+!**/[Pp]ackages/repositories.config
+
+# Publish/Web Deploy
+*.Publish.xml
+*.azurePubxml
+*.pubxml
+!**/PublishProfiles/*.pubxml
+PublishScripts/
+wwwroot/
+
+# Windows Azure Build output
+csx/
+*.build.csdef
+
+# Entity Framework
+*.mdf
+*.ldf
+*.ndf
+
+# SQL Server files
+*.bak
+
+# Windows Store app package directories
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+_pkginfo.txt
+*.appx
+*.appxbundle
+*.appxupload
+
+# Cache/Temp files
+*.cache
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.TestAdapter.dll
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# Benchmark Results
+BenchmarkDotNet.Artifacts/
+
+# .NET
+*.DotSettings.user
+*.csproj.user
+*.resharper
+_ReSharper*/
+
+# JetBrains Rider  
+.idea/
+
+# DocProject
+DocProject/buildhelp/
+DocProject/Help/*.HxT
+DocProject/Help/*.HxC
+DocProject/Help/*.hhc
+DocProject/Help/*.hhk
+DocProject/Help/*.hhp
+DocProject/Help/Html2
+DocProject/Help/html
+
+# Click-Once Directory
+publish/
+
+# Web workbench (Sass)
+.sass-cache/
+
+# NuGet
+*.nuget.dgspec.json
+nuget.config
+*.nuget.g.props
+*.nuget.g.targets
+
+# Secrets
+secrets.json
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+*.pfx
+*.snk
+*.key
+*.pem
+
+# Application Insights
+ApplicationInsights.config
+
+# Migrations
+**/Migrations/*.Designer.cs
+
+# Launchsettings - optional (uncomment if needed)
+# **/Properties/launchSettings.json
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+
+# Ignore docker-compose files with secrets
+docker-compose.override.yml
+.docker/
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
+
+# Compiled source
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.dylib
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Temp files
+*.tmp
+*.temp
+*.bak
+*.backup
+~$*
+*~
+
+# Debug files
+*.dmp
+*.stackdump
+
+# JetBrains IDEs
+.idea/
+*.iml
+.idea_modules/
+atlassian-ide-plugin.xml
+out/
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+Session.vim
+Sessionx.vim
+.netrwhist
+tags
+[._]*.un~
+
+# Project specific - add your own below
+# ============================================================================
+

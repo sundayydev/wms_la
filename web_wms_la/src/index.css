@@ -1,0 +1,30 @@
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f5f5f5;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Khi Sider thu nhỏ (ant-layout-sider-collapsed), ẩn các chữ trong menu */
+.ant-layout-sider-collapsed .ant-menu-item .ant-menu-title-content {
+  display: none;
+  opacity: 0;
+}
+
+/* Tùy chỉnh thanh cuộn cho Sidebar đẹp hơn */
+.ant-layout-sider-children::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ant-layout-sider-children::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 10px;
+}
