@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BE_WMS_LA.Shared\BE_WMS_LA.Shared.csproj" />
+    <ProjectReference Include="..\BE_WMS_LA.Test\BE_WMS_LA.Test.csproj" />
+  </ItemGroup>
+
+</Project>

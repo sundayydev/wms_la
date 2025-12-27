@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="BE_WMS_LA.API/BE_WMS_LA.API.csproj" Id="fd630655-d05d-4130-a8c8-2be9c974835c" />
+  <Project Path="BE_WMS_LA.Core/BE_WMS_LA.Core.csproj" Id="17540ea4-1cf1-4a46-8b6d-d3ebe66abccc" />
+  <Project Path="BE_WMS_LA.Domain/BE_WMS_LA.Domain.csproj" Id="6222f066-daef-4b51-bf38-e58b0ccde217" />
+  <Project Path="BE_WMS_LA.Shared/BE_WMS_LA.Shared.csproj" Id="ca7b1fc8-c25b-4a3d-9fde-d5c16105942f" />
+  <Project Path="BE_WMS_LA.Test/BE_WMS_LA.Test.csproj" Id="d8a99a8b-77e0-490b-8639-fb7ef006ffca" />
+</Solution>
