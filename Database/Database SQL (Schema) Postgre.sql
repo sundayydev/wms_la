@@ -5,10 +5,34 @@ CREATE TABLE "User" (
     UserID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
     Username VARCHAR(50) UNIQUE NOT NULL,
     Password VARCHAR(255) NOT NULL, -- Increased for hashed passwords
+    
+    -- Thông tin cá nhân
+    FullName NVARCHAR(100) NOT NULL, -- Họ và tên đầy đủ
+    Avatar VARCHAR(500), -- Đường dẫn ảnh đại diện
     Email VARCHAR(100) UNIQUE NOT NULL,
     PhoneNumber VARCHAR(20) NOT NULL,
+    DateOfBirth DATE, -- Ngày sinh
+    Gender VARCHAR(10), -- MALE, FEMALE, OTHER
+    
+    -- Địa chỉ
+    Address NVARCHAR(500), -- Địa chỉ chi tiết
+    
+    -- Phân quyền và gán kho
     Role VARCHAR(50) NOT NULL, -- ADMIN, RECEPTIONIST, TECHNICIAN, WAREHOUSE
+    WarehouseID UUID, -- Kho được gán (cho nhân viên kho, kỹ thuật viên)
+    
+    -- Trạng thái tài khoản
     IsActive BOOLEAN NOT NULL DEFAULT TRUE,
+    IsLocked BOOLEAN NOT NULL DEFAULT FALSE, -- Khóa tài khoản (do đăng nhập sai nhiều lần)
+    FailedLoginAttempts INT DEFAULT 0, -- Số lần đăng nhập sai
+    LockedUntil TIMESTAMP NULL, -- Khóa đến thời điểm nào
+    
+    -- Authentication & Session
+    LastLoginAt TIMESTAMP, -- Lần đăng nhập cuối
+    LastLoginIP VARCHAR(50), -- IP đăng nhập cuối
+    PasswordChangedAt TIMESTAMP, -- Lần đổi mật khẩu cuối
+    
+    -- Audit fields
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     DeletedAt TIMESTAMP NULL
@@ -632,11 +656,24 @@ COMMENT ON TABLE "User" IS 'Quản lý người dùng hệ thống (Admin, Nhân
 COMMENT ON COLUMN "User".UserID IS 'Khóa chính UUID, tự động tạo';
 COMMENT ON COLUMN "User".Username IS 'Tên đăng nhập, duy nhất trong hệ thống';
 COMMENT ON COLUMN "User".Password IS 'Mật khẩu đã được mã hóa (BCrypt/Argon2)';
+COMMENT ON COLUMN "User".FullName IS 'Họ và tên đầy đủ của người dùng';
+COMMENT ON COLUMN "User".Avatar IS 'Đường dẫn ảnh đại diện (URL)';
 COMMENT ON COLUMN "User".Email IS 'Email người dùng, dùng để khôi phục mật khẩu';
 COMMENT ON COLUMN "User".PhoneNumber IS 'Số điện thoại liên hệ';
+COMMENT ON COLUMN "User".DateOfBirth IS 'Ngày sinh của người dùng';
+COMMENT ON COLUMN "User".Gender IS 'Giới tính: MALE, FEMALE, OTHER';
+COMMENT ON COLUMN "User".Address IS 'Địa chỉ chi tiết';
 COMMENT ON COLUMN "User".Role IS 'Vai trò: ADMIN, RECEPTIONIST, TECHNICIAN, WAREHOUSE';
+COMMENT ON COLUMN "User".WarehouseID IS 'FK: Kho được gán cho nhân viên (nullable cho Admin)';
 COMMENT ON COLUMN "User".IsActive IS 'Trạng thái hoạt động (TRUE = đang làm việc)';
+COMMENT ON COLUMN "User".IsLocked IS 'Tài khoản bị khóa (do đăng nhập sai quá nhiều lần)';
+COMMENT ON COLUMN "User".FailedLoginAttempts IS 'Số lần đăng nhập sai liên tiếp';
+COMMENT ON COLUMN "User".LockedUntil IS 'Thời điểm hết khóa tài khoản';
+COMMENT ON COLUMN "User".LastLoginAt IS 'Thời điểm đăng nhập gần nhất';
+COMMENT ON COLUMN "User".LastLoginIP IS 'Địa chỉ IP lần đăng nhập cuối';
+COMMENT ON COLUMN "User".PasswordChangedAt IS 'Thời điểm thay đổi mật khẩu gần nhất';
 COMMENT ON COLUMN "User".DeletedAt IS 'Soft delete - ngày xóa (NULL = chưa xóa)';
+
 
 -- ===================== BẢNG PERMISSION =====================
 COMMENT ON TABLE Permission IS 'Định nghĩa các quyền trong hệ thống';
