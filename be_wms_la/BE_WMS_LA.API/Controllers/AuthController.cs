@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using BE_WMS_LA.Core.Services;
 using BE_WMS_LA.Shared.Common;
+using BE_WMS_LA.Shared.Configurations;
 using BE_WMS_LA.Shared.DTOs.Auth;
 using BE_WMS_LA.Shared.DTOs.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +11,7 @@ namespace BE_WMS_LA.API.Controllers;
 
 /// <summary>
 /// Controller xử lý xác thực người dùng
+/// Sử dụng HttpOnly Cookie cho Refresh Token và Memory cho Access Token
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -18,11 +20,13 @@ public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
     private readonly ILogger<AuthController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(AuthService authService, ILogger<AuthController> logger)
+    public AuthController(AuthService authService, ILogger<AuthController> logger, IConfiguration configuration)
     {
         _authService = authService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     #region Public Endpoints
@@ -31,11 +35,11 @@ public class AuthController : ControllerBase
     /// Đăng nhập vào hệ thống
     /// </summary>
     /// <param name="request">Thông tin đăng nhập</param>
-    /// <returns>Access Token và thông tin người dùng</returns>
+    /// <returns>Access Token (trong body) và Refresh Token (trong HttpOnly Cookie)</returns>
     [HttpPost("login")]
     [AllowAnonymous]
     [EndpointSummary("Đăng nhập")]
-    [EndpointDescription("Đăng nhập vào hệ thống với tên đăng nhập và mật khẩu. Trả về JWT token nếu thành công.")]
+    [EndpointDescription("Đăng nhập vào hệ thống. Access Token trả về trong response body, Refresh Token được set trong HttpOnly Cookie.")]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status401Unauthorized)]
@@ -64,6 +68,14 @@ public class AuthController : ControllerBase
             _logger.LogWarning("Login failed for user: {Username}. Reason: {Message}",
                 request.Username, result.Message);
             return Unauthorized(result);
+        }
+
+        // Set Refresh Token vào HttpOnly Cookie
+        if (!string.IsNullOrEmpty(result.RefreshToken))
+        {
+            SetRefreshTokenCookie(result.RefreshToken);
+            // Xóa refresh token khỏi response để không expose ra client
+            result.RefreshToken = null;
         }
 
         _logger.LogInformation("User {Username} logged in successfully from IP: {IpAddress}",
@@ -112,35 +124,56 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Làm mới Access Token
+    /// Làm mới Access Token bằng Refresh Token từ Cookie
     /// </summary>
-    /// <param name="request">Refresh Token</param>
-    /// <returns>Access Token mới</returns>
+    /// <returns>Access Token mới và Refresh Token mới (trong HttpOnly Cookie)</returns>
     [HttpPost("refresh-token")]
     [AllowAnonymous]
     [EndpointSummary("Làm mới Token")]
-    [EndpointDescription("Làm mới Access Token bằng Refresh Token. Gửi kèm Access Token cũ trong header Authorization.")]
+    [EndpointDescription("Làm mới Access Token bằng Refresh Token từ HttpOnly Cookie. Gửi kèm Access Token cũ trong header Authorization.")]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
+    public async Task<IActionResult> RefreshToken()
     {
-        if (!ModelState.IsValid)
+        // Debug: Log all cookies received
+        _logger.LogInformation("=== Refresh Token Request ===");
+        _logger.LogInformation("All cookies received:");
+        foreach (var cookie in Request.Cookies)
         {
-            return BadRequest(ApiResponse<LoginResponseDto>.ErrorResponse("Refresh Token là bắt buộc"));
+            _logger.LogInformation("  Cookie: {Name} = {Value}", cookie.Key, cookie.Value?.Substring(0, Math.Min(20, cookie.Value?.Length ?? 0)) + "...");
         }
 
-        // Lấy access token từ header
+        // Lấy refresh token từ HttpOnly Cookie
+        var refreshToken = GetRefreshTokenFromCookie();
+        _logger.LogInformation("Expected cookie name: {CookieName}", CookieSettings.RefreshTokenCookieName);
+        _logger.LogInformation("Refresh token found: {Found}", !string.IsNullOrEmpty(refreshToken));
+
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return Unauthorized(ApiResponse<LoginResponseDto>.ErrorResponse("Refresh Token không tồn tại. Vui lòng đăng nhập lại."));
+        }
+
+        // Lấy access token từ header (có thể đã hết hạn)
         var accessToken = GetAccessTokenFromHeader();
         if (string.IsNullOrEmpty(accessToken))
         {
             return Unauthorized(ApiResponse<LoginResponseDto>.ErrorResponse("Access Token không được cung cấp"));
         }
 
-        var result = await _authService.RefreshTokenAsync(request.RefreshToken, accessToken);
+        var result = await _authService.RefreshTokenAsync(refreshToken, accessToken);
 
         if (!result.Success)
         {
+            // Xóa cookie nếu refresh token không hợp lệ
+            DeleteRefreshTokenCookie();
             return Unauthorized(result);
+        }
+
+        // Set Refresh Token mới vào HttpOnly Cookie (Token Rotation)
+        if (!string.IsNullOrEmpty(result.RefreshToken))
+        {
+            SetRefreshTokenCookie(result.RefreshToken);
+            result.RefreshToken = null;
         }
 
         return Ok(result);
@@ -219,6 +252,9 @@ public class AuthController : ControllerBase
             return BadRequest(result);
         }
 
+        // Xóa refresh token cookie khi đổi mật khẩu để bắt buộc đăng nhập lại
+        DeleteRefreshTokenCookie();
+
         _logger.LogInformation("Password changed for user ID: {UserId}", userId);
 
         return Ok(result);
@@ -243,6 +279,9 @@ public class AuthController : ControllerBase
 
         // Xóa refresh token từ Redis
         var result = await _authService.LogoutAsync(userId.Value);
+
+        // Xóa refresh token cookie
+        DeleteRefreshTokenCookie();
 
         _logger.LogInformation("User ID: {UserId} logged out", userId);
 
@@ -292,6 +331,59 @@ public class AuthController : ControllerBase
             adminId, request.Username);
 
         return CreatedAtAction(nameof(GetCurrentUser), result);
+    }
+
+    #endregion
+
+    #region Cookie Helper Methods
+
+    /// <summary>
+    /// Set Refresh Token vào HttpOnly Cookie
+    /// </summary>
+    /// <param name="refreshToken">Refresh Token</param>
+    private void SetRefreshTokenCookie(string refreshToken)
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true, // Không thể truy cập từ JavaScript
+            Secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(), // HTTPS only in production
+            SameSite = SameSiteMode.Strict, // Chống CSRF
+            Path = CookieSettings.CookiePath, // Chỉ gửi cookie với các request đến /api/auth
+            Expires = DateTimeOffset.UtcNow.AddDays(CookieSettings.RefreshTokenExpirationDays),
+            IsEssential = true // Cookie thiết yếu cho authentication
+        };
+
+        Response.Cookies.Append(CookieSettings.RefreshTokenCookieName, refreshToken, cookieOptions);
+
+        _logger.LogDebug("Refresh token cookie set. Expires: {Expires}", cookieOptions.Expires);
+    }
+
+    /// <summary>
+    /// Lấy Refresh Token từ HttpOnly Cookie
+    /// </summary>
+    /// <returns>Refresh Token hoặc null nếu không tồn tại</returns>
+    private string? GetRefreshTokenFromCookie()
+    {
+        return Request.Cookies[CookieSettings.RefreshTokenCookieName];
+    }
+
+    /// <summary>
+    /// Xóa Refresh Token Cookie
+    /// </summary>
+    private void DeleteRefreshTokenCookie()
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Path = CookieSettings.CookiePath,
+            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Đặt thời gian hết hạn trong quá khứ để xóa
+        };
+
+        Response.Cookies.Delete(CookieSettings.RefreshTokenCookieName, cookieOptions);
+
+        _logger.LogDebug("Refresh token cookie deleted");
     }
 
     #endregion

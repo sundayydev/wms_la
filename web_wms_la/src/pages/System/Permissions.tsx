@@ -14,7 +14,8 @@ import {
   Row,
   Col,
   Tooltip,
-  Divider
+  Divider,
+  Spin
 } from 'antd';
 import {
   SafetyCertificateOutlined,
@@ -23,81 +24,82 @@ import {
   EditOutlined,
   UserOutlined,
   SearchOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  ReloadOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { getAllPermissions } from '../../services/permissions.service';
+import type { PermissionDto } from '../../types/api.types';
 
 const { Title, Text } = Typography;
 
 // ============================================================================
-// 1. TYPES & INTERFACES (Khớp với DB)
+// TYPES & INTERFACES
 // ============================================================================
-
-interface PermissionType {
-  PermissionID: string;
-  PermissionName: string; // VD: "Xóa sản phẩm", "Xem báo cáo"
-  Group?: string; // (Frontend only) Để gom nhóm hiển thị cho đẹp
-}
 
 interface UserType {
   UserID: string;
   Username: string;
-  Role: string; // ADMIN, WAREHOUSE...
-  AssignedPermissionIDs: string[]; // Danh sách ID quyền đã được cấp
+  Role: string;
+  AssignedPermissionIDs: string[];
 }
 
-// ============================================================================
-// 2. MOCK DATA
-// ============================================================================
-
-// Danh sách tất cả quyền trong hệ thống (Bảng Permission)
-const initialPermissions: PermissionType[] = [
-  { PermissionID: 'p1', PermissionName: 'Xem Dashboard', Group: 'General' },
-  { PermissionID: 'p2', PermissionName: 'Quản lý Người dùng', Group: 'System' },
-  { PermissionID: 'p3', PermissionName: 'Xem tồn kho', Group: 'Inventory' },
-  { PermissionID: 'p4', PermissionName: 'Nhập kho (Tạo PO)', Group: 'Inventory' },
-  { PermissionID: 'p5', PermissionName: 'Xuất kho (Tạo SO)', Group: 'Inventory' },
-  { PermissionID: 'p6', PermissionName: 'Điều chỉnh tồn kho', Group: 'Inventory' },
-  { PermissionID: 'p7', PermissionName: 'Xem Báo cáo tài chính', Group: 'Finance' },
-  { PermissionID: 'p8', PermissionName: 'Xóa đơn hàng', Group: 'Sales' },
-];
-
-// Danh sách User và quyền hiện tại của họ (Join User + UserPermission)
+// Mock users data (sẽ được thay bằng API sau)
 const initialUsers: UserType[] = [
   {
     UserID: 'u1',
     Username: 'admin_sys',
     Role: 'ADMIN',
-    AssignedPermissionIDs: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']
+    AssignedPermissionIDs: []
   },
   {
     UserID: 'u2',
     Username: 'kho_a',
     Role: 'WAREHOUSE',
-    AssignedPermissionIDs: ['p1', 'p3', 'p4'] // Chỉ xem và nhập kho
+    AssignedPermissionIDs: []
   },
   {
     UserID: 'u3',
     Username: 'sale_b',
     Role: 'RECEPTIONIST',
-    AssignedPermissionIDs: ['p1', 'p5'] // Chỉ xem và bán hàng
+    AssignedPermissionIDs: []
   },
 ];
 
 const PermissionsPage: React.FC = () => {
   // State
   const [activeTab, setActiveTab] = useState('1');
-  const [permissions, setPermissions] = useState<PermissionType[]>(initialPermissions);
+  const [permissions, setPermissions] = useState<PermissionDto[]>([]);
   const [users, setUsers] = useState<UserType[]>(initialUsers);
+  const [loading, setLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   // State cho Modal Phân quyền
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [checkedPermissions, setCheckedPermissions] = useState<string[]>([]);
 
-  // State cho Modal Thêm Quyền mới
-  const [isAddPermModalOpen, setIsAddPermModalOpen] = useState(false);
-  const [newPermName, setNewPermName] = useState('');
+  // ============================================================================
+  // FETCH DATA
+  // ============================================================================
+
+  const fetchPermissions = async () => {
+    setLoading(true);
+    try {
+      const data = await getAllPermissions();
+      setPermissions(data);
+    } catch (error) {
+      console.error('Failed to fetch permissions:', error);
+      message.error(error instanceof Error ? error.message : 'Không thể tải danh sách quyền');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPermissions();
+  }, []);
 
   // ============================================================================
   // LOGIC XỬ LÝ
@@ -113,7 +115,6 @@ const PermissionsPage: React.FC = () => {
 
   const handleSaveAssignment = () => {
     if (selectedUser) {
-      // Cập nhật state users (Thực tế sẽ gọi API update UserPermission)
       const updatedUsers = users.map(u =>
         u.UserID === selectedUser.UserID
           ? { ...u, AssignedPermissionIDs: checkedPermissions }
@@ -125,33 +126,32 @@ const PermissionsPage: React.FC = () => {
     }
   };
 
-  // --- Tab 2: Quản lý Danh mục Quyền ---
+  // --- Helper Functions ---
 
-  const handleAddPermission = () => {
-    if (!newPermName.trim()) {
-      message.error('Vui lòng nhập tên quyền');
-      return;
+  // Nhóm permissions theo module
+  const groupedPermissions = permissions.reduce((groups, perm) => {
+    const module = perm.module || 'Other';
+    if (!groups[module]) {
+      groups[module] = [];
     }
-    const newPerm: PermissionType = {
-      PermissionID: `p${Date.now()}`,
-      PermissionName: newPermName,
-      Group: 'Other'
-    };
-    setPermissions([...permissions, newPerm]);
-    setNewPermName('');
-    setIsAddPermModalOpen(false);
-    message.success('Thêm quyền mới thành công');
-  };
+    groups[module].push(perm);
+    return groups;
+  }, {} as Record<string, PermissionDto[]>);
 
-  const handleDeletePermission = (id: string) => {
-    setPermissions(permissions.filter(p => p.PermissionID !== id));
-    message.success('Đã xóa quyền');
-  };
+  // Lọc permissions theo search text
+  const filteredPermissions = permissions.filter(p =>
+    p.permissionName.toLowerCase().includes(searchText.toLowerCase()) ||
+    p.module.toLowerCase().includes(searchText.toLowerCase()) ||
+    p.action.toLowerCase().includes(searchText.toLowerCase())
+  );
 
-  // --- Render ---
+  // Helper để lấy tên quyền từ ID
+  const getPermissionName = (id: string) =>
+    permissions.find(p => p.permissionID === id)?.permissionName || id;
 
-  // Helper để lấy tên quyền từ ID (dùng hiển thị Tag)
-  const getPermissionName = (id: string) => permissions.find(p => p.PermissionID === id)?.PermissionName || id;
+  // ============================================================================
+  // TABLE COLUMNS
+  // ============================================================================
 
   const userColumns: ColumnsType<UserType> = [
     {
@@ -175,7 +175,9 @@ const PermissionsPage: React.FC = () => {
       key: 'perms',
       render: (ids: string[]) => (
         <div className="flex flex-wrap gap-1">
-          {ids.length > 5 ? (
+          {ids.length === 0 ? (
+            <Text type="secondary" className="text-xs">Chưa có quyền riêng</Text>
+          ) : ids.length > 5 ? (
             <Tooltip title={ids.map(id => getPermissionName(id)).join(', ')}>
               <Tag color="blue">{ids.length} quyền được cấp</Tag>
             </Tooltip>
@@ -206,36 +208,46 @@ const PermissionsPage: React.FC = () => {
     }
   ];
 
-  const permissionColumns: ColumnsType<PermissionType> = [
+  const permissionColumns: ColumnsType<PermissionDto> = [
     {
       title: 'ID',
-      dataIndex: 'PermissionID',
-      width: 100,
-      render: (text) => <Text type="secondary" className="font-mono text-xs">{text}</Text>
+      dataIndex: 'permissionID',
+      width: 280,
+      render: (text) => (
+        <Text copyable className="font-mono text-xs text-gray-500">
+          {text}
+        </Text>
+      )
     },
     {
       title: 'Tên quyền (Permission Name)',
-      dataIndex: 'PermissionName',
+      dataIndex: 'permissionName',
       key: 'name',
-      render: (text) => <span className="font-medium">{text}</span>
+      render: (text) => <span className="font-medium text-blue-600">{text}</span>
     },
     {
-      title: 'Nhóm (Group)', // Cột giả lập để UI đẹp
-      dataIndex: 'Group',
-      render: (text) => <Tag>{text}</Tag>
+      title: 'Module',
+      dataIndex: 'module',
+      key: 'module',
+      render: (text) => <Tag color="cyan">{text}</Tag>,
+      filters: [...new Set(permissions.map(p => p.module))].map(m => ({ text: m, value: m })),
+      onFilter: (value, record) => record.module === value,
     },
     {
-      title: '',
+      title: 'Action',
+      dataIndex: 'action',
       key: 'action',
-      width: 80,
-      render: (_, record) => (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeletePermission(record.PermissionID)}
-        />
-      )
+      render: (text) => <Tag color="purple">{text}</Tag>
+    },
+    {
+      title: 'Ngày tạo',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 150,
+      render: (text) => {
+        const date = new Date(text);
+        return <Text type="secondary" className="text-xs">{date.toLocaleDateString('vi-VN')}</Text>;
+      }
     }
   ];
 
@@ -279,28 +291,55 @@ const PermissionsPage: React.FC = () => {
                 </div>
               )
             },
-            // TAB 2: PERMISSION MANAGEMENT
+            // TAB 2: PERMISSION LIST (From API)
             {
               key: '2',
-              label: 'Danh mục Quyền',
+              label: (
+                <span>
+                  Danh mục Quyền
+                  {permissions.length > 0 && (
+                    <Tag color="blue" className="ml-2">{permissions.length}</Tag>
+                  )}
+                </span>
+              ),
               children: (
                 <div>
-                  <div className="flex justify-end mb-4">
+                  <div className="flex justify-between mb-4">
+                    <Input
+                      prefix={<SearchOutlined />}
+                      placeholder="Tìm quyền theo tên, module, action..."
+                      className="max-w-md"
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      allowClear
+                    />
                     <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      className="bg-blue-600"
-                      onClick={() => setIsAddPermModalOpen(true)}
+                      type="default"
+                      icon={<ReloadOutlined spin={loading} />}
+                      onClick={fetchPermissions}
+                      loading={loading}
                     >
-                      Tạo quyền mới
+                      Làm mới
                     </Button>
                   </div>
-                  <Table
-                    columns={permissionColumns}
-                    dataSource={permissions}
-                    rowKey="PermissionID"
-                    pagination={{ pageSize: 10 }}
-                  />
+
+                  {loading ? (
+                    <div className="flex justify-center items-center py-20">
+                      <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} tip="Đang tải danh sách quyền..." />
+                    </div>
+                  ) : (
+                    <Table
+                      columns={permissionColumns}
+                      dataSource={filteredPermissions}
+                      rowKey="permissionID"
+                      pagination={{
+                        pageSize: 15,
+                        showSizeChanger: true,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} quyền`
+                      }}
+                      size="small"
+                    />
+                  )}
                 </div>
               )
             }
@@ -308,7 +347,7 @@ const PermissionsPage: React.FC = () => {
         />
       </Card>
 
-      {/* MODAL 1: PHÂN QUYỀN CHO USER */}
+      {/* MODAL: PHÂN QUYỀN CHO USER */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -319,7 +358,7 @@ const PermissionsPage: React.FC = () => {
         open={isAssignModalOpen}
         onOk={handleSaveAssignment}
         onCancel={() => setIsAssignModalOpen(false)}
-        width={700}
+        width={800}
         okText="Lưu cấu hình"
         cancelText="Hủy"
       >
@@ -330,58 +369,40 @@ const PermissionsPage: React.FC = () => {
 
         <Divider />
 
-        <Checkbox.Group
-          className="w-full"
-          value={checkedPermissions}
-          onChange={(list) => setCheckedPermissions(list as string[])}
-        >
-          <Row gutter={[16, 16]}>
-            {/* Render Permission Grouped */}
-            {Object.entries(
-              permissions.reduce((groups, item) => {
-                const group = item.Group || 'Other';
-                groups[group] = groups[group] || [];
-                groups[group].push(item);
-                return groups;
-              }, {} as Record<string, PermissionType[]>)
-            ).map(([groupName, groupPerms]) => (
-              <Col span={24} key={groupName}>
-                <h4 className="font-bold text-gray-700 mb-2 uppercase text-xs tracking-wider border-b pb-1">
-                  {groupName}
-                </h4>
-                <Row gutter={[8, 8]}>
-                  {groupPerms.map(perm => (
-                    <Col span={12} key={perm.PermissionID}>
-                      <Checkbox value={perm.PermissionID} className="ml-0">
-                        {perm.PermissionName}
-                      </Checkbox>
-                    </Col>
-                  ))}
-                </Row>
-              </Col>
-            ))}
-          </Row>
-        </Checkbox.Group>
-      </Modal>
-
-      {/* MODAL 2: THÊM QUYỀN MỚI */}
-      <Modal
-        title="Thêm quyền hạn mới"
-        open={isAddPermModalOpen}
-        onOk={handleAddPermission}
-        onCancel={() => setIsAddPermModalOpen(false)}
-      >
-        <div className="pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tên quyền hạn</label>
-          <Input
-            placeholder="Ví dụ: Xóa nhà cung cấp"
-            value={newPermName}
-            onChange={(e) => setNewPermName(e.target.value)}
-          />
-          <p className="text-xs text-gray-400 mt-2">
-            Tên quyền nên mô tả rõ hành động (Ví dụ: Chỉnh sửa, Xóa, Xem...)
-          </p>
-        </div>
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Spin />
+          </div>
+        ) : (
+          <Checkbox.Group
+            className="w-full"
+            value={checkedPermissions}
+            onChange={(list) => setCheckedPermissions(list as string[])}
+          >
+            <Row gutter={[16, 16]}>
+              {Object.entries(groupedPermissions).sort().map(([moduleName, modulePerms]) => (
+                <Col span={24} key={moduleName}>
+                  <h4 className="font-bold text-gray-700 mb-2 uppercase text-xs tracking-wider border-b pb-1 flex items-center gap-2">
+                    <Tag color="cyan">{moduleName}</Tag>
+                    <span className="text-gray-400 font-normal">({modulePerms.length} quyền)</span>
+                  </h4>
+                  <Row gutter={[8, 8]}>
+                    {modulePerms.map(perm => (
+                      <Col span={12} key={perm.permissionID}>
+                        <Checkbox value={perm.permissionID} className="ml-0">
+                          <span className="text-sm">
+                            <Tag color="purple" className="mr-1">{perm.action}</Tag>
+                            {perm.permissionName}
+                          </span>
+                        </Checkbox>
+                      </Col>
+                    ))}
+                  </Row>
+                </Col>
+              ))}
+            </Row>
+          </Checkbox.Group>
+        )}
       </Modal>
     </div>
   );

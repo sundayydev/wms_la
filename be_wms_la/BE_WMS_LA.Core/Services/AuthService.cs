@@ -6,6 +6,7 @@ using BE_WMS_LA.Core.Configurations;
 using BE_WMS_LA.Core.Repositories;
 using BE_WMS_LA.Domain.Models;
 using BE_WMS_LA.Shared.Common;
+using BE_WMS_LA.Shared.Configurations;
 using BE_WMS_LA.Shared.DTOs.Auth;
 using BE_WMS_LA.Shared.DTOs.Common;
 using Isopoh.Cryptography.Argon2;
@@ -17,6 +18,7 @@ namespace BE_WMS_LA.Core.Services;
 
 /// <summary>
 /// Service xử lý xác thực người dùng
+/// Hỗ trợ HttpOnly Cookie (Refresh Token) + Memory (Access Token)
 /// </summary>
 public class AuthService
 {
@@ -31,7 +33,6 @@ public class AuthService
     private const int LockoutDurationMinutes = 15;
 
     // Cấu hình refresh token
-    private const int RefreshTokenExpirationDays = 7;
     private const string RefreshTokenPrefix = "refresh_token:";
 
     public AuthService(
@@ -51,13 +52,13 @@ public class AuthService
     /// <summary>
     /// Đăng nhập
     /// </summary>
-    public async Task<ApiResponse<LoginResponseDto>> LoginAsync(LoginRequestDto request, string? ipAddress = null)
+    public async Task<AuthResult> LoginAsync(LoginRequestDto request, string? ipAddress = null)
     {
         // 1. Tìm user theo username
         var user = await _userRepository.GetByUsernameAsync(request.Username);
         if (user == null)
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Tên đăng nhập hoặc mật khẩu không đúng");
+            return AuthResult.Error("Tên đăng nhập hoặc mật khẩu không đúng");
         }
 
         // 2. Kiểm tra tài khoản bị khóa
@@ -66,7 +67,7 @@ public class AuthService
             if (DateTime.UtcNow < user.LockedUntil.Value)
             {
                 var remainingMinutes = (int)(user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes;
-                return ApiResponse<LoginResponseDto>.ErrorResponse(
+                return AuthResult.Error(
                     $"Tài khoản đã bị khóa. Vui lòng thử lại sau {remainingMinutes + 1} phút");
             }
             else
@@ -81,13 +82,13 @@ public class AuthService
         // 3. Kiểm tra tài khoản active
         if (!user.IsActive)
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Tài khoản đã bị vô hiệu hóa");
+            return AuthResult.Error("Tài khoản đã bị vô hiệu hóa");
         }
 
         // 4. Kiểm tra soft delete
         if (user.DeletedAt.HasValue)
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Tài khoản không tồn tại");
+            return AuthResult.Error("Tài khoản không tồn tại");
         }
 
         // 5. Xác thực mật khẩu
@@ -101,12 +102,12 @@ public class AuthService
                 user.IsLocked = true;
                 user.LockedUntil = DateTime.UtcNow.AddMinutes(LockoutDurationMinutes);
                 await _userRepository.UpdateAsync(user);
-                return ApiResponse<LoginResponseDto>.ErrorResponse(
+                return AuthResult.Error(
                     $"Tài khoản đã bị khóa do đăng nhập sai quá {MaxFailedAttempts} lần. Vui lòng thử lại sau {LockoutDurationMinutes} phút");
             }
 
             await _userRepository.UpdateAsync(user);
-            return ApiResponse<LoginResponseDto>.ErrorResponse(
+            return AuthResult.Error(
                 $"Tên đăng nhập hoặc mật khẩu không đúng. Còn {MaxFailedAttempts - user.FailedLoginAttempts} lần thử");
         }
 
@@ -119,20 +120,21 @@ public class AuthService
         await _userRepository.UpdateAsync(user);
 
         // 7. Tạo token
-        var accessToken = GenerateAccessToken(user);
+        var expirationMinutes = GetAccessTokenExpirationMinutes();
+        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
+        var accessToken = GenerateAccessToken(user, expiresAt);
         var refreshToken = GenerateRefreshToken();
 
         // 8. Lưu refresh token vào Redis
         await SaveRefreshTokenAsync(user.UserID, refreshToken);
 
         // 9. Tạo response
-        var response = new LoginResponseDto
-        {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-        };
-
-        return ApiResponse<LoginResponseDto>.SuccessResponse(response, "Đăng nhập thành công");
+        return AuthResult.SuccessResult(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresAt: new DateTimeOffset(expiresAt).ToUnixTimeSeconds(),
+            expiresInMinutes: expirationMinutes,
+            message: "Đăng nhập thành công");
     }
 
     /// <summary>
@@ -177,49 +179,50 @@ public class AuthService
     /// <summary>
     /// Làm mới Access Token
     /// </summary>
-    public async Task<ApiResponse<LoginResponseDto>> RefreshTokenAsync(string refreshToken, string accessToken)
+    public async Task<AuthResult> RefreshTokenAsync(string refreshToken, string accessToken)
     {
         // 1. Validate access token (có thể đã hết hạn)
         var principal = GetPrincipalFromExpiredToken(accessToken);
         if (principal == null)
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Token không hợp lệ");
+            return AuthResult.Error("Token không hợp lệ");
         }
 
         // 2. Lấy thông tin user từ token
         var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Token không hợp lệ");
+            return AuthResult.Error("Token không hợp lệ");
         }
 
         // 3. Validate refresh token từ Redis
         if (!await ValidateRefreshTokenAsync(userId, refreshToken))
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Refresh token không hợp lệ hoặc đã hết hạn");
+            return AuthResult.Error("Refresh token không hợp lệ hoặc đã hết hạn");
         }
 
         // 4. Tìm user
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null || !user.IsActive || user.DeletedAt.HasValue)
         {
-            return ApiResponse<LoginResponseDto>.ErrorResponse("Người dùng không tồn tại hoặc đã bị vô hiệu hóa");
+            return AuthResult.Error("Người dùng không tồn tại hoặc đã bị vô hiệu hóa");
         }
 
         // 5. Tạo token mới
-        var newAccessToken = GenerateAccessToken(user);
+        var expirationMinutes = GetAccessTokenExpirationMinutes();
+        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
+        var newAccessToken = GenerateAccessToken(user, expiresAt);
         var newRefreshToken = GenerateRefreshToken();
 
         // 6. Lưu refresh token mới vào Redis (token rotation)
         await SaveRefreshTokenAsync(userId, newRefreshToken);
 
-        var response = new LoginResponseDto
-        {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshToken,
-        };
-
-        return ApiResponse<LoginResponseDto>.SuccessResponse(response, "Làm mới token thành công");
+        return AuthResult.SuccessResult(
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+            expiresAt: new DateTimeOffset(expiresAt).ToUnixTimeSeconds(),
+            expiresInMinutes: expirationMinutes,
+            message: "Làm mới token thành công");
     }
 
     /// <summary>
@@ -295,7 +298,7 @@ public class AuthService
     /// <summary>
     /// Tạo Access Token (JWT)
     /// </summary>
-    private string GenerateAccessToken(User user)
+    private string GenerateAccessToken(User user, DateTime expiresAt)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
@@ -336,7 +339,7 @@ public class AuthService
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(GetAccessTokenExpirationMinutes()),
+            expires: expiresAt,
             signingCredentials: credentials
         );
 
@@ -400,7 +403,7 @@ public class AuthService
         {
             return minutes;
         }
-        return 60; // Mặc định 60 phút
+        return 1; // Mặc định 1 phút
     }
 
     /// <summary>
@@ -443,7 +446,7 @@ public class AuthService
         if (_redisDb == null) return;
 
         var key = $"{RefreshTokenPrefix}{userId}";
-        var expiration = TimeSpan.FromDays(RefreshTokenExpirationDays);
+        var expiration = TimeSpan.FromDays(CookieSettings.RefreshTokenExpirationDays);
 
         // Lưu refresh token với thời hạn
         await _redisDb.StringSetAsync(key, refreshToken, expiration);
@@ -492,4 +495,41 @@ public class AuthService
     }
 
     #endregion
+}
+
+/// <summary>
+/// Kết quả xác thực bao gồm cả RefreshToken để Controller set vào Cookie
+/// </summary>
+public class AuthResult : ApiResponse<LoginResponseDto>
+{
+    /// <summary>
+    /// Refresh Token - Controller sẽ set vào HttpOnly Cookie
+    /// </summary>
+    public string? RefreshToken { get; set; }
+
+    public static AuthResult Error(string message)
+    {
+        return new AuthResult
+        {
+            Success = false,
+            Message = message,
+            Data = null
+        };
+    }
+
+    public static AuthResult SuccessResult(string accessToken, string refreshToken, long expiresAt, int expiresInMinutes, string message)
+    {
+        return new AuthResult
+        {
+            Success = true,
+            Message = message,
+            RefreshToken = refreshToken,
+            Data = new LoginResponseDto
+            {
+                AccessToken = accessToken,
+                ExpiresAt = expiresAt,
+                ExpiresInMinutes = expiresInMinutes
+            }
+        };
+    }
 }
