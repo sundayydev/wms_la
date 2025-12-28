@@ -47,7 +47,7 @@ builder.Configuration["JwtSettings:SecretKey"] = Environment.GetEnvironmentVaria
     ?? "Key_Tam_Thoi_Rat_Dai_Cho_Dev_Moi_Truong_Test_123456789";
 builder.Configuration["JwtSettings:Issuer"] = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "WmsApi";
 builder.Configuration["JwtSettings:Audience"] = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "WmsClient";
-builder.Configuration["JwtSettings:AccessTokenExpirationMinutes"] = Environment.GetEnvironmentVariable("JWT_EXPIRATION_MINUTES") ?? "60";
+builder.Configuration["JwtSettings:AccessTokenExpirationMinutes"] = Environment.GetEnvironmentVariable("JWT_ACCESS_TOKEN_EXPIRATION") ?? "5";
 
 // --- CẤU HÌNH SERVICES ---
 
@@ -64,6 +64,20 @@ var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "WmsClie
 
 builder.Services.AddCors(options =>
 {
+    // Policy cho development - cho phép credentials với origins cụ thể
+    options.AddPolicy("AllowCredentials", p =>
+        p.WithOrigins(
+            "http://localhost:5173",  // Vite dev server
+            "http://localhost:5023",  // Vite dev server
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5023",
+            "http://127.0.0.1:3000"
+        )
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials()); // Quan trọng: cho phép cookies
+
+    // Policy cho các request không cần credentials
     options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
@@ -222,7 +236,7 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("AllowCredentials"); // Sử dụng policy hỗ trợ credentials (cookies)
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { lazy, Suspense, type ComponentType } from 'react';
+import { tokenManager } from '../config/api.config';
 
 // Layouts
 import MainLayout from '../layouts/MainLayout';
@@ -67,11 +68,21 @@ const CustomerList = Loadable(lazy(() => import('../pages/Customers/CustomerList
 // 3. CẤU HÌNH BẢO MẬT
 // ============================================================================
 
+/**
+ * ProtectedRoute - Bảo vệ các route cần đăng nhập
+ * Sử dụng tokenManager để kiểm tra authentication (hỗ trợ HttpOnly Cookie flow)
+ */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = localStorage.getItem('access_token') !== null;
+  // Sử dụng tokenManager thay vì đọc trực tiếp localStorage
+  const isAuthenticated = tokenManager.isAuthenticated();
+
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" replace />;
+    // Chuyển hướng về trang login với return URL
+    const currentPath = window.location.pathname;
+    const returnUrl = currentPath !== '/' ? `?returnUrl=${encodeURIComponent(currentPath)}` : '';
+    return <Navigate to={`/auth/login${returnUrl}`} replace />;
   }
+
   return children;
 };
 

@@ -1,37 +1,67 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Checkbox, message, Alert } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Checkbox, message, Spin } from 'antd';
+import { UserOutlined, LockOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { loginAPI, type LoginRequest } from '../../services/auth.service';
+import { login, getCurrentUser } from '../../services/auth.service';
+import type { LoginRequest, UserInfo } from '../../types/api.types';
+
+// Lưu thông tin user vào sessionStorage
+const saveUserInfo = (user: UserInfo): void => {
+  sessionStorage.setItem('user_info', JSON.stringify(user));
+  sessionStorage.setItem('user_role', user.role);
+  sessionStorage.setItem('user_name', user.username);
+  sessionStorage.setItem('user_fullname', user.fullName);
+};
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fetchingUser, setFetchingUser] = useState(false);
   const navigate = useNavigate();
 
   const onFinish = async (values: LoginRequest) => {
     setLoading(true);
-    setErrorMsg(null);
 
     try {
       // 1. Gọi API đăng nhập
-      const data = await loginAPI(values);
+      // Access Token được lưu tự động bởi auth.service
+      // Refresh Token được set vào HttpOnly Cookie bởi server
+      const loginData = await login(values);
 
-      // 2. Lưu Token và thông tin User vào LocalStorage
-      // Quan trọng: Lưu Role để sau này phân quyền menu
-      localStorage.setItem('access_token', data.token);
-      localStorage.setItem('user_role', data.user.role);
-      localStorage.setItem('user_name', data.user.username);
+      console.log('Login response:', {
+        hasAccessToken: !!loginData.accessToken,
+        expiresInMinutes: loginData.expiresInMinutes,
+      });
 
-      message.success('Đăng nhập thành công!');
+      if (!loginData) {
+        message.error('Đăng nhập thất bại!');
+        return;
+      }
 
-      // 3. Điều hướng dựa trên Role (Ví dụ)
-      navigate('/dashboard');
+      // 2. Lấy thông tin user
+      setFetchingUser(true);
+      try {
+        const userInfo = await getCurrentUser();
+        saveUserInfo(userInfo);
 
-    } catch (error: any) {
-      setErrorMsg(error.message || 'Đã có lỗi xảy ra.');
+        message.success(`Chào mừng ${userInfo.fullName || userInfo.username}!`);
+
+        // 3. Điều hướng dựa trên Role
+        navigate('/dashboard');
+      } catch (userError) {
+        console.error('Failed to fetch user info:', userError);
+        // Vẫn điều hướng dù không lấy được user info (có thể lấy sau)
+        message.warning('Đăng nhập thành công nhưng không lấy được thông tin người dùng.');
+        navigate('/dashboard');
+      }
+
+    } catch (error: unknown) {
+      // Hiển thị thông báo lỗi từ server (ví dụ: sai mật khẩu, tài khoản bị khóa...)
+      const errorMessage = error instanceof Error ? error.message : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+      message.error(errorMessage);
+      console.error('Login error:', errorMessage);
     } finally {
       setLoading(false);
+      setFetchingUser(false);
     }
   };
 
@@ -42,15 +72,11 @@ const Login: React.FC = () => {
         <p className="text-gray-500 mt-2">Nhập thông tin tài khoản WMS của bạn</p>
       </div>
 
-      {/* Hiển thị lỗi nếu có */}
-      {errorMsg && (
-        <Alert
-          message="Đăng nhập thất bại"
-          description={errorMsg}
-          type="error"
-          showIcon
-          className="mb-6"
-        />
+      {/* Loading overlay khi đang lấy thông tin user */}
+      {fetchingUser && (
+        <div className="mb-4 text-center text-gray-500">
+          <Spin indicator={<LoadingOutlined spin />} /> Đang tải thông tin người dùng...
+        </div>
       )}
 
       <Form
@@ -59,19 +85,21 @@ const Login: React.FC = () => {
         initialValues={{ remember: true }}
         onFinish={onFinish}
         size="large"
+        disabled={loading || fetchingUser}
       >
         {/* Field: Username */}
         <Form.Item
           name="username"
           rules={[
             { required: true, message: 'Vui lòng nhập tên đăng nhập!' },
-            { min: 3, message: 'Tên đăng nhập phải > 3 ký tự' }
+            { min: 3, message: 'Tên đăng nhập phải có ít nhất 3 ký tự' }
           ]}
         >
           <Input
             prefix={<UserOutlined className="text-gray-400" />}
             placeholder="Tên đăng nhập (Username)"
             className="rounded-md py-2"
+            autoComplete="username"
           />
         </Form.Item>
 
@@ -80,13 +108,14 @@ const Login: React.FC = () => {
           name="password"
           rules={[
             { required: true, message: 'Vui lòng nhập mật khẩu!' },
-            { min: 6, message: 'Mật khẩu phải > 6 ký tự' } // DB lưu hash, nhưng input client cần validate cơ bản
+            { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' }
           ]}
         >
           <Input.Password
             prefix={<LockOutlined className="text-gray-400" />}
             placeholder="Mật khẩu"
             className="rounded-md py-2"
+            autoComplete="current-password"
           />
         </Form.Item>
 
@@ -96,7 +125,10 @@ const Login: React.FC = () => {
             <Checkbox>Ghi nhớ tôi</Checkbox>
           </Form.Item>
 
-          <a className="text-blue-600 hover:text-blue-800 text-sm font-medium" href="#">
+          <a
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            href="/forgot-password"
+          >
             Quên mật khẩu?
           </a>
         </div>
@@ -107,9 +139,9 @@ const Login: React.FC = () => {
             type="primary"
             htmlType="submit"
             loading={loading}
-            className="w-full h-12 bg-blue-600 hover:bg-blue-500 font-bold text-lg rounded-md shadow-md"
+            className="w-full bg-blue-600 hover:bg-blue-500 font-bold text-lg rounded-md shadow-md"
           >
-            ĐĂNG NHẬP
+            {loading ? 'ĐANG XỬ LÝ...' : 'ĐĂNG NHẬP'}
           </Button>
         </Form.Item>
       </Form>

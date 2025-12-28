@@ -10,7 +10,7 @@ import {
   MenuOutlined,
   BellOutlined
 } from '@ant-design/icons';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 
 // Import Component Sidebar vừa tách
 import Sidebar from './components/Sidebar';
@@ -42,8 +42,10 @@ const MainLayout: React.FC = () => {
 
   // Menu Dropdown của User (Header)
   const userMenu = [
-    { key: 'profile', label: 'Thông tin cá nhân', icon: <UserOutlined /> },
-    { key: 'settings', label: 'Cài đặt hệ thống', icon: <SettingOutlined /> },
+    {
+      key: 'profile', label: < Link to="/profile" > Thông tin cá nhân</Link >, icon: <UserOutlined />
+    },
+    { key: 'settings', label: <Link to="/system/settings">Cài đặt hệ thống</Link>, icon: <SettingOutlined /> },
     { type: 'divider' as const },
     {
       key: 'logout',
