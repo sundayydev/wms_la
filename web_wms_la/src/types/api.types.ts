@@ -119,31 +119,49 @@ export interface UserListDto {
     email: string;
     phoneNumber: string;
     role: string;
+    warehouseName?: string;
     isActive: boolean;
     isLocked: boolean;
+    lastLoginAt?: string;
     createdAt: string;
-    lastLogin?: string;
 }
 
 export interface UserDetailDto extends UserListDto {
-    profilePicture?: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    address?: string;
+    avatar?: string;
+    warehouseID?: string;
+    lastLoginIP?: string;
+    updatedAt: string;
     permissions: string[];
 }
 
 export interface CreateUserDto {
     username: string;
     password: string;
-    fullName?: string;
-    email?: string;
-    phoneNumber?: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    address?: string;
+    avatar?: string;
     role: string;
+    warehouseID?: string;
+    isActive?: boolean;
 }
 
 export interface UpdateUserDto {
     fullName?: string;
     email?: string;
     phoneNumber?: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    address?: string;
+    avatar?: string;
     role?: string;
+    warehouseID?: string;
     isActive?: boolean;
 }
 

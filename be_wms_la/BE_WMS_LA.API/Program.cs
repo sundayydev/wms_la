@@ -66,13 +66,12 @@ builder.Services.AddCors(options =>
 {
     // Policy cho development - cho phép credentials với origins cụ thể
     options.AddPolicy("AllowCredentials", p =>
-        p.WithOrigins(
-            "http://localhost:5173",  // Vite dev server
-            "http://localhost:5023",  // Vite dev server
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5023",
-            "http://127.0.0.1:3000"
-        )
+        p.SetIsOriginAllowed(origin =>
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                return false;
+            return uri.Port == 5173;
+        })
         .AllowAnyMethod()
         .AllowAnyHeader()
         .AllowCredentials()); // Quan trọng: cho phép cookies
