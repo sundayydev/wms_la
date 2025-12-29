@@ -22,6 +22,623 @@ namespace BE_WMS_LA.Core.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.AppSetting", b =>
+                {
+                    b.Property<Guid>("SettingID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("InputType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsEncrypted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Options")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("SettingKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SettingValue")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("SettingID");
+
+                    b.HasIndex("SettingKey")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedByUserID");
+
+                    b.ToTable("AppSettings");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Attachment", b =>
+                {
+                    b.Property<Guid>("AttachmentID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EntityID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FileType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FileURL")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("UploadedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("AttachmentID");
+
+                    b.HasIndex("UploadedByUserID");
+
+                    b.ToTable("Attachments");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.AuditLog", b =>
+                {
+                    b.Property<Guid>("LogID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("EntityID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IPAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("NewValue")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("OldValue")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("RequestID")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("UserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("WarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LogID");
+
+                    b.HasIndex("UserID");
+
+                    b.HasIndex("WarehouseID");
+
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Category", b =>
+                {
+                    b.Property<Guid>("CategoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("CategoryID");
+
+                    b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Component", b =>
+                {
+                    b.Property<Guid>("ComponentID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("BasePrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<Guid?>("CategoryID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Competitors")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ComponentName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Documents")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ImageURL")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsSerialized")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SKU")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal?>("SellPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ComponentID");
+
+                    b.HasIndex("CategoryID");
+
+                    b.HasIndex("SKU")
+                        .IsUnique();
+
+                    b.ToTable("Components");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Customer", b =>
+                {
+                    b.Property<Guid>("CustomerID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CustomerCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CustomerGroup")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("District")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Ward")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("CustomerID");
+
+                    b.HasIndex("CustomerCode")
+                        .IsUnique();
+
+                    b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.CustomerContact", b =>
+                {
+                    b.Property<Guid>("ContactID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContactName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Department")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDefaultReceiver")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ContactID");
+
+                    b.HasIndex("CustomerID");
+
+                    b.ToTable("CustomerContacts");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.DeviceToken", b =>
+                {
+                    b.Property<Guid>("TokenID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TokenID");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("DeviceTokens");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.InventoryTransaction", b =>
+                {
+                    b.Property<Guid>("TransactionID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("InstanceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ReferenceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TransactionCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("WarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TransactionID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("CreatedByUserID");
+
+                    b.HasIndex("InstanceID");
+
+                    b.HasIndex("TransactionCode")
+                        .IsUnique();
+
+                    b.HasIndex("WarehouseID");
+
+                    b.ToTable("InventoryTransactions");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Notification", b =>
+                {
+                    b.Property<Guid>("NotificationID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NotificationType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReferenceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("NotificationID");
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Payment", b =>
+                {
+                    b.Property<Guid>("PaymentID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CustomerID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ReferenceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("SupplierID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TransactionID")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PaymentID");
+
+                    b.HasIndex("CreatedByUserID");
+
+                    b.HasIndex("CustomerID");
+
+                    b.HasIndex("PaymentCode")
+                        .IsUnique();
+
+                    b.HasIndex("SupplierID");
+
+                    b.ToTable("Payments");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Permission", b =>
                 {
                     b.Property<Guid>("PermissionID")
@@ -609,6 +1226,666 @@ namespace BE_WMS_LA.Core.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ProductInstance", b =>
+                {
+                    b.Property<Guid>("InstanceID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ActualImportPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<Guid>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IMEI1")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("IMEI2")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("ImportDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PartNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("WarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("InstanceID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("IMEI1")
+                        .IsUnique()
+                        .HasFilter("\"IMEI1\" IS NOT NULL");
+
+                    b.HasIndex("SerialNumber")
+                        .IsUnique();
+
+                    b.HasIndex("WarehouseID");
+
+                    b.ToTable("ProductInstances");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
+                {
+                    b.Property<Guid>("PurchaseOrderID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ActualDeliveryDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateOnly?>("ExpectedDeliveryDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("FinalAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OrderCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("SupplierID")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("PurchaseOrderID");
+
+                    b.HasIndex("CreatedByUserID");
+
+                    b.HasIndex("OrderCode")
+                        .IsUnique();
+
+                    b.HasIndex("SupplierID");
+
+                    b.HasIndex("WarehouseID");
+
+                    b.ToTable("PurchaseOrders");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrderDetail", b =>
+                {
+                    b.Property<Guid>("PurchaseOrderDetailID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PurchaseOrderID")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReceivedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PurchaseOrderDetailID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("PurchaseOrderID");
+
+                    b.ToTable("PurchaseOrderDetails");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Repair", b =>
+                {
+                    b.Property<Guid>("RepairID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ActualCompletionDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CustomerID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("ExpectedCompletionDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("InstanceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("PartsCost")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ProblemDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RepairCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("RepairCost")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("RepairDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("TechnicianUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalCost")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WarrantyType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("RepairID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("CustomerID");
+
+                    b.HasIndex("InstanceID");
+
+                    b.HasIndex("RepairCode")
+                        .IsUnique();
+
+                    b.HasIndex("TechnicianUserID");
+
+                    b.ToTable("Repairs");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.RepairPart", b =>
+                {
+                    b.Property<Guid>("RepairPartID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("InstanceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RepairID")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RepairPartID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("InstanceID");
+
+                    b.HasIndex("RepairID");
+
+                    b.ToTable("RepairParts");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.RepairStatusHistory", b =>
+                {
+                    b.Property<Guid>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangeDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ChangedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NewStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OldStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("RepairID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("ChangedByUserID");
+
+                    b.HasIndex("RepairID");
+
+                    b.ToTable("RepairStatusHistory");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SalesOrder", b =>
+                {
+                    b.Property<Guid>("SalesOrderID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CustomerID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<decimal>("FinalAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OrderCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("SalesOrderID");
+
+                    b.HasIndex("CreatedByUserID");
+
+                    b.HasIndex("CustomerID");
+
+                    b.HasIndex("OrderCode")
+                        .IsUnique();
+
+                    b.HasIndex("WarehouseID");
+
+                    b.ToTable("SalesOrders");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SalesOrderDetail", b =>
+                {
+                    b.Property<Guid>("SalesOrderDetailID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("FinalPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<Guid?>("InstanceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SalesOrderID")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SalesOrderDetailID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("InstanceID");
+
+                    b.HasIndex("SalesOrderID");
+
+                    b.ToTable("SalesOrderDetails");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.StockTransfer", b =>
+                {
+                    b.Property<Guid>("TransferID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ActualReceiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("ExpectedReceiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("FromWarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ReceivedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ToWarehouseID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TransferCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("TransferDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TransferID");
+
+                    b.HasIndex("CreatedByUserID");
+
+                    b.HasIndex("FromWarehouseID");
+
+                    b.HasIndex("ReceivedByUserID");
+
+                    b.HasIndex("ToWarehouseID");
+
+                    b.HasIndex("TransferCode")
+                        .IsUnique();
+
+                    b.ToTable("StockTransfers");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.StockTransferDetail", b =>
+                {
+                    b.Property<Guid>("TransferDetailID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InstanceID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReceivedQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TransferID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TransferDetailID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("InstanceID");
+
+                    b.HasIndex("TransferID");
+
+                    b.ToTable("StockTransferDetails");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Supplier", b =>
+                {
+                    b.Property<Guid>("SupplierID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("BankAccount")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SupplierCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SupplierName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SupplierID");
+
+                    b.HasIndex("SupplierCode")
+                        .IsUnique();
+
+                    b.ToTable("Suppliers");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("UserID")
@@ -696,6 +1973,12 @@ namespace BE_WMS_LA.Core.Migrations
 
                     b.HasKey("UserID");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
                     b.HasIndex("WarehouseID");
 
                     b.ToTable("User");
@@ -772,6 +2055,375 @@ namespace BE_WMS_LA.Core.Migrations
                     b.ToTable("Warehouses");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.AppSetting", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserID");
+
+                    b.Navigation("UpdatedByUser");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Attachment", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserID");
+
+                    b.Navigation("UploadedByUser");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.AuditLog", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseID");
+
+                    b.Navigation("User");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Component", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Category", "Category")
+                        .WithMany("Components")
+                        .HasForeignKey("CategoryID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.CustomerContact", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Customer", "Customer")
+                        .WithMany("Contacts")
+                        .HasForeignKey("CustomerID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.DeviceToken", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.InventoryTransaction", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.ProductInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Component");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Notification", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Payment", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Customer", "Customer")
+                        .WithMany("Payments")
+                        .HasForeignKey("CustomerID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Supplier", "Supplier")
+                        .WithMany("Payments")
+                        .HasForeignKey("SupplierID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ProductInstance", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany("ProductInstances")
+                        .HasForeignKey("ComponentID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Component");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Supplier", "Supplier")
+                        .WithMany("PurchaseOrders")
+                        .HasForeignKey("SupplierID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Supplier");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrderDetail", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("Details")
+                        .HasForeignKey("PurchaseOrderID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Component");
+
+                    b.Navigation("PurchaseOrder");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Repair", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Customer", "Customer")
+                        .WithMany("Repairs")
+                        .HasForeignKey("CustomerID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.ProductInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "Technician")
+                        .WithMany()
+                        .HasForeignKey("TechnicianUserID");
+
+                    b.Navigation("Component");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("Technician");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.RepairPart", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.ProductInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Repair", "Repair")
+                        .WithMany("Parts")
+                        .HasForeignKey("RepairID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Component");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("Repair");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.RepairStatusHistory", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Repair", "Repair")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("RepairID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("Repair");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SalesOrder", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Customer", "Customer")
+                        .WithMany("SalesOrders")
+                        .HasForeignKey("CustomerID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Warehouse");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SalesOrderDetail", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.ProductInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.SalesOrder", "SalesOrder")
+                        .WithMany("Details")
+                        .HasForeignKey("SalesOrderID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Component");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("SalesOrder");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.StockTransfer", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "FromWarehouse")
+                        .WithMany()
+                        .HasForeignKey("FromWarehouseID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "ReceivedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserID");
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "ToWarehouse")
+                        .WithMany()
+                        .HasForeignKey("ToWarehouseID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("FromWarehouse");
+
+                    b.Navigation("ReceivedByUser");
+
+                    b.Navigation("ToWarehouse");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.StockTransferDetail", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany()
+                        .HasForeignKey("ComponentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.ProductInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("InstanceID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.StockTransfer", "StockTransfer")
+                        .WithMany("Details")
+                        .HasForeignKey("TransferID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Component");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("StockTransfer");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.User", b =>
                 {
                     b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
@@ -793,7 +2445,7 @@ namespace BE_WMS_LA.Core.Migrations
                     b.HasOne("BE_WMS_LA.Domain.Models.User", "User")
                         .WithMany("UserPermissions")
                         .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Permission");
@@ -810,9 +2462,59 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Navigation("Manager");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Category", b =>
+                {
+                    b.Navigation("Components");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Component", b =>
+                {
+                    b.Navigation("ProductInstances");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Customer", b =>
+                {
+                    b.Navigation("Contacts");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("Repairs");
+
+                    b.Navigation("SalesOrders");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Permission", b =>
                 {
                     b.Navigation("UserPermissions");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
+                {
+                    b.Navigation("Details");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Repair", b =>
+                {
+                    b.Navigation("Parts");
+
+                    b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SalesOrder", b =>
+                {
+                    b.Navigation("Details");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.StockTransfer", b =>
+                {
+                    b.Navigation("Details");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.Supplier", b =>
+                {
+                    b.Navigation("Payments");
+
+                    b.Navigation("PurchaseOrders");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.User", b =>

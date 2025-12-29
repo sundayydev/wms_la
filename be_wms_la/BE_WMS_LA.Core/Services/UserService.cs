@@ -151,11 +151,8 @@ public class UserService
 
         await _context.Users.AddAsync(user);
 
-        // Nếu là Admin, gán tất cả quyền
-        if (dto.Role == UserRoles.Admin)
-        {
-            await AssignAllPermissionsToUser(user.UserID);
-        }
+        // Gán quyền mặc định theo role
+        await AssignPermissionsByRoleAsync(user.UserID, dto.Role);
 
         await _context.SaveChangesAsync();
 
@@ -197,14 +194,10 @@ public class UserService
         // Cập nhật role và quyền nếu cần
         if (!string.IsNullOrEmpty(dto.Role) && dto.Role != user.Role)
         {
-            var oldRole = user.Role;
             user.Role = dto.Role;
 
-            // Nếu chuyển sang Admin, gán tất cả quyền
-            if (dto.Role == UserRoles.Admin && oldRole != UserRoles.Admin)
-            {
-                await AssignAllPermissionsToUser(user.UserID);
-            }
+            // Xóa quyền cũ và gán quyền mới theo role
+            await AssignPermissionsByRoleAsync(user.UserID, dto.Role);
         }
 
         user.UpdatedAt = DateTime.UtcNow;
@@ -348,12 +341,55 @@ public class UserService
     }
 
     /// <summary>
+    /// Gán quyền mặc định theo role cho người dùng
+    /// Dựa theo tài liệu phân quyền RolePermission.md
+    /// </summary>
+    /// <param name="userId">ID người dùng</param>
+    /// <param name="role">Vai trò (ADMIN, WAREHOUSE, RECEPTIONIST, TECHNICIAN)</param>
+    private async Task AssignPermissionsByRoleAsync(Guid userId, string role)
+    {
+        // Xóa tất cả quyền hiện tại của user
+        var currentPermissions = await _context.UserPermissions
+            .Where(up => up.UserID == userId)
+            .ToListAsync();
+        _context.UserPermissions.RemoveRange(currentPermissions);
+
+        // Lấy danh sách permission names theo role từ mapping
+        var permissionNames = RolePermissionMapping.GetPermissionsByRole(role);
+
+        if (permissionNames.Count == 0)
+        {
+            return;
+        }
+
+        // Lấy các permission từ database theo tên
+        var permissions = await _context.Permissions
+            .Where(p => permissionNames.Contains(p.PermissionName) && p.DeletedAt == null)
+            .ToListAsync();
+
+        // Gán quyền cho user
+        foreach (var permission in permissions)
+        {
+            await _context.UserPermissions.AddAsync(new UserPermission
+            {
+                UserPermissionID = Guid.NewGuid(),
+                UserID = userId,
+                PermissionID = permission.PermissionID,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
     /// Gán tất cả quyền cho người dùng (dành cho Admin)
     /// </summary>
     private async Task AssignAllPermissionsToUser(Guid userId)
     {
         // Lấy tất cả permission từ database
-        var allPermissions = await _context.Permissions.ToListAsync();
+        var allPermissions = await _context.Permissions
+            .Where(p => p.DeletedAt == null)
+            .ToListAsync();
 
         // Xóa quyền hiện tại
         var currentPermissions = await _context.UserPermissions
