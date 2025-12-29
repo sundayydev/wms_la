@@ -151,6 +151,7 @@ public class PermissionService
             UserID = user.UserID,
             Username = user.Username,
             FullName = user.FullName,
+            Role = user.Role,
             Permissions = permissions,
             IsAdmin = isAdmin
         };

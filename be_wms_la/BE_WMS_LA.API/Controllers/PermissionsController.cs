@@ -399,6 +399,74 @@ public class PermissionsController : ControllerBase
         return Ok(ApiResponse<List<string>>.SuccessResponse(modules));
     }
 
+    /// <summary>
+    /// Lấy danh sách tất cả roles
+    /// </summary>
+    [HttpGet("roles")]
+    [EndpointSummary("Danh sách roles")]
+    [EndpointDescription("Lấy danh sách tất cả vai trò trong hệ thống")]
+    [ProducesResponseType<ApiResponse<List<string>>>(StatusCodes.Status200OK)]
+    public IActionResult GetAllRoles()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Forbid();
+        }
+
+        var roles = RolePermissionMapping.GetAllRoles();
+        return Ok(ApiResponse<List<string>>.SuccessResponse(roles));
+    }
+
+    /// <summary>
+    /// Lấy quyền mặc định theo role
+    /// </summary>
+    /// <param name="role">Tên vai trò</param>
+    [HttpGet("roles/{role}/permissions")]
+    [EndpointSummary("Quyền mặc định theo role")]
+    [EndpointDescription("Lấy danh sách quyền mặc định của một vai trò")]
+    [ProducesResponseType<ApiResponse<List<string>>>(StatusCodes.Status200OK)]
+    public IActionResult GetPermissionsByRole(string role)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Forbid();
+        }
+
+        if (!RolePermissionMapping.IsValidRole(role))
+        {
+            return BadRequest(ApiResponse<List<string>>.ErrorResponse($"Vai trò '{role}' không hợp lệ"));
+        }
+
+        var permissions = RolePermissionMapping.GetPermissionsByRole(role);
+        return Ok(ApiResponse<List<string>>.SuccessResponse(permissions));
+    }
+
+    /// <summary>
+    /// Lấy toàn bộ mapping quyền theo role
+    /// </summary>
+    [HttpGet("roles/mappings")]
+    [EndpointSummary("Mapping quyền theo role")]
+    [EndpointDescription("Lấy toàn bộ mapping quyền mặc định của tất cả vai trò")]
+    [ProducesResponseType<ApiResponse<Dictionary<string, List<string>>>>(StatusCodes.Status200OK)]
+    public IActionResult GetAllRolePermissionMappings()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Forbid();
+        }
+
+        var mappings = new Dictionary<string, List<string>>();
+        foreach (var role in RolePermissionMapping.GetAllRoles())
+        {
+            mappings[role] = RolePermissionMapping.GetPermissionsByRole(role);
+        }
+
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.SuccessResponse(mappings));
+    }
+
     #endregion
 
     #region Helper Methods

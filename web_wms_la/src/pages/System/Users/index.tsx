@@ -28,7 +28,6 @@ import {
 
 // Components
 import {
-    UserStatisticsCards,
     UserFilterBar,
     UserFormModal,
     UserDetail,
@@ -315,9 +314,6 @@ const UserListPage: React.FC = () => {
                     </Button>
                 </Space>
             </div>
-
-            {/* STATISTICS CARDS */}
-            <UserStatisticsCards statistics={statistics} />
 
             {/* FILTER BAR */}
             <UserFilterBar
