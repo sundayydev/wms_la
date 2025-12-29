@@ -221,6 +221,7 @@ export interface UserPermissionDto {
     role: string;
     permissions: PermissionDto[];
     permissionNames: string[];
+    isAdmin: boolean;
 }
 
 // ====================

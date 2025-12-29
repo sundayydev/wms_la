@@ -21,6 +21,9 @@ const PERMISSIONS_ENDPOINTS = {
     SYSTEM: '/Permissions/system',
     SYSTEM_BY_MODULE: (module: string) => `/Permissions/system/module/${module}`,
     SYSTEM_MODULES: '/Permissions/system/modules',
+    ROLES: '/Permissions/roles',
+    ROLE_PERMISSIONS: (role: string) => `/Permissions/roles/${role}/permissions`,
+    ROLE_MAPPINGS: '/Permissions/roles/mappings',
 };
 
 // ====================
@@ -367,6 +370,65 @@ export const getSystemModules = async (): Promise<string[]> => {
     }
 };
 
+// ====================
+// Role Permission Mapping
+// ====================
+
+/**
+ * Lấy danh sách tất cả roles
+ */
+export const getAllRoles = async (): Promise<string[]> => {
+    try {
+        const response = await apiClient.get<ApiResponse<string[]>>(PERMISSIONS_ENDPOINTS.ROLES);
+
+        if (response.data.success) {
+            return response.data.data;
+        }
+
+        throw new Error(response.data.message || 'Không thể lấy danh sách vai trò');
+    } catch (error) {
+        throw new Error(handleApiError(error));
+    }
+};
+
+/**
+ * Lấy quyền mặc định theo role
+ */
+export const getRoleDefaultPermissions = async (role: string): Promise<string[]> => {
+    try {
+        const response = await apiClient.get<ApiResponse<string[]>>(
+            PERMISSIONS_ENDPOINTS.ROLE_PERMISSIONS(role)
+        );
+
+        if (response.data.success) {
+            return response.data.data;
+        }
+
+        throw new Error(response.data.message || 'Không thể lấy quyền mặc định');
+    } catch (error) {
+        throw new Error(handleApiError(error));
+    }
+};
+
+/**
+ * Lấy toàn bộ mapping quyền theo role
+ */
+export const getRolePermissionMappings = async (): Promise<Record<string, string[]>> => {
+    try {
+        const response = await apiClient.get<ApiResponse<Record<string, string[]>>>(
+            PERMISSIONS_ENDPOINTS.ROLE_MAPPINGS
+        );
+
+        if (response.data.success) {
+            return response.data.data;
+        }
+
+        throw new Error(response.data.message || 'Không thể lấy mapping quyền');
+    } catch (error) {
+        throw new Error(handleApiError(error));
+    }
+};
+
 // Export default object với tất cả methods
 const permissionsService = {
     getAllPermissions,
@@ -386,6 +448,10 @@ const permissionsService = {
     getSystemPermissions,
     getSystemPermissionsByModule,
     getSystemModules,
+    getAllRoles,
+    getRoleDefaultPermissions,
+    getRolePermissionMappings,
 };
 
 export default permissionsService;
+

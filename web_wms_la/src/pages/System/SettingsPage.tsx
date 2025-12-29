@@ -80,7 +80,7 @@ const mockSettings: AppSetting[] = [
   {
     SettingID: 'G001',
     SettingKey: 'company_name',
-    SettingValue: 'Công ty Cổ Phần WMS Logistics Toàn Cầu',
+    SettingValue: 'Công ty TNHH Giải pháp công nghệ Lead And Aim Việt Nam',
     Category: 'GENERAL',
     Description: 'Tên pháp lý đầy đủ của doanh nghiệp, hiển thị trên hóa đơn và báo cáo.',
     DataType: 'STRING',
@@ -92,7 +92,7 @@ const mockSettings: AppSetting[] = [
   {
     SettingID: 'G002',
     SettingKey: 'company_short_name',
-    SettingValue: 'WMS Global',
+    SettingValue: 'Lead And Aim',
     Category: 'GENERAL',
     Description: 'Tên viết tắt của công ty, hiển thị trên Header ứng dụng.',
     DataType: 'STRING',
@@ -140,7 +140,7 @@ const mockSettings: AppSetting[] = [
   {
     SettingID: 'G006',
     SettingKey: 'contact_email',
-    SettingValue: 'support@wms-logistics.vn',
+    SettingValue: 'support@leadandaim.com',
     Category: 'GENERAL',
     Description: 'Email liên hệ chung, nhận thông báo từ hệ thống.',
     DataType: 'STRING',
@@ -152,7 +152,7 @@ const mockSettings: AppSetting[] = [
   {
     SettingID: 'G007',
     SettingKey: 'company_website',
-    SettingValue: 'https://wms-logistics.vn',
+    SettingValue: 'https://wms-la.com',
     Category: 'GENERAL',
     Description: 'Website chính thức của doanh nghiệp.',
     DataType: 'STRING',
@@ -313,7 +313,7 @@ const mockSettings: AppSetting[] = [
   {
     SettingID: 'F002',
     SettingKey: 'vat_rate',
-    SettingValue: '8',
+    SettingValue: '10',
     Category: 'FINANCE',
     Description: 'Mức thuế VAT mặc định (%) áp dụng cho sản phẩm/dịch vụ.',
     DataType: 'NUMBER',
@@ -383,10 +383,10 @@ const mockSettings: AppSetting[] = [
     DataType: 'STRING',
     InputType: 'SELECT',
     Options: [
-      { label: '📄 Khổ A4 (210x297mm) - Văn phòng', value: 'A4' },
-      { label: '📄 Khổ A5 (148x210mm) - Tiết kiệm', value: 'A5' },
-      { label: '🧾 K80 (80mm) - Máy in Bill/POS', value: 'K80' },
-      { label: '🏷️ Tem 50x30mm - Nhãn sản phẩm', value: 'LABEL_50x30' }
+      { label: 'Khổ A4 (210x297mm) - Văn phòng', value: 'A4' },
+      { label: 'Khổ A5 (148x210mm) - Tiết kiệm', value: 'A5' },
+      { label: 'K80 (80mm) - Máy in Bill/POS', value: 'K80' },
+      { label: 'Tem 50x30mm - Nhãn sản phẩm', value: 'LABEL_50x30' }
     ],
     IsEncrypted: false,
     IsSystem: false
@@ -418,7 +418,7 @@ const mockSettings: AppSetting[] = [
   {
     SettingID: 'P004',
     SettingKey: 'invoice_footer_text',
-    SettingValue: 'Cảm ơn Quý khách đã tin tưởng sử dụng dịch vụ của WMS Logistics!\nHàng đã mua vui lòng kiểm tra trước khi rời quầy. Đổi trả trong vòng 7 ngày với hóa đơn.',
+    SettingValue: 'Cảm ơn Quý khách đã tin tưởng sử dụng dịch vụ của Lead And Aim!\nHàng đã mua vui lòng kiểm tra trước khi rời quầy. Đổi trả trong vòng 7 ngày với hóa đơn.',
     Category: 'PRINTING',
     Description: 'Nội dung hiển thị dưới chân trang hóa đơn/phiếu xuất kho.',
     DataType: 'STRING',
@@ -468,9 +468,9 @@ const mockSettings: AppSetting[] = [
     DataType: 'STRING',
     InputType: 'SELECT',
     Options: [
-      { label: '🌏 (GMT+07:00) Hà Nội, Bangkok, Jakarta', value: 'Asia/Ho_Chi_Minh' },
-      { label: '🌍 (GMT+00:00) UTC - Coordinated Universal Time', value: 'UTC' },
-      { label: '🌎 (GMT-05:00) Eastern Time (US & Canada)', value: 'America/New_York' }
+      { label: '(GMT+07:00) Hà Nội, Bangkok, Jakarta', value: 'Asia/Ho_Chi_Minh' },
+      { label: '(GMT+00:00) UTC - Coordinated Universal Time', value: 'UTC' },
+      { label: '(GMT-05:00) Eastern Time (US & Canada)', value: 'America/New_York' }
     ],
     IsEncrypted: false,
     IsSystem: true
@@ -520,9 +520,9 @@ const mockSettings: AppSetting[] = [
     DataType: 'STRING',
     InputType: 'SELECT',
     Options: [
-      { label: '🔒 Cách ly hoàn toàn (STRICT) - Mỗi chi nhánh chỉ thấy dữ liệu của mình', value: 'STRICT' },
-      { label: '👁️ Xem chéo (SHARED_VIEW) - Có thể xem tồn kho chi nhánh khác', value: 'SHARED_VIEW' },
-      { label: '🔗 Hợp nhất (UNIFIED) - Dữ liệu được gộp chung', value: 'UNIFIED' }
+      { label: 'Cách ly hoàn toàn (STRICT) - Mỗi chi nhánh chỉ thấy dữ liệu của mình', value: 'STRICT' },
+      { label: 'Xem chéo (SHARED_VIEW) - Có thể xem tồn kho chi nhánh khác', value: 'SHARED_VIEW' },
+      { label: 'Hợp nhất (UNIFIED) - Dữ liệu được gộp chung', value: 'UNIFIED' }
     ],
     IsEncrypted: false,
     IsSystem: true

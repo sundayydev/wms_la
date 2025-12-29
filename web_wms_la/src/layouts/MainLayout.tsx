@@ -19,7 +19,7 @@ const { Header, Content } = Layout;
 const { useBreakpoint } = Grid;
 
 const MainLayout: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [openDrawer, setOpenDrawer] = useState(false);
 
   const {

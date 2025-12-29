@@ -26,6 +26,16 @@ public class UserPermissionDto
     public List<PermissionDto> Permissions { get; set; } = new();
 
     /// <summary>
+    /// Danh sách tên quyền (computed from Permissions)
+    /// </summary>
+    public List<string> PermissionNames => Permissions.Select(p => p.PermissionName).ToList();
+
+    /// <summary>
+    /// Vai trò của người dùng
+    /// </summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>
     /// Có phải Admin không (có tất cả quyền)
     /// </summary>
     public bool IsAdmin { get; set; }
