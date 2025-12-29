@@ -10,14 +10,64 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<User> Users { get; set; } = null!;
-    public DbSet<UserPermission> UserPermissions { get; set; } = null!;
-    public DbSet<Permission> Permissions { get; set; } = null!;
-    public DbSet<Warehouse> Warehouses { get; set; } = null!;
+    #region DbSets
 
+    // User & Permission
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Permission> Permissions { get; set; } = null!;
+    public DbSet<UserPermission> UserPermissions { get; set; } = null!;
+
+    // Warehouse & Inventory
+    public DbSet<Warehouse> Warehouses { get; set; } = null!;
+    public DbSet<Category> Categories { get; set; } = null!;
+    public DbSet<Component> Components { get; set; } = null!;
+    public DbSet<ProductInstance> ProductInstances { get; set; } = null!;
+    public DbSet<InventoryTransaction> InventoryTransactions { get; set; } = null!;
+
+    // Supplier & Customer
+    public DbSet<Supplier> Suppliers { get; set; } = null!;
+    public DbSet<Customer> Customers { get; set; } = null!;
+    public DbSet<CustomerContact> CustomerContacts { get; set; } = null!;
+
+    // Purchase Orders
+    public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
+    public DbSet<PurchaseOrderDetail> PurchaseOrderDetails { get; set; } = null!;
+
+    // Sales Orders
+    public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
+    public DbSet<SalesOrderDetail> SalesOrderDetails { get; set; } = null!;
+
+    // Stock Transfers
+    public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
+    public DbSet<StockTransferDetail> StockTransferDetails { get; set; } = null!;
+
+    // Repairs
+    public DbSet<Repair> Repairs { get; set; } = null!;
+    public DbSet<RepairPart> RepairParts { get; set; } = null!;
+    public DbSet<RepairStatusHistory> RepairStatusHistories { get; set; } = null!;
+
+    // Payments
+    public DbSet<Payment> Payments { get; set; } = null!;
+
+    // Notifications & Device Tokens
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<DeviceToken> DeviceTokens { get; set; } = null!;
+
+    // System
+    public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+    public DbSet<Attachment> Attachments { get; set; } = null!;
+    public DbSet<AppSetting> AppSettings { get; set; } = null!;
+
+    #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
+        // =====================================================
+        // User & Permission Relationships
+        // =====================================================
+
         modelBuilder.Entity<User>()
             .HasOne(u => u.Warehouse)
             .WithMany(w => w.Users)
@@ -28,9 +78,244 @@ public class AppDbContext : DbContext
             .HasOne(up => up.User)
             .WithMany(u => u.UserPermissions)
             .HasForeignKey(up => up.UserID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserPermission>()
+            .HasOne(up => up.Permission)
+            .WithMany(p => p.UserPermissions)
+            .HasForeignKey(up => up.PermissionID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Component & Category Relationships
+        // =====================================================
+
+        modelBuilder.Entity<Component>()
+            .HasOne(c => c.Category)
+            .WithMany(cat => cat.Components)
+            .HasForeignKey(c => c.CategoryID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProductInstance>()
+            .HasOne(pi => pi.Component)
+            .WithMany(c => c.ProductInstances)
+            .HasForeignKey(pi => pi.ComponentID)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Seed permissions từ SystemPermissions
+        modelBuilder.Entity<ProductInstance>()
+            .HasOne(pi => pi.Warehouse)
+            .WithMany()
+            .HasForeignKey(pi => pi.WarehouseID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // =====================================================
+        // Customer Relationships
+        // =====================================================
+
+        modelBuilder.Entity<CustomerContact>()
+            .HasOne(cc => cc.Customer)
+            .WithMany(c => c.Contacts)
+            .HasForeignKey(cc => cc.CustomerID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Purchase Order Relationships
+        // =====================================================
+
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(po => po.Supplier)
+            .WithMany(s => s.PurchaseOrders)
+            .HasForeignKey(po => po.SupplierID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(po => po.Warehouse)
+            .WithMany()
+            .HasForeignKey(po => po.WarehouseID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PurchaseOrderDetail>()
+            .HasOne(pod => pod.PurchaseOrder)
+            .WithMany(po => po.Details)
+            .HasForeignKey(pod => pod.PurchaseOrderID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Sales Order Relationships
+        // =====================================================
+
+        modelBuilder.Entity<SalesOrder>()
+            .HasOne(so => so.Customer)
+            .WithMany(c => c.SalesOrders)
+            .HasForeignKey(so => so.CustomerID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SalesOrder>()
+            .HasOne(so => so.Warehouse)
+            .WithMany()
+            .HasForeignKey(so => so.WarehouseID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SalesOrderDetail>()
+            .HasOne(sod => sod.SalesOrder)
+            .WithMany(so => so.Details)
+            .HasForeignKey(sod => sod.SalesOrderID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Stock Transfer Relationships
+        // =====================================================
+
+        modelBuilder.Entity<StockTransfer>()
+            .HasOne(st => st.FromWarehouse)
+            .WithMany()
+            .HasForeignKey(st => st.FromWarehouseID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<StockTransfer>()
+            .HasOne(st => st.ToWarehouse)
+            .WithMany()
+            .HasForeignKey(st => st.ToWarehouseID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<StockTransferDetail>()
+            .HasOne(std => std.StockTransfer)
+            .WithMany(st => st.Details)
+            .HasForeignKey(std => std.TransferID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Repair Relationships
+        // =====================================================
+
+        modelBuilder.Entity<Repair>()
+            .HasOne(r => r.Customer)
+            .WithMany(c => c.Repairs)
+            .HasForeignKey(r => r.CustomerID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<RepairPart>()
+            .HasOne(rp => rp.Repair)
+            .WithMany(r => r.Parts)
+            .HasForeignKey(rp => rp.RepairID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RepairStatusHistory>()
+            .HasOne(rsh => rsh.Repair)
+            .WithMany(r => r.StatusHistory)
+            .HasForeignKey(rsh => rsh.RepairID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Payment Relationships
+        // =====================================================
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Customer)
+            .WithMany(c => c.Payments)
+            .HasForeignKey(p => p.CustomerID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Supplier)
+            .WithMany(s => s.Payments)
+            .HasForeignKey(p => p.SupplierID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // =====================================================
+        // Notification Relationships
+        // =====================================================
+
+        modelBuilder.Entity<Notification>()
+            .HasOne(n => n.User)
+            .WithMany()
+            .HasForeignKey(n => n.UserID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DeviceToken>()
+            .HasOne(dt => dt.User)
+            .WithMany()
+            .HasForeignKey(dt => dt.UserID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // Unique Indexes
+        // =====================================================
+
+        // User
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Username)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
+        // Component
+        modelBuilder.Entity<Component>()
+            .HasIndex(c => c.SKU)
+            .IsUnique();
+
+        // ProductInstance
+        modelBuilder.Entity<ProductInstance>()
+            .HasIndex(pi => pi.SerialNumber)
+            .IsUnique();
+
+        // Unique index for IMEI1 (only when not null)
+        modelBuilder.Entity<ProductInstance>()
+            .HasIndex(pi => pi.IMEI1)
+            .IsUnique()
+            .HasFilter("\"IMEI1\" IS NOT NULL");
+
+        // Supplier
+        modelBuilder.Entity<Supplier>()
+            .HasIndex(s => s.SupplierCode)
+            .IsUnique();
+
+        // Customer
+        modelBuilder.Entity<Customer>()
+            .HasIndex(c => c.CustomerCode)
+            .IsUnique();
+
+        // Orders
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasIndex(po => po.OrderCode)
+            .IsUnique();
+
+        modelBuilder.Entity<SalesOrder>()
+            .HasIndex(so => so.OrderCode)
+            .IsUnique();
+
+        modelBuilder.Entity<StockTransfer>()
+            .HasIndex(st => st.TransferCode)
+            .IsUnique();
+
+        modelBuilder.Entity<Repair>()
+            .HasIndex(r => r.RepairCode)
+            .IsUnique();
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.PaymentCode)
+            .IsUnique();
+
+        modelBuilder.Entity<InventoryTransaction>()
+            .HasIndex(it => it.TransactionCode)
+            .IsUnique();
+
+        // DeviceToken
+        modelBuilder.Entity<DeviceToken>()
+            .HasIndex(dt => dt.Token)
+            .IsUnique();
+
+        // AppSetting
+        modelBuilder.Entity<AppSetting>()
+            .HasIndex(s => s.SettingKey)
+            .IsUnique();
+
+        // =====================================================
+        // Seed Data
+        // =====================================================
+
         SeedPermissions(modelBuilder);
     }
 
