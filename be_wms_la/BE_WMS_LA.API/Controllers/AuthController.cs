@@ -343,19 +343,24 @@ public class AuthController : ControllerBase
     /// <param name="refreshToken">Refresh Token</param>
     private void SetRefreshTokenCookie(string refreshToken)
     {
+        var isDevelopment = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
+
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true, // Không thể truy cập từ JavaScript
-            Secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(), // HTTPS only in production
-            SameSite = SameSiteMode.Strict, // Chống CSRF
-            Path = CookieSettings.CookiePath, // Chỉ gửi cookie với các request đến /api/auth
+            Secure = !isDevelopment, // HTTPS only in production
+            // Lax cho phép gửi cookie trong cross-origin requests (dev: localhost:5173 -> localhost:5023)
+            // Strict sẽ block cookie trong cross-origin requests
+            SameSite = isDevelopment ? SameSiteMode.Lax : SameSiteMode.Strict,
+            Path = CookieSettings.CookiePath,
             Expires = DateTimeOffset.UtcNow.AddDays(CookieSettings.RefreshTokenExpirationDays),
             IsEssential = true // Cookie thiết yếu cho authentication
         };
 
         Response.Cookies.Append(CookieSettings.RefreshTokenCookieName, refreshToken, cookieOptions);
 
-        _logger.LogDebug("Refresh token cookie set. Expires: {Expires}", cookieOptions.Expires);
+        _logger.LogDebug("Refresh token cookie set. SameSite: {SameSite}, Secure: {Secure}, Expires: {Expires}",
+            cookieOptions.SameSite, cookieOptions.Secure, cookieOptions.Expires);
     }
 
     /// <summary>
@@ -372,11 +377,13 @@ public class AuthController : ControllerBase
     /// </summary>
     private void DeleteRefreshTokenCookie()
     {
+        var isDevelopment = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
+
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
-            Secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(),
-            SameSite = SameSiteMode.Strict,
+            Secure = !isDevelopment,
+            SameSite = isDevelopment ? SameSiteMode.Lax : SameSiteMode.Strict,
             Path = CookieSettings.CookiePath,
             Expires = DateTimeOffset.UtcNow.AddDays(-1) // Đặt thời gian hết hạn trong quá khứ để xóa
         };
