@@ -8,29 +8,79 @@ import {
     MdSpaceDashboard,
     MdInventory,
     MdOutlineShoppingCart,
-    MdPointOfSale
+    MdPointOfSale,
+    MdOutlineQrCodeScanner,
+    MdOutlinePrint,
+    MdOutlineAssignment,
+    MdOutlineLocalShipping
 } from "react-icons/md";
 import {
     FaWarehouse,
     FaTools,
     FaMoneyBillWave,
-    FaUserCog
+    FaUserCog,
+    FaFileInvoiceDollar,
+    FaClipboardCheck,
+    FaBookOpen,
+    FaBoxes
 } from "react-icons/fa";
 import {
     BsBoxSeam,
-    BsUpcScan
+    BsUpcScan,
+    BsClipboard2Check,
+    BsCart4,
+    BsGear,
+    BsPrinter
 } from "react-icons/bs";
 import {
     RiExchangeDollarLine,
-    RiHistoryFill
+    RiHistoryFill,
+    RiFileListLine,
+    RiCustomerService2Line,
+    RiExchangeLine
 } from "react-icons/ri";
+import {
+    HiOutlineDocumentReport,
+    HiOutlineClipboardList,
+    HiOutlineDocumentDuplicate
+} from "react-icons/hi";
+import {
+    AiOutlineBarcode,
+    AiOutlineTool,
+    AiOutlineSafety,
+    AiOutlineAppstore
+} from "react-icons/ai";
+import {
+    BiPackage,
+    BiTransfer,
+    BiCategoryAlt
+} from "react-icons/bi";
 import {
     SwapOutlined,
     TagsOutlined,
     TeamOutlined,
     FileTextOutlined,
     SettingOutlined,
-    SafetyCertificateOutlined
+    SafetyCertificateOutlined,
+    BellOutlined,
+    ShopOutlined,
+    UserOutlined,
+    SolutionOutlined,
+    DatabaseOutlined,
+    FileDoneOutlined,
+    ToolOutlined,
+    CheckCircleOutlined,
+    ExclamationCircleOutlined,
+    FileSearchOutlined,
+    QrcodeOutlined,
+    PrinterOutlined,
+    ScheduleOutlined,
+    AuditOutlined,
+    BookOutlined,
+    ContainerOutlined,
+    ReconciliationOutlined,
+    NodeIndexOutlined,
+    PartitionOutlined
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -51,10 +101,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     const location = useLocation();
 
     // Tự động tính parent key từ URL path
-    // VD: /inventory/products -> 'inventory'
+    // VD: /admin/inventory/products -> 'inventory'
     const getParentKeyFromPath = (path: string): string => {
         const segments = path.split('/').filter(Boolean);
-        return segments.length > 0 ? segments[0] : '';
+        // Skip 'admin' prefix if present
+        const startIndex = segments[0] === 'admin' ? 1 : 0;
+        return segments.length > startIndex ? segments[startIndex] : '';
     };
 
     // State quản lý các submenu đang mở
@@ -76,151 +128,363 @@ const Sidebar: React.FC<SidebarProps> = ({
         setOpenKeys(keys);
     };
 
-    // --- CẤU TRÚC MENU MỚI DỰA TRÊN DB (Sử dụng Link để không reload trang) ---
+    // --- CẤU TRÚC MENU ĐẦY ĐỦ DỰA TRÊN DATABASE ---
     const menuItems = [
-        // 1. DASHBOARD
+        // ============================================================
+        // 1. TỔNG QUAN (DASHBOARD)
+        // ============================================================
         {
-            key: '/',
+            key: '/admin/dashboard',
             icon: <MdSpaceDashboard className="text-lg" />,
-            label: <Link to="/">Tổng quan</Link>,
+            label: <Link to="/admin/dashboard">Tổng quan</Link>,
         },
 
-        // 2. KHO HÀNG (INVENTORY)
+        // ============================================================
+        // 2. QUẢN LÝ KHO (INVENTORY)
+        // Tables: Components, Categories, ProductInstances, Warehouses,
+        //         InventoryTransactions, StockTransfers, ProductLifecycleHistory
+        // ============================================================
         {
             key: 'inventory',
             icon: <MdInventory className="text-lg" />,
             label: 'Quản lý Kho',
             children: [
                 {
-                    key: '/inventory/products',
+                    key: '/admin/inventory/products',
                     icon: <BsBoxSeam />,
-                    label: <Link to="/inventory/products">Danh sách sản phẩm</Link>,
+                    label: <Link to="/admin/inventory/products">Sản phẩm</Link>,
                 },
                 {
-                    key: '/inventory/instances',
+                    key: '/admin/inventory/instances',
                     icon: <BsUpcScan />,
-                    label: <Link to="/inventory/instances">Quản lý Serial/IMEI</Link>,
+                    label: <Link to="/admin/inventory/instances">Quản lý Serial/IMEI</Link>,
                 },
                 {
-                    key: '/inventory/categories',
-                    icon: <TagsOutlined />,
-                    label: <Link to="/inventory/categories">Danh mục hàng</Link>,
+                    key: '/admin/inventory/categories',
+                    icon: <BiCategoryAlt />,
+                    label: <Link to="/admin/inventory/categories">Danh mục sản phẩm</Link>,
                 },
                 {
-                    key: '/inventory/warehouses',
+                    key: '/admin/inventory/warehouses',
                     icon: <FaWarehouse />,
-                    label: <Link to="/inventory/warehouses">Danh sách Kho</Link>,
+                    label: <Link to="/admin/inventory/warehouses">Kho hàng</Link>,
                 },
                 {
-                    key: '/inventory/transfers',
-                    icon: <SwapOutlined />,
-                    label: <Link to="/inventory/transfers">Chuyển kho</Link>,
+                    key: '/admin/inventory/transfers',
+                    icon: <BiTransfer />,
+                    label: <Link to="/admin/inventory/transfers">Chuyển kho</Link>,
                 },
                 {
-                    key: '/inventory/history',
+                    key: '/admin/inventory/transactions',
                     icon: <RiHistoryFill />,
-                    label: <Link to="/inventory/history">Lịch sử xuất nhập</Link>,
+                    label: <Link to="/admin/inventory/transactions">Lịch sử xuất nhập</Link>,
+                },
+                {
+                    key: '/admin/inventory/lifecycle',
+                    icon: <NodeIndexOutlined />,
+                    label: <Link to="/admin/inventory/lifecycle">Vòng đời sản phẩm</Link>,
                 },
             ],
         },
 
-        // 3. MUA HÀNG (PURCHASING)
+        // ============================================================
+        // 3. DANH MỤC SẢN PHẨM (PRODUCT CATALOG)
+        // Tables: ProductKnowledgeBase, ProductBundles, ProductSpareParts, 
+        //         ProductCommonIssues, CommonIssueSolutions
+        // ============================================================
+        {
+            key: 'catalog',
+            icon: <FaBookOpen className="text-lg" />,
+            label: 'Thông tin sản phẩm',
+            children: [
+                {
+                    key: '/admin/catalog/knowledge-base',
+                    icon: <BookOutlined />,
+                    label: <Link to="/admin/catalog/knowledge-base">Kho tri thức</Link>,
+                },
+                {
+                    key: '/admin/catalog/bundles',
+                    icon: <FaBoxes />,
+                    label: <Link to="/admin/catalog/bundles">Đóng gói sản phẩm</Link>,
+                },
+                {
+                    key: '/admin/catalog/spare-parts',
+                    icon: <AiOutlineTool />,
+                    label: <Link to="/admin/catalog/spare-parts">Linh kiện thay thế</Link>,
+                },
+                {
+                    key: '/admin/catalog/common-issues',
+                    icon: <ExclamationCircleOutlined />,
+                    label: <Link to="/admin/catalog/common-issues">Lỗi phổ biến</Link>,
+                },
+            ],
+        },
+
+        // ============================================================
+        // 4. MUA HÀNG / NHẬP KHO (PURCHASING)
+        // Tables: Suppliers, PurchaseOrders, PurchaseOrderDetails, DraftOrders (INBOUND)
+        // ============================================================
         {
             key: 'purchasing',
             icon: <MdOutlineShoppingCart className="text-lg" />,
             label: 'Nhập hàng',
             children: [
                 {
-                    key: '/purchasing/orders',
-                    label: <Link to="/purchasing/orders">Đơn đặt hàng (PO)</Link>,
+                    key: '/admin/purchasing/create',
+                    icon: <MdOutlineQrCodeScanner />,
+                    label: <Link to="/admin/purchasing/create">Phiếu nhập mới</Link>,
                 },
                 {
-                    key: '/purchasing/suppliers',
-                    label: <Link to="/purchasing/suppliers">Nhà cung cấp</Link>,
+                    key: '/admin/purchasing/orders',
+                    icon: <ContainerOutlined />,
+                    label: <Link to="/admin/purchasing/orders">Đơn đặt hàng (PO)</Link>,
+                },
+                {
+                    key: '/admin/purchasing/receiving',
+                    icon: <BiPackage />,
+                    label: <Link to="/admin/purchasing/receiving">Nhận hàng theo PO</Link>,
+                },
+                {
+                    key: '/admin/purchasing/suppliers',
+                    icon: <ShopOutlined />,
+                    label: <Link to="/admin/purchasing/suppliers">Nhà cung cấp</Link>,
                 },
             ],
         },
 
-        // 4. BÁN HÀNG (SALES)
+        // ============================================================
+        // 5. BÁN HÀNG (SALES)
+        // Tables: Customers, CustomerContacts, SalesOrders, SalesOrderDetails, 
+        //         DraftOrders (SALES, DEMO)
+        // ============================================================
         {
             key: 'sales',
             icon: <MdPointOfSale className="text-lg" />,
             label: 'Bán hàng',
             children: [
                 {
-                    key: '/sales/create',
-                    label: <Link to="/sales/create">Tạo đơn bán (POS)</Link>,
+                    key: '/admin/sales/draft',
+                    icon: <MdOutlineQrCodeScanner />,
+                    label: <Link to="/admin/sales/draft">Tạo phiếu xuất</Link>,
                 },
                 {
-                    key: '/sales/orders',
-                    label: <Link to="/sales/orders">Danh sách đơn hàng</Link>,
+                    key: '/admin/sales/orders',
+                    icon: <ReconciliationOutlined />,
+                    label: <Link to="/admin/sales/orders">Đơn hàng</Link>,
                 },
                 {
-                    key: '/sales/customers',
-                    label: <Link to="/sales/customers">Khách hàng</Link>,
+                    key: '/admin/sales/demo',
+                    icon: <MdOutlineAssignment />,
+                    label: <Link to="/admin/sales/demo">Xuất Demo</Link>,
+                },
+                {
+                    key: '/admin/sales/customers',
+                    icon: <TeamOutlined />,
+                    label: <Link to="/admin/sales/customers">Khách hàng</Link>,
                 },
             ],
         },
 
-        // 5. DỊCH VỤ & BẢO HÀNH (REPAIRS)
+        // ============================================================
+        // 6. BÁO GIÁ (QUOTATIONS)
+        // Tables: Quotations, QuotationDetails
+        // ============================================================
+        {
+            key: 'quotations',
+            icon: <FaFileInvoiceDollar className="text-lg" />,
+            label: 'Báo giá',
+            children: [
+                {
+                    key: '/admin/quotations/create',
+                    icon: <HiOutlineDocumentDuplicate />,
+                    label: <Link to="/admin/quotations/create">Tạo báo giá</Link>,
+                },
+                {
+                    key: '/admin/quotations/list',
+                    icon: <RiFileListLine />,
+                    label: <Link to="/admin/quotations/list">Danh sách báo giá</Link>,
+                },
+            ],
+        },
+
+        // ============================================================
+        // 7. SỬA CHỮA & BẢO HÀNH (REPAIRS)
+        // Tables: Repairs, RepairParts, RepairStatusHistory
+        // ============================================================
         {
             key: 'repairs',
             icon: <FaTools className="text-lg" />,
-            label: 'Dịch vụ sửa chữa',
+            label: 'Sửa chữa & Bảo hành',
             children: [
                 {
-                    key: '/repairs/list',
-                    label: <Link to="/repairs/list">Phiếu tiếp nhận</Link>,
+                    key: '/admin/repairs/receive',
+                    icon: <SolutionOutlined />,
+                    label: <Link to="/admin/repairs/receive">Tiếp nhận máy</Link>,
                 },
                 {
-                    key: '/repairs/warranty',
-                    label: <Link to="/repairs/warranty">Tra cứu bảo hành</Link>,
+                    key: '/admin/repairs/list',
+                    icon: <ToolOutlined />,
+                    label: <Link to="/admin/repairs/list">Phiếu sửa chữa</Link>,
+                },
+                {
+                    key: '/admin/repairs/warranty-check',
+                    icon: <FileSearchOutlined />,
+                    label: <Link to="/admin/repairs/warranty-check">Tra cứu bảo hành</Link>,
+                },
+                {
+                    key: '/admin/repairs/parts',
+                    icon: <AiOutlineTool />,
+                    label: <Link to="/admin/repairs/parts">Linh kiện đã thay</Link>,
                 },
             ],
         },
 
-        // 6. TÀI CHÍNH (FINANCE)
+        // ============================================================
+        // 8. KIỂM TRA CHẤT LƯỢNG (QC / INSPECTION)
+        // Tables: TechnicalInspections, TechnicalInspectionItems, InspectionTemplates
+        // ============================================================
+        {
+            key: 'inspection',
+            icon: <FaClipboardCheck className="text-lg" />,
+            label: 'Kiểm tra QC',
+            children: [
+                {
+                    key: '/admin/inspection/create',
+                    icon: <BsClipboard2Check />,
+                    label: <Link to="/admin/inspection/create">Tạo phiếu kiểm tra</Link>,
+                },
+                {
+                    key: '/admin/inspection/list',
+                    icon: <HiOutlineClipboardList />,
+                    label: <Link to="/admin/inspection/list">Danh sách phiếu QC</Link>,
+                },
+                {
+                    key: '/admin/inspection/templates',
+                    icon: <ScheduleOutlined />,
+                    label: <Link to="/admin/inspection/templates">Mẫu checklist</Link>,
+                },
+            ],
+        },
+
+        // ============================================================
+        // 9. IN NHÃN (LABEL PRINTING)
+        // Tables: LabelTemplates, LabelPrintJobs, LabelPrintHistory
+        // ============================================================
+        {
+            key: 'labels',
+            icon: <MdOutlinePrint className="text-lg" />,
+            label: 'In nhãn',
+            children: [
+                {
+                    key: '/admin/labels/print',
+                    icon: <PrinterOutlined />,
+                    label: <Link to="/admin/labels/print">In nhãn sản phẩm</Link>,
+                },
+                {
+                    key: '/admin/labels/templates',
+                    icon: <QrcodeOutlined />,
+                    label: <Link to="/admin/labels/templates">Mẫu nhãn</Link>,
+                },
+                {
+                    key: '/admin/labels/history',
+                    icon: <RiHistoryFill />,
+                    label: <Link to="/admin/labels/history">Lịch sử in</Link>,
+                },
+            ],
+        },
+
+        // ============================================================
+        // 10. TÀI CHÍNH (FINANCE)
+        // Tables: Payments
+        // ============================================================
         {
             key: 'finance',
             icon: <FaMoneyBillWave className="text-lg" />,
-            label: 'Sổ quỹ & Công nợ',
+            label: 'Tài chính',
             children: [
                 {
-                    key: '/finance/payments',
-                    label: <Link to="/finance/payments">Phiếu thu chi</Link>,
+                    key: '/admin/finance/payments',
+                    icon: <RiExchangeDollarLine />,
+                    label: <Link to="/admin/finance/payments">Phiếu thu chi</Link>,
                 },
                 {
-                    key: '/finance/debts',
-                    label: <Link to="/finance/debts">Công nợ đối tác</Link>,
+                    key: '/admin/finance/customer-debts',
+                    icon: <FileDoneOutlined />,
+                    label: <Link to="/admin/finance/customer-debts">Công nợ khách hàng</Link>,
+                },
+                {
+                    key: '/admin/finance/supplier-debts',
+                    icon: <FileDoneOutlined />,
+                    label: <Link to="/admin/finance/supplier-debts">Công nợ nhà cung cấp</Link>,
                 },
             ],
         },
 
-        // 7. HỆ THỐNG (SYSTEM)
+        // ============================================================
+        // 11. BÁO CÁO (REPORTS)
+        // ============================================================
+        {
+            key: 'reports',
+            icon: <HiOutlineDocumentReport className="text-lg" />,
+            label: 'Báo cáo',
+            children: [
+                {
+                    key: '/admin/reports/inventory',
+                    icon: <DatabaseOutlined />,
+                    label: <Link to="/admin/reports/inventory">Tồn kho</Link>,
+                },
+                {
+                    key: '/admin/reports/sales',
+                    icon: <MdPointOfSale />,
+                    label: <Link to="/admin/reports/sales">Doanh thu</Link>,
+                },
+                {
+                    key: '/admin/reports/repairs',
+                    icon: <FaTools />,
+                    label: <Link to="/admin/reports/repairs">Sửa chữa</Link>,
+                },
+                {
+                    key: '/admin/reports/products',
+                    icon: <AiOutlineBarcode />,
+                    label: <Link to="/admin/reports/products">Sản phẩm</Link>,
+                },
+            ],
+        },
+
+        // ============================================================
+        // 12. HỆ THỐNG (SYSTEM)
+        // Tables: User, Permission, UserPermission, Roles, RolePermissions,
+        //         AuditLogs, AppSettings, Notifications, DeviceTokens
+        // ============================================================
         {
             key: 'system',
             icon: <FaUserCog className="text-lg" />,
             label: 'Hệ thống',
             children: [
                 {
-                    key: '/system/users',
+                    key: '/admin/system/users',
                     icon: <TeamOutlined />,
-                    label: <Link to="/system/users">Nhân viên</Link>,
+                    label: <Link to="/admin/system/users">Nhân viên</Link>,
                 },
                 {
-                    key: '/system/permissions',
+                    key: '/admin/system/permissions',
                     icon: <SafetyCertificateOutlined />,
-                    label: <Link to="/system/permissions">Phân quyền</Link>,
+                    label: <Link to="/admin/system/permissions">Phân quyền</Link>,
                 },
                 {
-                    key: '/system/audit-logs',
-                    icon: <FileTextOutlined />,
-                    label: <Link to="/system/audit-logs">Nhật ký hoạt động</Link>,
+                    key: '/admin/system/audit-logs',
+                    icon: <AuditOutlined />,
+                    label: <Link to="/admin/system/audit-logs">Nhật ký hoạt động</Link>,
                 },
                 {
-                    key: '/system/settings',
+                    key: '/admin/system/notifications',
+                    icon: <BellOutlined />,
+                    label: <Link to="/admin/system/notifications">Thông báo</Link>,
+                },
+                {
+                    key: '/admin/system/settings',
                     icon: <SettingOutlined />,
-                    label: <Link to="/system/settings">Cấu hình chung</Link>,
+                    label: <Link to="/admin/system/settings">Cấu hình</Link>,
                 },
             ],
         },

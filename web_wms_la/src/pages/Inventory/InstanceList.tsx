@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   Card,
@@ -14,13 +15,18 @@ import {
   Row,
   Col,
   Descriptions,
-  Divider,
+  Drawer,
   Dropdown,
   message,
   Statistic,
   Badge,
   Tabs,
-  Empty
+  Empty,
+  Progress,
+  Avatar,
+  Segmented,
+  DatePicker,
+  Popover,
 } from 'antd';
 import {
   SearchOutlined,
@@ -39,235 +45,441 @@ import {
   ToolOutlined,
   InboxOutlined,
   QrcodeOutlined,
-  DownOutlined,
   InfoCircleOutlined,
   EnvironmentOutlined,
   DollarOutlined,
   CalendarOutlined,
   UserOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
+  PlusOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  CopyOutlined,
+  TableOutlined,
+  AppstoreOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import dayjs from 'dayjs';
 
+const { Text, Title } = Typography;
+
 // ============================================================================
-// 1. TYPES & INTERFACES
+// 1. TYPES & INTERFACES (Dựa trên Database Schema)
 // ============================================================================
 
+// Trạng thái của từng thiết bị
+type InstanceStatus =
+  | 'IN_STOCK'      // Trong kho - sẵn sàng bán
+  | 'SOLD'          // Đã bán
+  | 'WARRANTY'      // Đang bảo hành
+  | 'REPAIR'        // Đang sửa chữa (ngoài bảo hành)
+  | 'BROKEN'        // Lỗi/Hỏng
+  | 'TRANSFERRING'  // Đang chuyển kho
+  | 'DEMO'          // Demo/Trưng bày
+  | 'SCRAPPED'      // Đã thanh lý
+  | 'LOST';         // Mất/Thất lạc
+
+// Loại chủ sở hữu hiện tại
+type OwnerType = 'COMPANY' | 'CUSTOMER' | 'SUPPLIER' | 'DEMO_PARTNER';
+
+// Zone trong kho
+type WarehouseZone = 'MAIN' | 'REPAIR' | 'DEMO' | 'QUARANTINE';
+
 interface ProductInstance {
-  InstanceID: string;
-  ComponentID: string;
-  ComponentName: string;
-  SKU: string;
-  SerialNumber: string;
-  PartNumber?: string;
-  IMEI1?: string;
-  IMEI2?: string;
-  WarehouseID?: string;
-  WarehouseName?: string;
-  Status: 'IN_STOCK' | 'SOLD' | 'WARRANTY' | 'BROKEN' | 'TRANSFERRING' | 'DEMO';
-  ActualImportPrice: number;
-  ImportDate: string;
-  Notes?: string;
-  CreatedAt: string;
-  UpdatedAt: string;
-  // Thông tin thêm cho hiển thị
-  CategoryName?: string;
-  ImageURL?: string;
+  instanceId: string;
+  componentId: string;
+  warehouseId?: string;
+
+  // Mã định danh
+  serialNumber: string;
+  partNumber?: string;
+  modelNumber?: string;
+  inboundBoxNumber?: string;
+  imei1?: string;
+  imei2?: string;
+  macAddress?: string;
+
+  // Trạng thái
+  status: InstanceStatus;
+
+  // Vị trí trong kho
+  locationCode?: string;
+  zone?: WarehouseZone;
+
+  // Chủ sở hữu
+  currentOwnerType: OwnerType;
+  currentOwnerId?: string;
+  currentOwnerName?: string;
+
+  // Bảo hành
+  warrantyStartDate?: string;
+  warrantyEndDate?: string;
+  warrantyMonths: number;
+
+  // Sửa chữa
+  totalRepairCount: number;
+  lastRepairDate?: string;
+
+  // Giá
+  actualImportPrice?: number;
+  actualSellPrice?: number;
+  soldDate?: string;
+
+  // Audit
+  importDate: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+
+  // Joined fields (từ Components, Warehouses)
+  componentName: string;
+  sku: string;
+  brand?: string;
+  warehouseName?: string;
+  categoryName?: string;
+  imageUrl?: string;
 }
 
 interface LifecycleEvent {
-  id: string;
-  date: string;
-  action: 'IMPORT' | 'TRANSFER' | 'SOLD' | 'WARRANTY_IN' | 'WARRANTY_OUT' | 'CHECK' | 'STATUS_CHANGE';
-  description: string;
-  fromWarehouse?: string;
-  toWarehouse?: string;
-  user: string;
-  note?: string;
+  historyId: string;
+  eventType: string;
+  eventDate: string;
+  oldStatus?: string;
+  newStatus?: string;
+  oldWarehouseName?: string;
+  newWarehouseName?: string;
+  description?: string;
+  performedByUser: string;
+  referenceCode?: string;
 }
 
 // ============================================================================
-// 2. MOCK DATA
+// 2. STATUS CONFIG
+// ============================================================================
+
+const STATUS_CONFIG: Record<InstanceStatus, {
+  color: string;
+  icon: React.ReactNode;
+  text: string;
+  bgColor: string;
+  description: string;
+}> = {
+  IN_STOCK: {
+    color: 'success',
+    icon: <CheckCircleOutlined />,
+    text: 'Trong kho',
+    bgColor: '#f6ffed',
+    description: 'Sẵn sàng bán'
+  },
+  SOLD: {
+    color: 'blue',
+    icon: <ShopOutlined />,
+    text: 'Đã bán',
+    bgColor: '#e6f4ff',
+    description: 'Đã bán cho khách hàng'
+  },
+  WARRANTY: {
+    color: 'warning',
+    icon: <SafetyCertificateOutlined />,
+    text: 'Bảo hành',
+    bgColor: '#fffbe6',
+    description: 'Đang trong quá trình bảo hành'
+  },
+  REPAIR: {
+    color: 'orange',
+    icon: <ToolOutlined />,
+    text: 'Sửa chữa',
+    bgColor: '#fff7e6',
+    description: 'Đang sửa chữa (ngoài BH)'
+  },
+  BROKEN: {
+    color: 'error',
+    icon: <CloseCircleOutlined />,
+    text: 'Lỗi/Hỏng',
+    bgColor: '#fff2f0',
+    description: 'Thiết bị bị lỗi'
+  },
+  TRANSFERRING: {
+    color: 'processing',
+    icon: <SwapOutlined />,
+    text: 'Đang chuyển',
+    bgColor: '#f0f5ff',
+    description: 'Đang vận chuyển giữa các kho'
+  },
+  DEMO: {
+    color: 'purple',
+    icon: <EyeOutlined />,
+    text: 'Demo',
+    bgColor: '#f9f0ff',
+    description: 'Dùng để trưng bày/demo'
+  },
+  SCRAPPED: {
+    color: 'default',
+    icon: <ExclamationCircleOutlined />,
+    text: 'Đã thanh lý',
+    bgColor: '#fafafa',
+    description: 'Đã thanh lý/hủy bỏ'
+  },
+  LOST: {
+    color: 'magenta',
+    icon: <WarningOutlined />,
+    text: 'Mất/Thất lạc',
+    bgColor: '#fff0f6',
+    description: 'Không tìm thấy'
+  },
+};
+
+const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([key, config]) => ({
+  value: key,
+  label: (
+    <span className="flex items-center gap-2">
+      {config.icon}
+      {config.text}
+    </span>
+  ),
+}));
+
+const ZONE_CONFIG: Record<WarehouseZone, { label: string; color: string }> = {
+  MAIN: { label: 'Khu chính', color: 'blue' },
+  REPAIR: { label: 'Khu sửa chữa', color: 'orange' },
+  DEMO: { label: 'Khu trưng bày', color: 'purple' },
+  QUARANTINE: { label: 'Khu cách ly', color: 'red' },
+};
+
+// ============================================================================
+// 3. MOCK DATA
 // ============================================================================
 
 const mockInstances: ProductInstance[] = [
   {
-    InstanceID: 'ins-001',
-    ComponentID: 'comp-1',
-    ComponentName: 'Máy kiểm kho PDA Mobydata M63 V2',
-    SKU: 'MOBY-M63-V2',
-    SerialNumber: 'M63V2-2024-00001',
-    WarehouseID: 'wh-1',
-    WarehouseName: 'Kho Tổng HCM',
-    Status: 'IN_STOCK',
-    ActualImportPrice: 8500000,
-    ImportDate: '2024-12-20',
-    CreatedAt: '2024-12-20T08:30:00',
-    UpdatedAt: '2024-12-20T08:30:00',
-    CategoryName: 'Thiết bị cầm tay',
-    ImageURL: 'https://via.placeholder.com/100'
+    instanceId: 'ins-001',
+    componentId: 'comp-1',
+    componentName: 'Máy kiểm kho PDA Mobydata M63 V2',
+    sku: 'MOBY-M63-V2',
+    brand: 'Mobydata',
+    serialNumber: 'M63V2-2024-00001',
+    modelNumber: 'M63-V2-WIFI',
+    warehouseId: 'wh-1',
+    warehouseName: 'Kho Tổng HCM',
+    locationCode: 'A-01-R2-S3-B05',
+    zone: 'MAIN',
+    status: 'IN_STOCK',
+    currentOwnerType: 'COMPANY',
+    warrantyMonths: 12,
+    totalRepairCount: 0,
+    actualImportPrice: 5500000,
+    importDate: '2024-12-20',
+    createdAt: '2024-12-20T08:30:00',
+    updatedAt: '2024-12-20T08:30:00',
+    categoryName: 'Thiết bị cầm tay',
+    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=pda1',
   },
   {
-    InstanceID: 'ins-002',
-    ComponentID: 'comp-1',
-    ComponentName: 'Máy kiểm kho PDA Mobydata M63 V2',
-    SKU: 'MOBY-M63-V2',
-    SerialNumber: 'M63V2-2024-00002',
-    WarehouseID: 'wh-1',
-    WarehouseName: 'Kho Tổng HCM',
-    Status: 'IN_STOCK',
-    ActualImportPrice: 8500000,
-    ImportDate: '2024-12-20',
-    CreatedAt: '2024-12-20T08:30:00',
-    UpdatedAt: '2024-12-20T08:30:00',
-    CategoryName: 'Thiết bị cầm tay',
+    instanceId: 'ins-002',
+    componentId: 'comp-1',
+    componentName: 'Máy kiểm kho PDA Mobydata M63 V2',
+    sku: 'MOBY-M63-V2',
+    brand: 'Mobydata',
+    serialNumber: 'M63V2-2024-00002',
+    warehouseId: 'wh-1',
+    warehouseName: 'Kho Tổng HCM',
+    locationCode: 'A-01-R2-S3-B06',
+    zone: 'MAIN',
+    status: 'IN_STOCK',
+    currentOwnerType: 'COMPANY',
+    warrantyMonths: 12,
+    totalRepairCount: 0,
+    actualImportPrice: 5500000,
+    importDate: '2024-12-20',
+    createdAt: '2024-12-20T08:30:00',
+    updatedAt: '2024-12-20T08:30:00',
+    categoryName: 'Thiết bị cầm tay',
   },
   {
-    InstanceID: 'ins-003',
-    ComponentID: 'comp-2',
-    ComponentName: 'iPhone 15 Pro Max 256GB - Titan',
-    SKU: 'IP15PM-256-TI',
-    SerialNumber: 'DNPXR123456789',
-    IMEI1: '356998000001234',
-    IMEI2: '356998000001235',
-    WarehouseID: 'wh-2',
-    WarehouseName: 'Kho CN Hà Nội',
-    Status: 'SOLD',
-    ActualImportPrice: 24500000,
-    ImportDate: '2024-11-15',
-    Notes: 'Đã bán cho KH: Công ty ABC - Hóa đơn #HD2024-001',
-    CreatedAt: '2024-11-15T10:00:00',
-    UpdatedAt: '2024-12-01T14:30:00',
-    CategoryName: 'Điện thoại',
+    instanceId: 'ins-003',
+    componentId: 'comp-2',
+    componentName: 'Zebra TC21 Android Mobile Computer',
+    sku: 'ZEBRA-TC21',
+    brand: 'Zebra',
+    serialNumber: 'TC21-SN-99887765',
+    modelNumber: 'TC210K-01A222-A6',
+    imei1: '356998000001234',
+    imei2: '356998000001235',
+    warehouseId: 'wh-2',
+    warehouseName: 'Kho CN Hà Nội',
+    zone: 'MAIN',
+    status: 'SOLD',
+    currentOwnerType: 'CUSTOMER',
+    currentOwnerId: 'cust-001',
+    currentOwnerName: 'Công ty ABC Logistics',
+    warrantyMonths: 24,
+    warrantyStartDate: '2024-12-01',
+    warrantyEndDate: '2026-12-01',
+    totalRepairCount: 0,
+    actualImportPrice: 12000000,
+    actualSellPrice: 15500000,
+    soldDate: '2024-12-01',
+    importDate: '2024-11-15',
+    createdAt: '2024-11-15T10:00:00',
+    updatedAt: '2024-12-01T14:30:00',
+    categoryName: 'Thiết bị cầm tay',
+    notes: 'Đã bán cho Công ty ABC Logistics - Hóa đơn #HD2024-001',
   },
   {
-    InstanceID: 'ins-004',
-    ComponentID: 'comp-3',
-    ComponentName: 'Máy in hóa đơn Xprinter XP-80',
-    SKU: 'XP80-THERMAL',
-    SerialNumber: 'XP80-2024-A0001',
-    WarehouseID: 'wh-3',
-    WarehouseName: 'Kho Bảo Hành',
-    Status: 'WARRANTY',
-    ActualImportPrice: 1200000,
-    ImportDate: '2024-10-10',
-    Notes: 'Lỗi đầu in nhiệt - Đang chờ linh kiện thay thế',
-    CreatedAt: '2024-10-10T09:00:00',
-    UpdatedAt: '2024-12-24T16:00:00',
-    CategoryName: 'Máy in',
+    instanceId: 'ins-004',
+    componentId: 'comp-3',
+    componentName: 'Zebra ZD421 Direct Thermal Printer',
+    sku: 'ZEB-ZD421-DT',
+    brand: 'Zebra',
+    serialNumber: 'ZD421-SN-88776655',
+    warehouseId: 'wh-3',
+    warehouseName: 'Kho Bảo Hành',
+    zone: 'REPAIR',
+    status: 'WARRANTY',
+    currentOwnerType: 'CUSTOMER',
+    currentOwnerId: 'cust-002',
+    currentOwnerName: 'Siêu thị BigMart',
+    warrantyMonths: 12,
+    warrantyStartDate: '2024-06-15',
+    warrantyEndDate: '2025-06-15',
+    totalRepairCount: 1,
+    lastRepairDate: '2024-12-24',
+    actualImportPrice: 8500000,
+    actualSellPrice: 11000000,
+    soldDate: '2024-06-15',
+    importDate: '2024-05-10',
+    createdAt: '2024-05-10T09:00:00',
+    updatedAt: '2024-12-24T16:00:00',
+    categoryName: 'Máy in',
+    notes: 'Lỗi đầu in nhiệt - Đang chờ linh kiện thay thế',
   },
   {
-    InstanceID: 'ins-005',
-    ComponentID: 'comp-4',
-    ComponentName: 'Máy quét mã vạch Zebra DS2208',
-    SKU: 'ZBR-DS2208',
-    SerialNumber: 'DS2208-SN-99887766',
-    WarehouseID: '',
-    WarehouseName: 'Đang chuyển kho...',
-    Status: 'TRANSFERRING',
-    ActualImportPrice: 2800000,
-    ImportDate: '2024-12-24',
-    Notes: 'Chuyển từ Kho HCM → Kho Hà Nội',
-    CreatedAt: '2024-12-24T07:00:00',
-    UpdatedAt: '2024-12-25T08:00:00',
-    CategoryName: 'Máy quét',
+    instanceId: 'ins-005',
+    componentId: 'comp-4',
+    componentName: 'Máy quét mã vạch Honeywell Voyager 1400g',
+    sku: 'HON-1400G',
+    brand: 'Honeywell',
+    serialNumber: 'VOY-SN-55443322',
+    warehouseId: '',
+    status: 'TRANSFERRING',
+    currentOwnerType: 'COMPANY',
+    warrantyMonths: 12,
+    totalRepairCount: 0,
+    actualImportPrice: 2800000,
+    importDate: '2024-12-24',
+    createdAt: '2024-12-24T07:00:00',
+    updatedAt: '2024-12-25T08:00:00',
+    categoryName: 'Máy quét',
+    notes: 'Đang chuyển từ Kho HCM → Kho Hà Nội - Phiếu TF-2024-0015',
   },
   {
-    InstanceID: 'ins-006',
-    ComponentID: 'comp-5',
-    ComponentName: 'Màn hình LCD iPhone 13 Pro - Zin bóc máy',
-    SKU: 'LCD-IP13P-ZIN',
-    SerialNumber: 'LCD13P-2024-X0001',
-    WarehouseID: 'wh-1',
-    WarehouseName: 'Kho Tổng HCM',
-    Status: 'BROKEN',
-    ActualImportPrice: 3500000,
-    ImportDate: '2024-09-20',
-    Notes: 'Vỡ góc màn hình khi vận chuyển - Đã báo NCC',
-    CreatedAt: '2024-09-20T11:00:00',
-    UpdatedAt: '2024-12-20T09:00:00',
-    CategoryName: 'Linh kiện thay thế',
+    instanceId: 'ins-006',
+    componentId: 'comp-5',
+    componentName: 'Electronic Shelf Label 2.9 inch',
+    sku: 'ESL-29-BW',
+    brand: 'Hanshow',
+    serialNumber: 'ESL-BATCH-2024-A001',
+    warehouseId: 'wh-1',
+    warehouseName: 'Kho Tổng HCM',
+    zone: 'MAIN',
+    status: 'BROKEN',
+    currentOwnerType: 'COMPANY',
+    warrantyMonths: 36,
+    totalRepairCount: 0,
+    actualImportPrice: 180000,
+    importDate: '2024-09-20',
+    createdAt: '2024-09-20T11:00:00',
+    updatedAt: '2024-12-20T09:00:00',
+    categoryName: 'Nhãn điện tử',
+    notes: 'Lỗi màn hình E-ink - Không hiển thị',
   },
   {
-    InstanceID: 'ins-007',
-    ComponentID: 'comp-1',
-    ComponentName: 'Máy kiểm kho PDA Mobydata M63 V2',
-    SKU: 'MOBY-M63-V2',
-    SerialNumber: 'M63V2-DEMO-001',
-    WarehouseID: 'wh-1',
-    WarehouseName: 'Kho Tổng HCM',
-    Status: 'DEMO',
-    ActualImportPrice: 8500000,
-    ImportDate: '2024-12-01',
-    Notes: 'Máy demo cho khách hàng trải nghiệm tại showroom',
-    CreatedAt: '2024-12-01T08:00:00',
-    UpdatedAt: '2024-12-01T08:00:00',
-    CategoryName: 'Thiết bị cầm tay',
+    instanceId: 'ins-007',
+    componentId: 'comp-1',
+    componentName: 'Máy kiểm kho PDA Mobydata M63 V2',
+    sku: 'MOBY-M63-V2',
+    brand: 'Mobydata',
+    serialNumber: 'M63V2-DEMO-001',
+    warehouseId: 'wh-1',
+    warehouseName: 'Kho Tổng HCM',
+    zone: 'DEMO',
+    status: 'DEMO',
+    currentOwnerType: 'DEMO_PARTNER',
+    currentOwnerName: 'Showroom Quận 1',
+    warrantyMonths: 12,
+    totalRepairCount: 0,
+    actualImportPrice: 5500000,
+    importDate: '2024-12-01',
+    createdAt: '2024-12-01T08:00:00',
+    updatedAt: '2024-12-01T08:00:00',
+    categoryName: 'Thiết bị cầm tay',
+    notes: 'Máy demo cho khách hàng trải nghiệm tại showroom',
+  },
+  {
+    instanceId: 'ins-008',
+    componentId: 'comp-6',
+    componentName: 'Pin Zebra TC21 Extended (5000mAh)',
+    sku: 'BAT-TC21-EXT',
+    brand: 'Zebra',
+    serialNumber: 'BAT-TC21-EXT-001',
+    warehouseId: 'wh-1',
+    warehouseName: 'Kho Tổng HCM',
+    zone: 'MAIN',
+    status: 'IN_STOCK',
+    currentOwnerType: 'COMPANY',
+    warrantyMonths: 6,
+    totalRepairCount: 0,
+    actualImportPrice: 1200000,
+    importDate: '2024-12-15',
+    createdAt: '2024-12-15T10:00:00',
+    updatedAt: '2024-12-15T10:00:00',
+    categoryName: 'Linh kiện thay thế',
   },
 ];
 
 const mockLifecycleHistory: LifecycleEvent[] = [
   {
-    id: 'evt-1',
-    date: '2024-12-20 08:30',
-    action: 'IMPORT',
+    historyId: 'evt-1',
+    eventType: 'IMPORTED',
+    eventDate: '2024-12-20 08:30',
+    newStatus: 'IN_STOCK',
     description: 'Nhập kho từ đơn hàng PO-2024-0012',
-    user: 'Nguyễn Văn Thủ Kho',
-    note: 'Nhập từ NCC Mobydata Việt Nam'
+    performedByUser: 'Nguyễn Văn Thủ Kho',
+    referenceCode: 'PO-2024-0012',
   },
   {
-    id: 'evt-2',
-    date: '2024-12-22 14:00',
-    action: 'TRANSFER',
-    description: 'Chuyển kho nội bộ',
-    fromWarehouse: 'Kho Hà Nội',
-    toWarehouse: 'Kho HCM',
-    user: 'Trần Văn Vận Chuyển',
-    note: 'Phiếu chuyển TF-2024-0005'
+    historyId: 'evt-2',
+    eventType: 'LOCATION_CHANGED',
+    eventDate: '2024-12-20 09:00',
+    description: 'Đặt vào vị trí kho',
+    performedByUser: 'Nguyễn Văn Thủ Kho',
+    newWarehouseName: 'A-01-R2-S3-B05',
   },
   {
-    id: 'evt-3',
-    date: '2024-12-23 10:00',
-    action: 'CHECK',
-    description: 'Kiểm kê định kỳ - Khớp số liệu',
-    user: 'Lê Thị Kiểm Kê',
+    historyId: 'evt-3',
+    eventType: 'INSPECTED',
+    eventDate: '2024-12-22 14:00',
+    description: 'Kiểm tra QC đầu vào - PASSED',
+    performedByUser: 'Trần Văn QC',
+    referenceCode: 'QC-2024-0088',
   },
   {
-    id: 'evt-4',
-    date: '2024-12-25 09:00',
-    action: 'STATUS_CHANGE',
-    description: 'Cập nhật trạng thái: IN_STOCK → DEMO',
-    user: 'Admin Hệ Thống',
-    note: 'Chuyển máy sang trưng bày showroom'
+    historyId: 'evt-4',
+    eventType: 'STATUS_CHANGED',
+    eventDate: '2024-12-25 09:00',
+    oldStatus: 'IN_STOCK',
+    newStatus: 'DEMO',
+    description: 'Chuyển sang máy trưng bày showroom',
+    performedByUser: 'Admin Hệ Thống',
   },
 ];
 
 // ============================================================================
-// 3. STATUS CONFIG
-// ============================================================================
-
-const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; text: string; bgColor: string }> = {
-  IN_STOCK: { color: 'success', icon: <CheckCircleOutlined />, text: 'Trong kho', bgColor: '#f6ffed' },
-  SOLD: { color: 'blue', icon: <ShopOutlined />, text: 'Đã bán', bgColor: '#e6f4ff' },
-  WARRANTY: { color: 'warning', icon: <ToolOutlined />, text: 'Bảo hành', bgColor: '#fffbe6' },
-  BROKEN: { color: 'error', icon: <CloseCircleOutlined />, text: 'Lỗi/Hỏng', bgColor: '#fff2f0' },
-  TRANSFERRING: { color: 'processing', icon: <SwapOutlined />, text: 'Đang chuyển', bgColor: '#f0f5ff' },
-  DEMO: { color: 'purple', icon: <EyeOutlined />, text: 'Demo/Trưng bày', bgColor: '#f9f0ff' },
-};
-
-const STATUS_OPTIONS = [
-  { label: '🟢 Trong kho (In Stock)', value: 'IN_STOCK' },
-  { label: '🔵 Đã bán (Sold)', value: 'SOLD' },
-  { label: '🟡 Bảo hành (Warranty)', value: 'WARRANTY' },
-  { label: '🔴 Lỗi/Hỏng (Broken)', value: 'BROKEN' },
-  { label: '🔄 Đang chuyển kho', value: 'TRANSFERRING' },
-  { label: '🟣 Demo/Trưng bày', value: 'DEMO' },
-];
-
-// ============================================================================
-// 4. BARCODE COMPONENT (SVG-based simple barcode representation)
+// 4. BARCODE COMPONENT
 // ============================================================================
 
 const BarcodeDisplay: React.FC<{ value: string; height?: number; showText?: boolean }> = ({
@@ -275,18 +487,10 @@ const BarcodeDisplay: React.FC<{ value: string; height?: number; showText?: bool
   height = 50,
   showText = true
 }) => {
-  // Tạo barcode pattern đơn giản dựa trên giá trị
   const generateBars = (text: string) => {
     const bars: { width: number; filled: boolean }[] = [];
     const seed = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-    // Start pattern
-    bars.push({ width: 2, filled: true });
-    bars.push({ width: 2, filled: false });
-    bars.push({ width: 2, filled: true });
-    bars.push({ width: 2, filled: false });
-
-    // Generate bars based on characters
+    bars.push({ width: 2, filled: true }, { width: 2, filled: false }, { width: 2, filled: true }, { width: 2, filled: false });
     for (let i = 0; i < text.length; i++) {
       const charCode = text.charCodeAt(i);
       bars.push({ width: (charCode % 3) + 1, filled: true });
@@ -294,12 +498,7 @@ const BarcodeDisplay: React.FC<{ value: string; height?: number; showText?: bool
       bars.push({ width: ((charCode + seed) % 3) + 1, filled: true });
       bars.push({ width: 1, filled: false });
     }
-
-    // End pattern
-    bars.push({ width: 2, filled: true });
-    bars.push({ width: 2, filled: false });
-    bars.push({ width: 2, filled: true });
-
+    bars.push({ width: 2, filled: true }, { width: 2, filled: false }, { width: 2, filled: true });
     return bars;
   };
 
@@ -330,94 +529,112 @@ const BarcodeDisplay: React.FC<{ value: string; height?: number; showText?: bool
 // ============================================================================
 
 const InstanceList: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<ProductInstance[]>(mockInstances);
-  const [searchText, setSearchText] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [warehouseFilter, setWarehouseFilter] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  // Modals
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  // States
+  const [loading, setLoading] = useState(false);
+  const [data] = useState<ProductInstance[]>(mockInstances);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [warehouseFilter, setWarehouseFilter] = useState<string | undefined>();
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
+  // Drawer/Modal states
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<ProductInstance | null>(null);
   const [newStatus, setNewStatus] = useState<string>('');
   const [statusNote, setStatusNote] = useState('');
 
-  // Ref for barcode print
   const barcodeRef = useRef<HTMLDivElement>(null);
 
-  // --- Helpers ---
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-
-  const getStatusConfig = (status: string) => {
-    return STATUS_CONFIG[status] || { color: 'default', icon: null, text: status, bgColor: '#fafafa' };
-  };
-
-  // --- Statistics ---
-  const stats = {
+  // Computed: Statistics
+  const stats = useMemo(() => ({
     total: data.length,
-    inStock: data.filter(d => d.Status === 'IN_STOCK').length,
-    sold: data.filter(d => d.Status === 'SOLD').length,
-    warranty: data.filter(d => d.Status === 'WARRANTY').length,
-    broken: data.filter(d => d.Status === 'BROKEN').length,
+    inStock: data.filter(d => d.status === 'IN_STOCK').length,
+    sold: data.filter(d => d.status === 'SOLD').length,
+    warranty: data.filter(d => d.status === 'WARRANTY' || d.status === 'REPAIR').length,
+    broken: data.filter(d => d.status === 'BROKEN').length,
+    demo: data.filter(d => d.status === 'DEMO').length,
+    totalValue: data.reduce((sum, d) => sum + (d.actualImportPrice || 0), 0),
+  }), [data]);
+
+  // Computed: Filtered data
+  const filteredData = useMemo(() => {
+    return data.filter(item => {
+      const matchSearch = !searchText ||
+        item.serialNumber.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.componentName.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.sku.toLowerCase().includes(searchText.toLowerCase()) ||
+        (item.imei1 && item.imei1.includes(searchText)) ||
+        (item.imei2 && item.imei2.includes(searchText)) ||
+        (item.macAddress && item.macAddress.toLowerCase().includes(searchText.toLowerCase()));
+
+      const matchStatus = !statusFilter || item.status === statusFilter;
+      const matchWarehouse = !warehouseFilter || item.warehouseId === warehouseFilter;
+
+      return matchSearch && matchStatus && matchWarehouse;
+    });
+  }, [data, searchText, statusFilter, warehouseFilter]);
+
+  // Helpers
+  const formatCurrency = (amount?: number) => {
+    if (amount === undefined) return '---';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  // --- Handlers ---
+  const getStatusConfig = (status: InstanceStatus) => {
+    return STATUS_CONFIG[status] || { color: 'default', icon: null, text: status, bgColor: '#fafafa', description: '' };
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    message.success('Đã sao chép!');
+  };
+
+  // Handlers
   const handleViewDetail = (record: ProductInstance) => {
     setSelectedInstance(record);
-    setIsDetailModalOpen(true);
+    setDetailDrawerOpen(true);
   };
 
   const handleChangeStatus = (record: ProductInstance) => {
     setSelectedInstance(record);
-    setNewStatus(record.Status);
+    setNewStatus(record.status);
     setStatusNote('');
-    setIsStatusModalOpen(true);
+    setStatusModalOpen(true);
   };
 
   const handleViewHistory = (record: ProductInstance) => {
     setSelectedInstance(record);
-    setIsHistoryModalOpen(true);
+    setHistoryModalOpen(true);
   };
 
   const handleSaveStatus = () => {
     if (!selectedInstance || !newStatus) return;
-
-    // Cập nhật status trong data
-    setData(prev => prev.map(item =>
-      item.InstanceID === selectedInstance.InstanceID
-        ? { ...item, Status: newStatus as ProductInstance['Status'], UpdatedAt: new Date().toISOString() }
-        : item
-    ));
-
-    message.success(`Đã cập nhật trạng thái thiết bị ${selectedInstance.SerialNumber} thành "${STATUS_CONFIG[newStatus]?.text}"`);
-    setIsStatusModalOpen(false);
+    message.success(`Đã cập nhật trạng thái: ${STATUS_CONFIG[newStatus as InstanceStatus]?.text}`);
+    setStatusModalOpen(false);
   };
 
   const handlePrintBarcode = () => {
     if (!selectedInstance) return;
-
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
-            <title>In mã Barcode - ${selectedInstance.SerialNumber}</title>
+            <title>In Barcode - ${selectedInstance.serialNumber}</title>
             <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-              .barcode-container { margin: 20px auto; }
               .serial { font-size: 18px; font-weight: bold; margin-top: 10px; font-family: monospace; }
-              .product-name { font-size: 14px; color: #666; margin-top: 5px; }
+              .product-name { font-size: 12px; color: #666; margin-top: 5px; }
               @media print { body { margin: 0; padding: 10px; } }
             </style>
           </head>
           <body>
-            <div class="barcode-container">
-              ${barcodeRef.current?.innerHTML || ''}
-            </div>
-            <div class="product-name">${selectedInstance.ComponentName}</div>
+            <div>${barcodeRef.current?.innerHTML || ''}</div>
+            <div class="product-name">${selectedInstance.componentName}</div>
           </body>
         </html>
       `);
@@ -426,7 +643,15 @@ const InstanceList: React.FC = () => {
     }
   };
 
-  // --- Action Menu for each row ---
+  const handleRefresh = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      message.success('Đã làm mới dữ liệu');
+    }, 800);
+  };
+
+  // Action Menu
   const getActionMenuItems = (record: ProductInstance): MenuProps['items'] => [
     {
       key: 'detail',
@@ -443,7 +668,7 @@ const InstanceList: React.FC = () => {
     {
       key: 'history',
       icon: <HistoryOutlined />,
-      label: 'Xem lịch sử vòng đời',
+      label: 'Lịch sử vòng đời',
       onClick: () => handleViewHistory(record),
     },
     { type: 'divider' },
@@ -456,140 +681,196 @@ const InstanceList: React.FC = () => {
         setTimeout(() => handlePrintBarcode(), 100);
       },
     },
+    {
+      key: 'copy',
+      icon: <CopyOutlined />,
+      label: 'Copy Serial Number',
+      onClick: () => copyToClipboard(record.serialNumber),
+    },
   ];
 
-  // --- Filter data ---
-  const filteredData = data.filter(item => {
-    const matchSearch = !searchText ||
-      item.SerialNumber.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.ComponentName.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.SKU.toLowerCase().includes(searchText.toLowerCase()) ||
-      (item.IMEI1 && item.IMEI1.includes(searchText));
+  // Event icon for timeline
+  const getEventIcon = (eventType: string) => {
+    const icons: Record<string, React.ReactNode> = {
+      'IMPORTED': <InboxOutlined style={{ color: '#52c41a' }} />,
+      'TRANSFERRED_OUT': <SwapOutlined style={{ color: '#1890ff' }} />,
+      'TRANSFERRED_IN': <SwapOutlined style={{ color: '#52c41a' }} />,
+      'SOLD': <ShopOutlined style={{ color: '#1890ff' }} />,
+      'WARRANTY_RECEIVED': <SafetyCertificateOutlined style={{ color: '#faad14' }} />,
+      'WARRANTY_COMPLETED': <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+      'REPAIR_STARTED': <ToolOutlined style={{ color: '#faad14' }} />,
+      'REPAIR_COMPLETED': <ToolOutlined style={{ color: '#52c41a' }} />,
+      'INSPECTED': <FileTextOutlined style={{ color: '#8c8c8c' }} />,
+      'LOCATION_CHANGED': <EnvironmentOutlined style={{ color: '#722ed1' }} />,
+      'STATUS_CHANGED': <SyncOutlined style={{ color: '#722ed1' }} />,
+    };
+    return icons[eventType] || <InfoCircleOutlined />;
+  };
 
-    const matchStatus = !statusFilter || item.Status === statusFilter;
-    const matchWarehouse = !warehouseFilter || item.WarehouseID === warehouseFilter;
-
-    return matchSearch && matchStatus && matchWarehouse;
-  });
-
-  // --- Columns ---
+  // Columns
   const columns: ColumnsType<ProductInstance> = [
     {
       title: 'Mã Serial / IMEI',
       key: 'serial',
-      width: 220,
+      width: 240,
       fixed: 'left',
       render: (_, record) => (
-        <div className="py-2">
+        <div className="py-1">
           <div className="flex items-center gap-2 mb-1">
             <BarcodeOutlined className="text-blue-600 text-lg" />
-            <span className="font-mono font-bold text-gray-800 text-base">
-              {record.SerialNumber}
-            </span>
+            <Text
+              strong
+              className="font-mono text-base cursor-pointer hover:text-blue-600"
+              onClick={() => handleViewDetail(record)}
+            >
+              {record.serialNumber}
+            </Text>
+            <Tooltip title="Copy">
+              <CopyOutlined
+                className="text-gray-400 cursor-pointer hover:text-blue-600 text-xs"
+                onClick={() => copyToClipboard(record.serialNumber)}
+              />
+            </Tooltip>
           </div>
-          {record.IMEI1 && (
+          {record.imei1 && (
             <div className="text-xs text-gray-500 ml-6">
-              IMEI: <span className="font-mono">{record.IMEI1}</span>
+              IMEI: <span className="font-mono">{record.imei1}</span>
             </div>
           )}
-          <div className="text-xs text-gray-400 ml-6 mt-1">
-            SKU: {record.SKU}
-          </div>
+          {record.modelNumber && (
+            <div className="text-xs text-gray-400 ml-6">
+              Model: {record.modelNumber}
+            </div>
+          )}
         </div>
       ),
     },
     {
       title: 'Sản phẩm',
-      dataIndex: 'ComponentName',
       key: 'product',
       width: 280,
-      render: (text, record) => (
+      render: (_, record) => (
+        <div className="flex items-center gap-3">
+          <Avatar
+            shape="square"
+            size={48}
+            src={record.imageUrl}
+            icon={<AppstoreOutlined />}
+            className="bg-gray-100 border flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="font-medium text-gray-800 line-clamp-1">{record.componentName}</div>
+            <div className="flex items-center gap-2 mt-1">
+              <Tag className="m-0 bg-gray-100 text-xs">{record.sku}</Tag>
+              {record.brand && <span className="text-xs text-gray-500">{record.brand}</span>}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Vị trí',
+      key: 'location',
+      width: 180,
+      render: (_, record) => (
         <div>
-          <div className="font-medium text-gray-800">{text}</div>
-          {record.CategoryName && (
-            <Tag className="mt-1" color="default">{record.CategoryName}</Tag>
+          <div className="flex items-center gap-1">
+            <EnvironmentOutlined className="text-gray-400" />
+            <span>{record.warehouseName || '---'}</span>
+          </div>
+          {record.zone && (
+            <Tag className="mt-1" color={ZONE_CONFIG[record.zone]?.color}>
+              {ZONE_CONFIG[record.zone]?.label}
+            </Tag>
+          )}
+          {record.locationCode && (
+            <div className="text-xs text-gray-400 font-mono mt-1">{record.locationCode}</div>
           )}
         </div>
       ),
     },
     {
-      title: 'Vị trí kho',
-      key: 'warehouse',
-      width: 150,
-      render: (_, record) => (
-        <div className="flex items-center gap-1">
-          <EnvironmentOutlined className="text-gray-400" />
-          <span>{record.WarehouseName}</span>
-        </div>
-      ),
-    },
-    {
-      title: 'Giá nhập',
-      dataIndex: 'ActualImportPrice',
-      key: 'price',
-      align: 'right',
-      width: 140,
-      render: (val) => (
-        <span className="font-mono text-gray-700 font-medium">
-          {formatCurrency(val)}
-        </span>
-      ),
-    },
-    {
-      title: 'Ngày nhập',
-      dataIndex: 'ImportDate',
-      key: 'date',
-      width: 120,
-      render: (date) => (
-        <div className="text-gray-600">
-          <CalendarOutlined className="mr-1" />
-          {dayjs(date).format('DD/MM/YYYY')}
-        </div>
-      ),
-    },
-    {
       title: 'Trạng thái',
-      dataIndex: 'Status',
+      dataIndex: 'status',
       key: 'status',
-      width: 150,
+      width: 140,
       align: 'center',
-      render: (status) => {
+      filters: Object.entries(STATUS_CONFIG).map(([key, config]) => ({ text: config.text, value: key })),
+      onFilter: (value, record) => record.status === value,
+      render: (status: InstanceStatus) => {
         const config = getStatusConfig(status);
         return (
-          <Tag
-            color={config.color}
-            icon={config.icon}
-            className="px-3 py-1"
-          >
-            {config.text}
-          </Tag>
+          <Tooltip title={config.description}>
+            <Tag color={config.color} icon={config.icon} className="px-2 py-1">
+              {config.text}
+            </Tag>
+          </Tooltip>
         );
       },
     },
     {
-      title: 'Ghi chú',
-      dataIndex: 'Notes',
-      key: 'notes',
-      width: 200,
-      ellipsis: true,
-      render: (notes) => notes ? (
-        <Tooltip title={notes}>
-          <span className="text-gray-500 text-sm">{notes}</span>
-        </Tooltip>
-      ) : <span className="text-gray-300">-</span>,
+      title: 'Chủ sở hữu',
+      key: 'owner',
+      width: 160,
+      render: (_, record) => {
+        if (record.currentOwnerType === 'COMPANY') {
+          return <span className="text-gray-500 italic">Công ty</span>;
+        }
+        return (
+          <div>
+            <div className="text-sm font-medium">{record.currentOwnerName}</div>
+            <Tag className="mt-1" color={record.currentOwnerType === 'CUSTOMER' ? 'blue' : 'purple'}>
+              {record.currentOwnerType === 'CUSTOMER' ? 'Khách hàng' : 'Đối tác'}
+            </Tag>
+          </div>
+        );
+      },
     },
     {
-      title: 'Thao tác',
+      title: 'Bảo hành',
+      key: 'warranty',
+      width: 140,
+      render: (_, record) => {
+        if (!record.warrantyEndDate) {
+          return <span className="text-gray-400">Chưa kích hoạt</span>;
+        }
+        const endDate = dayjs(record.warrantyEndDate);
+        const isExpired = endDate.isBefore(dayjs());
+        const daysLeft = endDate.diff(dayjs(), 'day');
+
+        return (
+          <div>
+            <div className={`text-sm ${isExpired ? 'text-red-500' : daysLeft < 30 ? 'text-orange-500' : 'text-green-600'}`}>
+              {isExpired ? 'Hết hạn' : `Còn ${daysLeft} ngày`}
+            </div>
+            <div className="text-xs text-gray-400">{endDate.format('DD/MM/YYYY')}</div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Giá nhập',
+      dataIndex: 'actualImportPrice',
+      key: 'price',
+      align: 'right',
+      width: 140,
+      sorter: (a, b) => (a.actualImportPrice || 0) - (b.actualImportPrice || 0),
+      render: (val) => (
+        <span className="font-mono text-gray-700 font-medium">{formatCurrency(val)}</span>
+      ),
+    },
+    {
+      title: '',
       key: 'action',
-      width: 120,
-      align: 'center',
+      width: 80,
       fixed: 'right',
+      align: 'center',
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           <Tooltip title="Xem chi tiết">
             <Button
               type="text"
-              icon={<EyeOutlined />}
+              icon={<EyeOutlined className="text-gray-500" />}
               onClick={() => handleViewDetail(record)}
             />
           </Tooltip>
@@ -601,39 +882,17 @@ const InstanceList: React.FC = () => {
     },
   ];
 
-  // --- Lifecycle Event Icon ---
-  const getEventIcon = (action: string) => {
-    switch (action) {
-      case 'IMPORT': return <InboxOutlined style={{ color: '#52c41a' }} />;
-      case 'TRANSFER': return <SwapOutlined style={{ color: '#1890ff' }} />;
-      case 'SOLD': return <ShopOutlined style={{ color: '#1890ff' }} />;
-      case 'WARRANTY_IN': return <ToolOutlined style={{ color: '#faad14' }} />;
-      case 'WARRANTY_OUT': return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-      case 'CHECK': return <FileTextOutlined style={{ color: '#8c8c8c' }} />;
-      case 'STATUS_CHANGE': return <SyncOutlined style={{ color: '#722ed1' }} />;
-      default: return <InfoCircleOutlined />;
-    }
-  };
-
-  const getEventColor = (action: string) => {
-    switch (action) {
-      case 'IMPORT': return 'green';
-      case 'TRANSFER': return 'blue';
-      case 'SOLD': return 'blue';
-      case 'WARRANTY_IN': return 'orange';
-      case 'WARRANTY_OUT': return 'green';
-      case 'STATUS_CHANGE': return 'purple';
-      default: return 'gray';
-    }
-  };
-
+  // ============================================================================
+  // RENDER
+  // ============================================================================
   return (
     <div className="w-full">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 m-0 flex items-center gap-2">
-            <BarcodeOutlined className="text-blue-600" /> Quản lý Thiết bị (Serial Number)
+            <BarcodeOutlined className="text-blue-600" />
+            Quản lý Serial/IMEI
           </h1>
           <p className="text-gray-500 mt-1">
             Theo dõi chi tiết từng thiết bị, vị trí, trạng thái và lịch sử vòng đời
@@ -642,22 +901,26 @@ const InstanceList: React.FC = () => {
         <Space>
           <Button icon={<QrcodeOutlined />}>Quét mã</Button>
           <Button icon={<ExportOutlined />}>Xuất Excel</Button>
+          <Button type="primary" icon={<PlusOutlined />} className="bg-blue-600" onClick={() => navigate('/admin/inventory/instances/import')}>
+            Nhập thiết bị
+          </Button>
         </Space>
       </div>
 
-      {/* STATISTICS CARDS */}
+      {/* STATISTICS */}
       <Row gutter={[16, 16]} className="mb-6">
         <Col xs={12} sm={8} lg={4}>
-          <Card className="shadow-sm text-center" bodyStyle={{ padding: '16px' }}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
             <Statistic
               title={<span className="text-gray-500">Tổng thiết bị</span>}
               value={stats.total}
               valueStyle={{ color: '#1890ff', fontWeight: 'bold' }}
+              prefix={<AppstoreOutlined />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <Card className="shadow-sm text-center" bodyStyle={{ padding: '16px', background: '#f6ffed' }}>
+          <Card className="shadow-sm" bodyStyle={{ padding: '16px', background: '#f6ffed' }}>
             <Statistic
               title={<span className="text-gray-500">Trong kho</span>}
               value={stats.inStock}
@@ -667,7 +930,7 @@ const InstanceList: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <Card className="shadow-sm text-center" bodyStyle={{ padding: '16px', background: '#e6f4ff' }}>
+          <Card className="shadow-sm" bodyStyle={{ padding: '16px', background: '#e6f4ff' }}>
             <Statistic
               title={<span className="text-gray-500">Đã bán</span>}
               value={stats.sold}
@@ -677,9 +940,9 @@ const InstanceList: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <Card className="shadow-sm text-center" bodyStyle={{ padding: '16px', background: '#fffbe6' }}>
+          <Card className="shadow-sm" bodyStyle={{ padding: '16px', background: '#fffbe6' }}>
             <Statistic
-              title={<span className="text-gray-500">Bảo hành</span>}
+              title={<span className="text-gray-500">Bảo hành/Sửa</span>}
               value={stats.warranty}
               valueStyle={{ color: '#faad14', fontWeight: 'bold' }}
               prefix={<ToolOutlined />}
@@ -687,12 +950,23 @@ const InstanceList: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <Card className="shadow-sm text-center" bodyStyle={{ padding: '16px', background: '#fff2f0' }}>
+          <Card className="shadow-sm" bodyStyle={{ padding: '16px', background: '#f9f0ff' }}>
             <Statistic
-              title={<span className="text-gray-500">Lỗi/Hỏng</span>}
-              value={stats.broken}
-              valueStyle={{ color: '#ff4d4f', fontWeight: 'bold' }}
-              prefix={<CloseCircleOutlined />}
+              title={<span className="text-gray-500">Demo</span>}
+              value={stats.demo}
+              valueStyle={{ color: '#722ed1', fontWeight: 'bold' }}
+              prefix={<EyeOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
+          <Card className="shadow-sm" bodyStyle={{ padding: '16px' }}>
+            <Statistic
+              title={<span className="text-gray-500">Tổng giá trị</span>}
+              value={stats.totalValue}
+              valueStyle={{ color: '#52c41a', fontWeight: 'bold', fontSize: '18px' }}
+              prefix={<DollarOutlined />}
+              formatter={value => formatCurrency(Number(value))}
             />
           </Card>
         </Col>
@@ -700,10 +974,10 @@ const InstanceList: React.FC = () => {
 
       {/* FILTER BAR */}
       <Card className="mb-6 shadow-sm" bordered={false} bodyStyle={{ padding: '16px' }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={8}>
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1 max-w-xl">
             <Input
-              placeholder="🔍 Quét hoặc nhập Serial Number, IMEI, SKU..."
+              placeholder="🔍 Quét hoặc nhập Serial, IMEI, MAC Address, SKU..."
               prefix={<BarcodeOutlined className="text-gray-400" />}
               size="large"
               autoFocus
@@ -711,23 +985,21 @@ const InstanceList: React.FC = () => {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
-          </Col>
-          <Col xs={12} md={5}>
+          </div>
+          <div className="flex flex-wrap gap-3 items-center">
             <Select
               placeholder="Trạng thái"
               allowClear
-              className="w-full"
+              className="w-40"
               size="large"
               value={statusFilter}
               onChange={setStatusFilter}
               options={STATUS_OPTIONS}
             />
-          </Col>
-          <Col xs={12} md={5}>
             <Select
               placeholder="Kho hàng"
               allowClear
-              className="w-full"
+              className="w-44"
               size="large"
               value={warehouseFilter}
               onChange={setWarehouseFilter}
@@ -737,16 +1009,46 @@ const InstanceList: React.FC = () => {
                 { label: '📍 Kho Bảo Hành', value: 'wh-3' },
               ]}
             />
-          </Col>
-          <Col xs={24} md={6}>
-            <Input
-              placeholder="Tìm theo tên sản phẩm..."
-              prefix={<SearchOutlined className="text-gray-400" />}
-              size="large"
-              allowClear
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh} size="large" />
+            <Segmented
+              options={[
+                { value: 'table', icon: <TableOutlined /> },
+                { value: 'grid', icon: <AppstoreOutlined /> },
+              ]}
+              value={viewMode}
+              onChange={val => setViewMode(val as 'table' | 'grid')}
             />
-          </Col>
-        </Row>
+          </div>
+        </div>
+
+        {/* Active filters */}
+        {(statusFilter || warehouseFilter) && (
+          <div className="mt-3 flex items-center gap-2">
+            <FilterOutlined className="text-gray-400" />
+            <span className="text-sm text-gray-500">Bộ lọc:</span>
+            {statusFilter && (
+              <Tag closable onClose={() => setStatusFilter(undefined)}>
+                {STATUS_CONFIG[statusFilter as InstanceStatus]?.text}
+              </Tag>
+            )}
+            {warehouseFilter && (
+              <Tag closable onClose={() => setWarehouseFilter(undefined)}>
+                {warehouseFilter}
+              </Tag>
+            )}
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                setStatusFilter(undefined);
+                setWarehouseFilter(undefined);
+                setSearchText('');
+              }}
+            >
+              Xóa tất cả
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* TABLE */}
@@ -755,132 +1057,185 @@ const InstanceList: React.FC = () => {
           columns={columns}
           dataSource={filteredData}
           loading={loading}
-          rowKey="InstanceID"
+          rowKey="instanceId"
           pagination={{
             pageSize: 10,
             showTotal: (total) => `Tổng ${total} thiết bị`,
             showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50', '100']
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1500 }}
           onRow={(record) => ({
             onDoubleClick: () => handleViewDetail(record),
-            style: { cursor: 'pointer' }
+            className: 'cursor-pointer hover:bg-blue-50/30',
           })}
         />
       </Card>
 
-      {/* ============================================== */}
-      {/* MODAL: XEM CHI TIẾT THIẾT BỊ */}
-      {/* ============================================== */}
-      <Modal
+      {/* DETAIL DRAWER */}
+      <Drawer
         title={
-          <div className="flex items-center gap-2 text-lg">
-            <InfoCircleOutlined className="text-blue-600" />
-            Chi tiết thiết bị
+          <div className="flex items-center gap-3">
+            <Avatar
+              shape="square"
+              size={48}
+              src={selectedInstance?.imageUrl}
+              icon={<AppstoreOutlined />}
+            />
+            <div>
+              <div className="font-semibold">{selectedInstance?.componentName}</div>
+              <div className="text-sm text-gray-500 font-mono">{selectedInstance?.serialNumber}</div>
+            </div>
           </div>
         }
-        open={isDetailModalOpen}
-        onCancel={() => setIsDetailModalOpen(false)}
-        footer={[
-          <Button key="print" icon={<PrinterOutlined />} onClick={handlePrintBarcode}>
-            In Barcode
-          </Button>,
-          <Button key="status" icon={<EditOutlined />} onClick={() => {
-            setIsDetailModalOpen(false);
-            if (selectedInstance) handleChangeStatus(selectedInstance);
-          }}>
-            Đổi trạng thái
-          </Button>,
-          <Button key="close" type="primary" onClick={() => setIsDetailModalOpen(false)}>
-            Đóng
-          </Button>,
-        ]}
-        width={800}
+        placement="right"
+        width={640}
+        open={detailDrawerOpen}
+        onClose={() => setDetailDrawerOpen(false)}
+        extra={
+          <Space>
+            <Button icon={<PrinterOutlined />} onClick={handlePrintBarcode}>
+              In Barcode
+            </Button>
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => {
+                setDetailDrawerOpen(false);
+                if (selectedInstance) handleChangeStatus(selectedInstance);
+              }}
+            >
+              Đổi trạng thái
+            </Button>
+          </Space>
+        }
       >
         {selectedInstance && (
-          <div className="mt-4">
-            {/* Barcode hiển thị lớn */}
+          <div className="space-y-6">
+            {/* Barcode Display */}
             <div
               ref={barcodeRef}
-              className="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300 mb-6 text-center"
+              className="bg-white p-6 rounded-lg border-2 border-dashed border-gray-200 text-center"
             >
-              <BarcodeDisplay
-                value={selectedInstance.SerialNumber}
-                height={80}
-                showText={true}
-              />
+              <BarcodeDisplay value={selectedInstance.serialNumber} height={70} showText={true} />
             </div>
 
+            {/* Tabs */}
             <Tabs
               items={[
                 {
                   key: 'info',
-                  label: '📋 Thông tin cơ bản',
+                  label: '📋 Thông tin',
                   children: (
-                    <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
+                    <Descriptions bordered column={2} size="small">
                       <Descriptions.Item label="Serial Number" span={2}>
-                        <span className="font-mono font-bold text-lg text-blue-600">
-                          {selectedInstance.SerialNumber}
-                        </span>
+                        <Text copyable className="font-mono font-bold text-blue-600">
+                          {selectedInstance.serialNumber}
+                        </Text>
                       </Descriptions.Item>
-                      <Descriptions.Item label="Tên sản phẩm" span={2}>
-                        {selectedInstance.ComponentName}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="SKU">
-                        <Tag>{selectedInstance.SKU}</Tag>
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Danh mục">
-                        {selectedInstance.CategoryName || '-'}
-                      </Descriptions.Item>
-                      {selectedInstance.IMEI1 && (
+                      {selectedInstance.imei1 && (
                         <Descriptions.Item label="IMEI 1">
-                          <span className="font-mono">{selectedInstance.IMEI1}</span>
+                          <Text copyable className="font-mono">{selectedInstance.imei1}</Text>
                         </Descriptions.Item>
                       )}
-                      {selectedInstance.IMEI2 && (
+                      {selectedInstance.imei2 && (
                         <Descriptions.Item label="IMEI 2">
-                          <span className="font-mono">{selectedInstance.IMEI2}</span>
+                          <Text copyable className="font-mono">{selectedInstance.imei2}</Text>
                         </Descriptions.Item>
                       )}
-                      {selectedInstance.PartNumber && (
-                        <Descriptions.Item label="Part Number">
-                          <span className="font-mono">{selectedInstance.PartNumber}</span>
+                      {selectedInstance.macAddress && (
+                        <Descriptions.Item label="MAC Address">
+                          <Text copyable className="font-mono">{selectedInstance.macAddress}</Text>
                         </Descriptions.Item>
                       )}
-                      <Descriptions.Item label="Trạng thái">
+                      <Descriptions.Item label="SKU">
+                        <Tag>{selectedInstance.sku}</Tag>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Thương hiệu">
+                        {selectedInstance.brand || '---'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Model Number" span={2}>
+                        {selectedInstance.modelNumber || '---'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Trạng thái" span={2}>
                         <Tag
-                          color={getStatusConfig(selectedInstance.Status).color}
-                          icon={getStatusConfig(selectedInstance.Status).icon}
+                          color={getStatusConfig(selectedInstance.status).color}
+                          icon={getStatusConfig(selectedInstance.status).icon}
                           className="px-3 py-1"
                         >
-                          {getStatusConfig(selectedInstance.Status).text}
+                          {getStatusConfig(selectedInstance.status).text}
                         </Tag>
                       </Descriptions.Item>
                     </Descriptions>
                   ),
                 },
                 {
-                  key: 'warehouse',
-                  label: '📍 Thông tin kho',
+                  key: 'location',
+                  label: '📍 Vị trí & Giá',
                   children: (
-                    <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
-                      <Descriptions.Item label="Vị trí hiện tại">
-                        <span className="font-medium">{selectedInstance.WarehouseName}</span>
+                    <Descriptions bordered column={2} size="small">
+                      <Descriptions.Item label="Kho hiện tại">
+                        {selectedInstance.warehouseName || '---'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Khu vực">
+                        {selectedInstance.zone ? (
+                          <Tag color={ZONE_CONFIG[selectedInstance.zone]?.color}>
+                            {ZONE_CONFIG[selectedInstance.zone]?.label}
+                          </Tag>
+                        ) : '---'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Vị trí chi tiết" span={2}>
+                        <span className="font-mono">{selectedInstance.locationCode || '---'}</span>
                       </Descriptions.Item>
                       <Descriptions.Item label="Giá nhập">
-                        <span className="font-mono font-bold text-green-600 text-lg">
-                          {formatCurrency(selectedInstance.ActualImportPrice)}
+                        <span className="font-bold text-lg text-gray-800">
+                          {formatCurrency(selectedInstance.actualImportPrice)}
+                        </span>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Giá bán">
+                        <span className="font-bold text-lg text-green-600">
+                          {formatCurrency(selectedInstance.actualSellPrice)}
                         </span>
                       </Descriptions.Item>
                       <Descriptions.Item label="Ngày nhập kho">
-                        {dayjs(selectedInstance.ImportDate).format('DD/MM/YYYY')}
+                        {dayjs(selectedInstance.importDate).format('DD/MM/YYYY')}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Cập nhật lần cuối">
-                        {dayjs(selectedInstance.UpdatedAt).format('DD/MM/YYYY HH:mm')}
+                      <Descriptions.Item label="Cập nhật cuối">
+                        {dayjs(selectedInstance.updatedAt).format('DD/MM/YYYY HH:mm')}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  ),
+                },
+                {
+                  key: 'warranty',
+                  label: '🛡️ Bảo hành',
+                  children: (
+                    <Descriptions bordered column={2} size="small">
+                      <Descriptions.Item label="Thời gian BH">
+                        {selectedInstance.warrantyMonths} tháng
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Số lần sửa chữa">
+                        <Badge count={selectedInstance.totalRepairCount} showZero color={selectedInstance.totalRepairCount > 0 ? 'orange' : 'gray'} />
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Ngày bắt đầu BH">
+                        {selectedInstance.warrantyStartDate ? dayjs(selectedInstance.warrantyStartDate).format('DD/MM/YYYY') : '---'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Ngày kết thúc BH">
+                        {selectedInstance.warrantyEndDate ? dayjs(selectedInstance.warrantyEndDate).format('DD/MM/YYYY') : '---'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Chủ sở hữu" span={2}>
+                        {selectedInstance.currentOwnerType === 'COMPANY' ? (
+                          <span className="text-gray-500 italic">Công ty sở hữu</span>
+                        ) : (
+                          <div>
+                            <span className="font-medium">{selectedInstance.currentOwnerName}</span>
+                            <Tag className="ml-2" color={selectedInstance.currentOwnerType === 'CUSTOMER' ? 'blue' : 'purple'}>
+                              {selectedInstance.currentOwnerType === 'CUSTOMER' ? 'Khách hàng' : 'Đối tác'}
+                            </Tag>
+                          </div>
+                        )}
                       </Descriptions.Item>
                       <Descriptions.Item label="Ghi chú" span={2}>
-                        {selectedInstance.Notes || <span className="text-gray-400">Không có ghi chú</span>}
+                        {selectedInstance.notes || <span className="text-gray-400">Không có ghi chú</span>}
                       </Descriptions.Item>
                     </Descriptions>
                   ),
@@ -889,11 +1244,9 @@ const InstanceList: React.FC = () => {
             />
           </div>
         )}
-      </Modal>
+      </Drawer>
 
-      {/* ============================================== */}
-      {/* MODAL: THAY ĐỔI TRẠNG THÁI */}
-      {/* ============================================== */}
+      {/* STATUS CHANGE MODAL */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -901,36 +1254,36 @@ const InstanceList: React.FC = () => {
             Thay đổi trạng thái thiết bị
           </div>
         }
-        open={isStatusModalOpen}
-        onCancel={() => setIsStatusModalOpen(false)}
+        open={statusModalOpen}
+        onCancel={() => setStatusModalOpen(false)}
         onOk={handleSaveStatus}
         okText="Lưu thay đổi"
         cancelText="Hủy"
         width={500}
       >
         {selectedInstance && (
-          <div className="mt-4">
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <div className="font-bold text-gray-800">{selectedInstance.ComponentName}</div>
+          <div className="mt-4 space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="font-bold text-gray-800">{selectedInstance.componentName}</div>
               <div className="text-sm text-gray-500 font-mono mt-1">
-                Serial: {selectedInstance.SerialNumber}
+                Serial: {selectedInstance.serialNumber}
               </div>
             </div>
 
-            <div className="mb-4">
+            <div>
               <label className="block text-gray-600 mb-2 font-medium">
                 Trạng thái hiện tại:
               </label>
               <Tag
-                color={getStatusConfig(selectedInstance.Status).color}
-                icon={getStatusConfig(selectedInstance.Status).icon}
+                color={getStatusConfig(selectedInstance.status).color}
+                icon={getStatusConfig(selectedInstance.status).icon}
                 className="px-4 py-1 text-base"
               >
-                {getStatusConfig(selectedInstance.Status).text}
+                {getStatusConfig(selectedInstance.status).text}
               </Tag>
             </div>
 
-            <div className="mb-4">
+            <div>
               <label className="block text-gray-600 mb-2 font-medium">
                 Chuyển sang trạng thái mới: <span className="text-red-500">*</span>
               </label>
@@ -958,9 +1311,7 @@ const InstanceList: React.FC = () => {
         )}
       </Modal>
 
-      {/* ============================================== */}
-      {/* MODAL: LỊCH SỬ VÒNG ĐỜI */}
-      {/* ============================================== */}
+      {/* HISTORY MODAL */}
       <Modal
         title={
           <div className="flex items-center gap-2">
@@ -968,10 +1319,10 @@ const InstanceList: React.FC = () => {
             Lịch sử vòng đời thiết bị
           </div>
         }
-        open={isHistoryModalOpen}
-        onCancel={() => setIsHistoryModalOpen(false)}
+        open={historyModalOpen}
+        onCancel={() => setHistoryModalOpen(false)}
         footer={[
-          <Button key="close" type="primary" onClick={() => setIsHistoryModalOpen(false)}>
+          <Button key="close" type="primary" onClick={() => setHistoryModalOpen(false)}>
             Đóng
           </Button>,
         ]}
@@ -979,19 +1330,19 @@ const InstanceList: React.FC = () => {
       >
         {selectedInstance && (
           <div className="mt-4">
-            {/* Thông tin thiết bị */}
+            {/* Device Info */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg mb-6 border border-blue-100">
-              <div className="font-bold text-gray-800 text-lg">{selectedInstance.ComponentName}</div>
+              <div className="font-bold text-gray-800 text-lg">{selectedInstance.componentName}</div>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-gray-600">
                   <BarcodeOutlined className="mr-1" />
-                  <span className="font-mono font-bold">{selectedInstance.SerialNumber}</span>
+                  <span className="font-mono font-bold">{selectedInstance.serialNumber}</span>
                 </span>
                 <Tag
-                  color={getStatusConfig(selectedInstance.Status).color}
-                  icon={getStatusConfig(selectedInstance.Status).icon}
+                  color={getStatusConfig(selectedInstance.status).color}
+                  icon={getStatusConfig(selectedInstance.status).icon}
                 >
-                  {getStatusConfig(selectedInstance.Status).text}
+                  {getStatusConfig(selectedInstance.status).text}
                 </Tag>
               </div>
             </div>
@@ -1001,29 +1352,26 @@ const InstanceList: React.FC = () => {
               <Timeline
                 mode="left"
                 items={mockLifecycleHistory.map(event => ({
-                  dot: getEventIcon(event.action),
-                  color: getEventColor(event.action),
+                  dot: getEventIcon(event.eventType),
                   label: (
-                    <span className="text-gray-500 text-sm">{event.date}</span>
+                    <span className="text-gray-500 text-sm">{event.eventDate}</span>
                   ),
                   children: (
                     <div className="pb-4">
                       <div className="font-bold text-gray-800">{event.description}</div>
-                      {event.fromWarehouse && event.toWarehouse && (
-                        <div className="text-sm text-blue-600 mt-1">
-                          <EnvironmentOutlined className="mr-1" />
-                          {event.fromWarehouse} → {event.toWarehouse}
+                      {event.oldStatus && event.newStatus && (
+                        <div className="text-sm text-purple-600 mt-1">
+                          <SyncOutlined className="mr-1" />
+                          {STATUS_CONFIG[event.oldStatus as InstanceStatus]?.text} → {STATUS_CONFIG[event.newStatus as InstanceStatus]?.text}
                         </div>
+                      )}
+                      {event.referenceCode && (
+                        <Tag className="mt-1" color="blue">{event.referenceCode}</Tag>
                       )}
                       <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                         <UserOutlined />
-                        {event.user}
+                        {event.performedByUser}
                       </div>
-                      {event.note && (
-                        <div className="text-xs text-gray-500 mt-1 italic">
-                          💬 {event.note}
-                        </div>
-                      )}
                     </div>
                   ),
                 }))}

@@ -5,6 +5,7 @@ import { tokenManager } from '../config/api.config';
 // Layouts
 import MainLayout from '../layouts/MainLayout';
 import AuthLayout from '../layouts/AuthLayout';
+import PublicLayout from '../layouts/PublicLayout';
 import SettingsPage from '../pages/System/SettingsPage';
 import AuditLogs from '../pages/System/AuditLogsPage';
 import PermissionsPage from '../pages/System/Permissions';
@@ -12,17 +13,23 @@ import UserList from '../pages/System/UserList';
 import CategoryList from '../pages/Inventory/CategoryList';
 import InventoryHistory from '../pages/Inventory/InventoryHistory';
 import PurchaseOrderList from '../pages/purchasing/PurchaseOrderList';
+import PurchaseOrderCreate from '../pages/purchasing/PurchaseOrderCreate';
+import Receiving from '../pages/purchasing/Receiving';
 import RepairList from '../pages/Repair/RepairList';
 import PaymentList from '../pages/Finance/PaymentList';
 import DebtList from '../pages/Finance/DebtList';
 import WarrantyCheck from '../pages/Repair/WarrantyCheck';
 import RepairCreate from '../pages/Repair/RepairCreate';
 import InstanceList from '../pages/Inventory/InstanceList';
+import InstanceImport from '../pages/Inventory/InstanceImport';
 import SalesOrderList from '../pages/Sales/SalesOrderList';
 import SalesOrderCreate from '../pages/Sales/SalesOrderCreate';
 import OutboundCreate from '../pages/Warehouses/OutboundCreate';
 import InboundCreate from '../pages/Warehouses/InboundCreate';
 import AuditLogsPage from '../pages/System/AuditLogsPage';
+import KnowledgeBase from '../pages/Catalog/KnowledgeBase';
+import SpareParts from '../pages/Catalog/SpareParts';
+import ProductBundles from '../pages/Catalog/ProductBundles';
 
 // ============================================================================
 // 1. TIỆN ÍCH HỖ TRỢ (UTILS)
@@ -64,6 +71,13 @@ const WarehouseList = Loadable(lazy(() => import('../pages/Warehouses/WarehouseL
 const SupplierList = Loadable(lazy(() => import('../pages/purchasing/SupplierList')));
 const CustomerList = Loadable(lazy(() => import('../pages/Customers/CustomerList')));
 
+// Public Pages
+const PublicHome = Loadable(lazy(() => import('../pages/Public/PublicHome')));
+const WarrantyLookup = Loadable(lazy(() => import('../pages/Public/WarrantyLookup')));
+const OrderLookup = Loadable(lazy(() => import('../pages/Public/OrderLookup')));
+const Contact = Loadable(lazy(() => import('../pages/Public/Contact')));
+const ErrorDiagnosis = Loadable(lazy(() => import('../pages/Public/ErrorDiagnosis')));
+
 // ============================================================================
 // 3. CẤU HÌNH BẢO MẬT
 // ============================================================================
@@ -91,7 +105,20 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // ============================================================================
 
 export const router = createBrowserRouter([
-  // --- NHÓM 1: PUBLIC ROUTES (Login, Register...) ---
+  // --- NHÓM 0: PUBLIC PAGES (Trang công khai cho khách hàng) ---
+  {
+    path: '/',
+    element: <PublicLayout />,
+    children: [
+      { index: true, element: <PublicHome /> },
+      { path: 'warranty-lookup', element: <WarrantyLookup /> },
+      { path: 'order-lookup', element: <OrderLookup /> },
+      { path: 'contact', element: <Contact /> },
+      { path: 'error-diagnosis', element: <ErrorDiagnosis /> },
+    ],
+  },
+
+  // --- NHÓM 1: AUTH ROUTES (Login, Register...) ---
   {
     path: '/auth',
     element: <AuthLayout />,
@@ -103,7 +130,7 @@ export const router = createBrowserRouter([
 
   // --- NHÓM 2: PROTECTED ROUTES (Cần đăng nhập) ---
   {
-    path: '/',
+    path: '/admin',
     element: (
       <ProtectedRoute>
         <MainLayout />
@@ -121,13 +148,25 @@ export const router = createBrowserRouter([
       {
         path: 'inventory',
         children: [
-          { path: 'products', element: <ProductList /> },    // /inventory/products
-          { path: 'create', element: <ProductCreate /> },// /inventory/products/create
+          { path: 'products', element: <ProductList /> },    // /admin/inventory/products
+          { path: 'products/create', element: <ProductCreate /> }, // /admin/inventory/products/create
+          { path: 'products/:id/edit', element: <ProductCreate /> }, // /admin/inventory/products/:id/edit
           { path: '', element: <Navigate to="products" /> }, // Mặc định về products
           { path: 'categories', element: <CategoryList /> }, // /inventory/categories
           { path: 'warehouses', element: <WarehouseList /> }, // /inventory/warehouses
           { path: 'history', element: <InventoryHistory /> }, // /inventory/history
-          { path: 'instances', element: <InstanceList /> }, // /inventory/instances
+          { path: 'instances', element: <InstanceList /> }, // /admin/inventory/instances
+          { path: 'instances/import', element: <InstanceImport /> }, // /admin/inventory/instances/import
+        ],
+      },
+      // Module: Catalog (Thông tin sản phẩm)
+      {
+        path: 'catalog',
+        children: [
+          { path: 'knowledge-base', element: <KnowledgeBase /> }, // /admin/catalog/knowledge-base
+          { path: 'spare-parts', element: <SpareParts /> }, // /admin/catalog/spare-parts
+          { path: 'bundles', element: <ProductBundles /> }, // /admin/catalog/bundles
+          { path: '', element: <Navigate to="knowledge-base" /> },
         ],
       },
       // Module: Sales (Bán hàng)
@@ -158,14 +197,15 @@ export const router = createBrowserRouter([
           { path: '', element: <Navigate to="payments" /> },
         ],
       },
-      // Module: Purchasing (Đối tác - NCC, Khách hàng)
       {
         path: 'purchasing',
         children: [
-          { path: 'suppliers', element: <SupplierList /> }, // /partners/suppliers
-          { path: 'customers', element: <CustomerList /> }, // /partners/customers
-          { path: '', element: <Navigate to="customers" /> }, // Mặc định về customers
-          { path: 'orders', element: <PurchaseOrderList /> }, // /partners/orders 
+          { path: 'suppliers', element: <SupplierList /> }, // /admin/purchasing/suppliers
+          { path: 'customers', element: <CustomerList /> }, // /admin/purchasing/customers
+          { path: '', element: <Navigate to="orders" /> }, // Mặc định về orders
+          { path: 'orders', element: <PurchaseOrderList /> }, // /admin/purchasing/orders
+          { path: 'create', element: <PurchaseOrderCreate /> }, // /admin/purchasing/create
+          { path: 'receiving', element: <Receiving /> }, // /admin/purchasing/receiving
         ]
       },
 
