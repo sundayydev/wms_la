@@ -16,7 +16,7 @@ public static class CookieSettings
     public const int RefreshTokenExpirationDays = 7;
 
     /// <summary>
-    /// Path cho cookie
+    /// Path cho cookie - Sử dụng "/" để cookie được gửi với tất cả requests
     /// </summary>
-    public const string CookiePath = "/api";
+    public const string CookiePath = "/";
 }

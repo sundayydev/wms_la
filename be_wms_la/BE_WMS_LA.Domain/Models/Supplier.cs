@@ -64,6 +64,12 @@ public class Supplier
 
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// URL logo của nhà cung cấp
+    /// </summary>
+    [StringLength(500)]
+    public string? LogoUrl { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     #region Audit fields
@@ -78,6 +84,7 @@ public class Supplier
 
     public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    public virtual ICollection<SupplierProduct> SupplierProducts { get; set; } = new List<SupplierProduct>();
 
     #endregion
 }

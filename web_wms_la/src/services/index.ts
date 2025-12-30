@@ -47,5 +47,11 @@ export * from './healthcheck.service';
 // API Config
 export { apiClient, tokenManager, handleApiError } from '../config/api.config';
 
+// Suppliers Service
+export { default as suppliersService } from './suppliers.service';
+export * from './suppliers.service';
+
 // Types
 export type * from '../types/api.types';
+export type * from '../types/type.supplier';
+

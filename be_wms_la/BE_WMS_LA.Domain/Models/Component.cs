@@ -110,5 +110,15 @@ public class Component
     /// </summary>
     public virtual ICollection<ProductInstance> ProductInstances { get; set; } = new List<ProductInstance>();
 
+    /// <summary>
+    /// Danh sách các biến thể (Part Number) của sản phẩm này
+    /// </summary>
+    public virtual ICollection<ComponentVariant> Variants { get; set; } = new List<ComponentVariant>();
+
+    /// <summary>
+    /// Danh sách NCC cung cấp sản phẩm này
+    /// </summary>
+    public virtual ICollection<SupplierProduct> SupplierProducts { get; set; } = new List<SupplierProduct>();
+
     #endregion
 }

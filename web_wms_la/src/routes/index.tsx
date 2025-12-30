@@ -12,14 +12,16 @@ import PermissionsPage from '../pages/System/Permissions';
 import UserList from '../pages/System/UserList';
 import CategoryList from '../pages/Inventory/CategoryList';
 import InventoryHistory from '../pages/Inventory/InventoryHistory';
-import PurchaseOrderList from '../pages/purchasing/PurchaseOrderList';
-import PurchaseOrderCreate from '../pages/purchasing/PurchaseOrderCreate';
-import Receiving from '../pages/purchasing/Receiving';
+import PurchaseOrderList from '../pages/Purchasing/PurchaseOrderList';
+import PurchaseOrderCreate from '../pages/Purchasing/PurchaseOrderCreate';
+import Receiving from '../pages/Purchasing/Receiving';
 import RepairList from '../pages/Repair/RepairList';
 import PaymentList from '../pages/Finance/PaymentList';
 import DebtList from '../pages/Finance/DebtList';
 import WarrantyCheck from '../pages/Repair/WarrantyCheck';
 import RepairCreate from '../pages/Repair/RepairCreate';
+import RepairReceive from '../pages/Repair/RepairReceive';
+import RepairParts from '../pages/Repair/RepairParts';
 import InstanceList from '../pages/Inventory/InstanceList';
 import InstanceImport from '../pages/Inventory/InstanceImport';
 import SalesOrderList from '../pages/Sales/SalesOrderList';
@@ -30,6 +32,7 @@ import AuditLogsPage from '../pages/System/AuditLogsPage';
 import KnowledgeBase from '../pages/Catalog/KnowledgeBase';
 import SpareParts from '../pages/Catalog/SpareParts';
 import ProductBundles from '../pages/Catalog/ProductBundles';
+import CommonIssues from '../pages/Catalog/CommonIssues';
 
 // ============================================================================
 // 1. TIỆN ÍCH HỖ TRỢ (UTILS)
@@ -68,8 +71,12 @@ const ProductCreate = Loadable(lazy(() => import('../pages/Inventory/ProductCrea
 const WarehouseList = Loadable(lazy(() => import('../pages/Warehouses/WarehouseList')));
 
 // Partners & Customers
-const SupplierList = Loadable(lazy(() => import('../pages/purchasing/SupplierList')));
+const SupplierList = Loadable(lazy(() => import('../pages/Purchasing/SupplierList')));
 const CustomerList = Loadable(lazy(() => import('../pages/Customers/CustomerList')));
+
+// Quotations
+const QuotationCreate = Loadable(lazy(() => import('../pages/Quotations/QuotationCreate')));
+const QuotationList = Loadable(lazy(() => import('../pages/Quotations/QuotationList')));
 
 // Public Pages
 const PublicHome = Loadable(lazy(() => import('../pages/Public/PublicHome')));
@@ -167,6 +174,7 @@ export const router = createBrowserRouter([
           { path: 'spare-parts', element: <SpareParts /> }, // /admin/catalog/spare-parts
           { path: 'bundles', element: <ProductBundles /> }, // /admin/catalog/bundles
           { path: '', element: <Navigate to="knowledge-base" /> },
+          { path: 'common-issues', element: <CommonIssues /> }, // /admin/catalog/common-issues
         ],
       },
       // Module: Sales (Bán hàng)
@@ -184,6 +192,8 @@ export const router = createBrowserRouter([
         path: 'repairs',
         children: [
           { path: 'list', element: <RepairList /> },
+          { path: 'receive', element: <RepairReceive /> },
+          { path: 'parts', element: <RepairParts /> },
           { path: 'create', element: <RepairCreate /> },
           { path: 'warranty', element: <WarrantyCheck /> },
           { path: '', element: <Navigate to="list" /> },
@@ -209,6 +219,14 @@ export const router = createBrowserRouter([
         ]
       },
 
+      {
+        path: 'quotations',
+        children: [
+          { path: 'list', element: <QuotationList /> },
+          { path: 'create', element: <QuotationCreate /> },
+          { path: '', element: <Navigate to="list" /> },
+        ]
+      },
       // Module: Settings (Cài đặt hệ thống)
       {
         path: 'system',

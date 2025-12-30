@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
 
     // Supplier & Customer
     public DbSet<Supplier> Suppliers { get; set; } = null!;
+    public DbSet<SupplierProduct> SupplierProducts { get; set; } = null!;
     public DbSet<Customer> Customers { get; set; } = null!;
     public DbSet<CustomerContact> CustomerContacts { get; set; } = null!;
 
@@ -57,6 +58,10 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<Attachment> Attachments { get; set; } = null!;
     public DbSet<AppSetting> AppSettings { get; set; } = null!;
+
+    // Component Variants & Stock
+    public DbSet<ComponentVariant> ComponentVariants { get; set; } = null!;
+    public DbSet<WarehouseStock> WarehouseStocks { get; set; } = null!;
 
     #endregion
 
@@ -107,6 +112,78 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(pi => pi.WarehouseID)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProductInstance>()
+            .HasOne(pi => pi.Variant)
+            .WithMany(v => v.ProductInstances)
+            .HasForeignKey(pi => pi.VariantID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // =====================================================
+        // ComponentVariant Relationships
+        // =====================================================
+
+        modelBuilder.Entity<ComponentVariant>()
+            .HasOne(cv => cv.Component)
+            .WithMany(c => c.Variants)
+            .HasForeignKey(cv => cv.ComponentID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ComponentVariant>()
+            .HasIndex(cv => cv.PartNumber)
+            .IsUnique();
+
+        // =====================================================
+        // SupplierProduct Relationships
+        // =====================================================
+
+        modelBuilder.Entity<SupplierProduct>()
+            .HasOne(sp => sp.Supplier)
+            .WithMany(s => s.SupplierProducts)
+            .HasForeignKey(sp => sp.SupplierID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupplierProduct>()
+            .HasOne(sp => sp.Component)
+            .WithMany(c => c.SupplierProducts)
+            .HasForeignKey(sp => sp.ComponentID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupplierProduct>()
+            .HasOne(sp => sp.Variant)
+            .WithMany(v => v.SupplierProducts)
+            .HasForeignKey(sp => sp.VariantID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<SupplierProduct>()
+            .HasIndex(sp => new { sp.SupplierID, sp.ComponentID, sp.VariantID })
+            .IsUnique();
+
+        // =====================================================
+        // WarehouseStock Relationships
+        // =====================================================
+
+        modelBuilder.Entity<WarehouseStock>()
+            .HasOne(ws => ws.Warehouse)
+            .WithMany()
+            .HasForeignKey(ws => ws.WarehouseID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WarehouseStock>()
+            .HasOne(ws => ws.Component)
+            .WithMany()
+            .HasForeignKey(ws => ws.ComponentID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WarehouseStock>()
+            .HasOne(ws => ws.Variant)
+            .WithMany()
+            .HasForeignKey(ws => ws.VariantID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<WarehouseStock>()
+            .HasIndex(ws => new { ws.WarehouseID, ws.ComponentID, ws.VariantID })
+            .IsUnique();
 
         // =====================================================
         // Customer Relationships

@@ -749,26 +749,82 @@ CREATE TABLE PurchaseOrderDetails (
 -- SalesOrders || Đơn bán hàng
 CREATE TABLE SalesOrders (
     SalesOrderID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
-    OrderCode VARCHAR(50) UNIQUE NOT NULL,
+    OrderCode VARCHAR(50) UNIQUE NOT NULL, -- Mã đơn hàng nội bộ (VD: SO-2024-001)
     CustomerID UUID NOT NULL,
-    WarehouseID UUID NOT NULL,
+    WarehouseID UUID NOT NULL, -- Kho xuất hàng
+    
+    -- =============== MÃ ĐƠN HÀNG TỪ KHÁCH HÀNG ===============
+    CustomerPONumber VARCHAR(100), -- Mã PO của khách hàng (VD: PO-ABC-2024-123)
+    CustomerPODate DATE, -- Ngày PO của khách hàng
+    CustomerReference VARCHAR(200), -- Thông tin tham chiếu khác từ khách (VD: Số hợp đồng)
+    
+    -- =============== LIÊN KẾT BÁO GIÁ ===============
+    QuotationID UUID, -- FK: Báo giá đã được chấp nhận (nếu có)
+    
+    -- =============== THÔNG TIN ĐƠN HÀNG ===============
     OrderDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, CONFIRMED, COMPLETED, CANCELLED
-    TotalAmount DECIMAL(15, 2) DEFAULT 0,
-    DiscountAmount DECIMAL(15, 2) DEFAULT 0,
-    FinalAmount DECIMAL(15, 2) DEFAULT 0,
+    OrderType VARCHAR(50) DEFAULT 'SALES', -- 'SALES' (Bán), 'DEMO' (Xuất demo), 'CONSIGNMENT' (Ký gửi)
+    Status VARCHAR(50) DEFAULT 'PENDING', 
+    -- Các trạng thái: DRAFT, PENDING, CONFIRMED, PROCESSING, READY_TO_SHIP, SHIPPED, DELIVERED, COMPLETED, CANCELLED
+    
+    -- =============== GIÁ TRỊ ĐƠN HÀNG ===============
+    SubTotal DECIMAL(15, 2) DEFAULT 0, -- Tổng tiền hàng (chưa VAT, chưa giảm giá)
+    TaxRate DECIMAL(5, 2) DEFAULT 10, -- Thuế suất VAT (%)
+    TaxAmount DECIMAL(15, 2) DEFAULT 0, -- Tiền thuế VAT
+    DiscountAmount DECIMAL(15, 2) DEFAULT 0, -- Tổng giảm giá
+    ShippingFee DECIMAL(15, 2) DEFAULT 0, -- Phí vận chuyển
+    TotalAmount DECIMAL(15, 2) DEFAULT 0, -- Tổng sau thuế, giảm giá (= SubTotal + TaxAmount - DiscountAmount + ShippingFee)
+    FinalAmount DECIMAL(15, 2) DEFAULT 0, -- Số tiền phải thanh toán (có thể khác TotalAmount nếu có điều chỉnh)
+    Currency VARCHAR(10) DEFAULT 'VND',
+    
+    -- =============== THANH TOÁN ===============
     PaymentStatus VARCHAR(50) DEFAULT 'UNPAID', -- UNPAID, PARTIAL, PAID
-    PaymentMethod VARCHAR(50), -- CASH, BANK_TRANSFER, MOMO, CREDIT_CARD
-    CreatedByUserID UUID,
+    PaymentMethod VARCHAR(50), -- CASH, BANK_TRANSFER, MOMO, CREDIT_CARD, COD
+    PaymentDueDate DATE, -- Hạn thanh toán
+    PaidAmount DECIMAL(15, 2) DEFAULT 0, -- Số tiền đã thanh toán
+    
+    -- =============== GIAO HÀNG ===============
+    ShippingMethod VARCHAR(50), -- 'STORE_PICKUP' (Nhận tại cửa hàng), 'DELIVERY' (Giao hàng), 'SHIPPING_PARTNER' (Đơn vị vận chuyển)
+    ShippingPartner VARCHAR(100), -- Tên đơn vị vận chuyển (VD: GHTK, GHN, Viettel Post)
+    TrackingNumber VARCHAR(100), -- Mã vận đơn
+    ExpectedDeliveryDate DATE, -- Ngày giao dự kiến
+    ActualDeliveryDate DATE, -- Ngày giao thực tế
+    
+    -- =============== ĐỊA CHỈ GIAO HÀNG ===============
+    ShippingContactName NVARCHAR(200), -- Tên người nhận
+    ShippingPhone VARCHAR(20), -- SĐT người nhận
+    ShippingAddress NVARCHAR(500), -- Địa chỉ giao hàng
+    ShippingCity NVARCHAR(100),
+    ShippingDistrict NVARCHAR(100),
+    ShippingWard NVARCHAR(100),
+    ShippingNotes TEXT, -- Ghi chú giao hàng
+    
+    -- =============== NHÂN VIÊN ===============
+    SalesPersonID UUID, -- Nhân viên bán hàng phụ trách
+    CreatedByUserID UUID, -- Người tạo đơn
+    ApprovedByUserID UUID, -- Người duyệt đơn
+    ApprovedAt TIMESTAMP, -- Thời điểm duyệt
+    
     Notes TEXT,
+    InternalNotes TEXT, -- Ghi chú nội bộ (khách không thấy)
+    
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     DeletedAt TIMESTAMP NULL,
     
     FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
     FOREIGN KEY (WarehouseID) REFERENCES Warehouses(WarehouseID),
-    FOREIGN KEY (CreatedByUserID) REFERENCES "User"(UserID)
+    FOREIGN KEY (SalesPersonID) REFERENCES "User"(UserID),
+    FOREIGN KEY (CreatedByUserID) REFERENCES "User"(UserID),
+    FOREIGN KEY (ApprovedByUserID) REFERENCES "User"(UserID)
 );
+
+-- Index cho tìm kiếm nhanh
+CREATE INDEX idx_sales_orders_customer_po ON SalesOrders(CustomerPONumber);
+CREATE INDEX idx_sales_orders_customer ON SalesOrders(CustomerID);
+CREATE INDEX idx_sales_orders_status ON SalesOrders(Status);
+CREATE INDEX idx_sales_orders_date ON SalesOrders(OrderDate);
+CREATE INDEX idx_sales_orders_sales_person ON SalesOrders(SalesPersonID);
 
 -- SalesOrderDetails || Chi tiết đơn bán hàng
 CREATE TABLE SalesOrderDetails (

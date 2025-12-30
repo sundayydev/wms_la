@@ -33,7 +33,7 @@ interface FailedRequest {
 // Constants
 // ====================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5023/api';
 
 // Key lưu trữ trong sessionStorage (memory-like, sẽ mất khi đóng tab)
 const ACCESS_TOKEN_KEY = 'wms_access_token';
