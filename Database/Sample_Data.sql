@@ -288,3 +288,102 @@ ORDER BY n.CreatedAt DESC;
 -- =====================================================
 -- END OF SAMPLE DATA
 -- =====================================================
+
+-- =====================================================
+-- DỮ LIỆU MẪU CHO CATEGORIES (Cấu trúc phân cấp)
+-- =====================================================
+-- Lưu ý: Chạy các INSERT này sau khi tạo bảng để có dữ liệu mẫu
+
+/*
+-- Cấp 1: Danh mục gốc
+INSERT INTO Categories (CategoryCode, CategoryName, ParentCategoryID, Level, Path, Description) VALUES
+('DEVICE', 'Thiết bị', NULL, 1, '/DEVICE', 'Các thiết bị điện tử chính'),
+('ACCESSORY', 'Phụ kiện', NULL, 1, '/ACCESSORY', 'Phụ kiện đi kèm thiết bị'),
+('CONSUMABLE', 'Vật tư tiêu hao', NULL, 1, '/CONSUMABLE', 'Vật tư cần thay thế định kỳ'),
+('SPARE_PART', 'Linh kiện thay thế', NULL, 1, '/SPARE_PART', 'Linh kiện sửa chữa');
+
+-- Cấp 2: Thiết bị cầm tay
+INSERT INTO Categories (CategoryCode, CategoryName, ParentCategoryID, Level, Path, Description) VALUES
+('PDA', 'Máy kiểm kho PDA', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'DEVICE'), 2, '/DEVICE/PDA', 'Máy tính cầm tay kiểm kho'),
+('SCANNER', 'Máy quét mã vạch', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'DEVICE'), 2, '/DEVICE/SCANNER', 'Máy quét barcode cầm tay'),
+('PRINTER', 'Máy in', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'DEVICE'), 2, '/DEVICE/PRINTER', 'Máy in tem nhãn, hóa đơn'),
+('ESL', 'Nhãn giá điện tử', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'DEVICE'), 2, '/DEVICE/ESL', 'Electronic Shelf Label'),
+('RFID_READER', 'Đầu đọc RFID', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'DEVICE'), 2, '/DEVICE/RFID_READER', 'Thiết bị đọc thẻ RFID'),
+('NFC_READER', 'Đầu đọc NFC', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'DEVICE'), 2, '/DEVICE/NFC_READER', 'Thiết bị đọc NFC');
+
+-- Cấp 2: Phụ kiện
+INSERT INTO Categories (CategoryCode, CategoryName, ParentCategoryID, Level, Path, Description) VALUES
+('CASE', 'Ốp lưng & Bao da', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'ACCESSORY'), 2, '/ACCESSORY/CASE', 'Ốp bảo vệ thiết bị'),
+('SCREEN_PROTECTOR', 'Kính cường lực', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'ACCESSORY'), 2, '/ACCESSORY/SCREEN_PROTECTOR', 'Miếng dán bảo vệ màn hình'),
+('STRAP', 'Dây đeo & Dây cầm', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'ACCESSORY'), 2, '/ACCESSORY/STRAP', 'Dây đeo tay, dây đeo vai'),
+('CHARGER', 'Sạc & Dock sạc', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'ACCESSORY'), 2, '/ACCESSORY/CHARGER', 'Sạc pin, dock sạc đa năng'),
+('HOLSTER', 'Bao súng & Belt clip', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'ACCESSORY'), 2, '/ACCESSORY/HOLSTER', 'Bao đựng thiết bị gắn thắt lưng');
+
+-- Cấp 2: Vật tư tiêu hao
+INSERT INTO Categories (CategoryCode, CategoryName, ParentCategoryID, Level, Path, Description) VALUES
+('LABEL', 'Tem nhãn', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'CONSUMABLE'), 2, '/CONSUMABLE/LABEL', 'Cuộn tem in nhãn'),
+('RIBBON', 'Ribbon mực in', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'CONSUMABLE'), 2, '/CONSUMABLE/RIBBON', 'Mực in nhiệt'),
+('PAPER', 'Giấy in', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'CONSUMABLE'), 2, '/CONSUMABLE/PAPER', 'Giấy in hóa đơn, giấy in nhiệt');
+
+-- Cấp 2: Linh kiện thay thế
+INSERT INTO Categories (CategoryCode, CategoryName, ParentCategoryID, Level, Path, Description) VALUES
+('BATTERY', 'Pin', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'SPARE_PART'), 2, '/SPARE_PART/BATTERY', 'Pin thay thế'),
+('SCREEN', 'Màn hình', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'SPARE_PART'), 2, '/SPARE_PART/SCREEN', 'Màn hình LCD/OLED'),
+('KEYPAD', 'Bàn phím', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'SPARE_PART'), 2, '/SPARE_PART/KEYPAD', 'Bàn phím vật lý'),
+('SCANNER_ENGINE', 'Đầu đọc Scanner', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'SPARE_PART'), 2, '/SPARE_PART/SCANNER_ENGINE', 'Module scanner 1D/2D');
+*/
+
+-- =====================================================
+-- VÍ DỤ SẢN PHẨM THEO TỪNG LOẠI
+-- =====================================================
+/*
+-- 1. PDA (Máy kiểm kho cầm tay)
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, DeviceType, Brand, Model, IsSerialized, DefaultWarrantyMonths, Specifications) VALUES
+('MOBY-M63-V2', 'Máy kiểm kho PDA Mobydata M63 V2', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'PDA'), 'DEVICE', 'PDA', 'Mobydata', 'M63 V2', TRUE, 12,
+ '{"OS": "Android 13", "CPU": "Octa-core 2.0GHz", "RAM": "4GB", "ROM": "64GB", "Display": "5.5inch HD+", "Scanner": "2D Honeywell N6703", "IP_Rating": "IP65", "Battery": "5000mAh", "NFC": "Yes", "Wifi": "802.11 a/b/g/n/ac"}');
+
+-- 2. Máy in (Printer)
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, DeviceType, Brand, Model, IsSerialized, DefaultWarrantyMonths, Specifications) VALUES
+('ZEBRA-ZD421', 'Máy in tem nhãn Zebra ZD421', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'PRINTER'), 'DEVICE', 'PRINTER', 'Zebra', 'ZD421', TRUE, 12,
+ '{"Print_Method": "Direct Thermal/Thermal Transfer", "Resolution": "203dpi/300dpi", "Print_Width": "104mm", "Print_Speed": "152mm/s", "Interface": "USB, Ethernet, Bluetooth, Wifi"}');
+
+-- 3. ESL (Nhãn giá điện tử)
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, DeviceType, Brand, Model, IsSerialized, DefaultWarrantyMonths, Specifications) VALUES
+('ESL-29-BW', 'Nhãn giá điện tử 2.9 inch', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'ESL'), 'DEVICE', 'ESL', 'SoluM', 'Newton 2.9', TRUE, 24,
+ '{"Display_Size": "2.9inch", "Display_Type": "E-ink", "Resolution": "296x128", "Colors": "Black/White/Red", "Protocol": "RF 2.4GHz", "Battery_Life": "5 years", "Temperature": "-20°C to 50°C"}');
+
+-- 4. Máy quét Barcode (Scanner)
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, DeviceType, Brand, Model, IsSerialized, DefaultWarrantyMonths, Specifications) VALUES
+('HONEY-1902', 'Máy quét mã vạch Honeywell Voyager 1902g', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'SCANNER'), 'DEVICE', 'SCANNER', 'Honeywell', 'Voyager 1902g', TRUE, 12,
+ '{"Scan_Type": "2D Imager", "Wireless": "Bluetooth 2.1", "Range": "10m", "Battery": "2200mAh", "IP_Rating": "IP42", "Drop_Spec": "1.5m"}');
+
+-- 5. RFID Reader
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, DeviceType, Brand, Model, IsSerialized, DefaultWarrantyMonths, Specifications) VALUES
+('ZEBRA-RFD40', 'Đầu đọc RFID Zebra RFD40', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'RFID_READER'), 'DEVICE', 'RFID_READER', 'Zebra', 'RFD40', TRUE, 12,
+ '{"RFID_Standard": "UHF RAIN RFID", "Frequency": "865-928 MHz", "Read_Range": "7m", "Read_Rate": "1300 tags/sec", "Interface": "Bluetooth 5.0, USB-C"}');
+
+-- 6. Phụ kiện - Ốp lưng (ACCESSORY - Không có Serial)
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, Brand, IsSerialized, CompatibleWith) VALUES
+('CASE-M63-BLK', 'Ốp lưng bảo vệ PDA M63 - Màu đen', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'CASE'), 'ACCESSORY', 'Mobydata', FALSE,
+ '[{"SKU": "MOBY-M63-V2", "Name": "PDA Mobydata M63 V2"}]');
+
+-- 7. Phụ kiện - Kính cường lực
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, Brand, IsSerialized, CompatibleWith) VALUES
+('GLASS-M63', 'Kính cường lực PDA M63', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'SCREEN_PROTECTOR'), 'ACCESSORY', 'Generic', FALSE,
+ '[{"SKU": "MOBY-M63-V2", "Name": "PDA Mobydata M63 V2"}]');
+
+-- 8. Phụ kiện - Dây đeo tay
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, Brand, IsSerialized) VALUES
+('STRAP-HAND-UNI', 'Dây đeo tay Universal', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'STRAP'), 'ACCESSORY', 'Generic', FALSE);
+
+-- 9. Vật tư tiêu hao - Tem nhãn
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, Brand, IsSerialized, Unit, Specifications) VALUES
+('LABEL-50X30-1000', 'Tem nhãn 50x30mm - Cuộn 1000 tem', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'LABEL'), 'CONSUMABLE', 'Generic', FALSE, 'Cuộn',
+ '{"Size": "50x30mm", "Quantity": "1000 tem/cuộn", "Material": "Decal giấy", "Adhesive": "Permanent"}');
+
+-- 10. Linh kiện thay thế - Pin (Có Serial để tracking)
+INSERT INTO Components (SKU, ComponentName, CategoryID, ProductType, Brand, IsSerialized, CompatibleWith, Specifications) VALUES
+('BAT-M63-5000', 'Pin PDA M63 5000mAh', (SELECT CategoryID FROM Categories WHERE CategoryCode = 'BATTERY'), 'SPARE_PART', 'Mobydata', TRUE,
+ '[{"SKU": "MOBY-M63-V2", "Name": "PDA Mobydata M63 V2"}]',
+ '{"Capacity": "5000mAh", "Voltage": "3.8V", "Type": "Li-Polymer"}');
+*/
