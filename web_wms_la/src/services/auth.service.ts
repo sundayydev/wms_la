@@ -90,7 +90,7 @@ export const refreshToken = async (): Promise<LoginResponse | null> => {
 
     // Import axios trực tiếp để tránh interceptor loop
     const { default: axios } = await import('axios');
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5023/api';
 
     const response = await axios.post<ApiResponse<LoginResponse>>(
       `${API_BASE_URL}${AUTH_ENDPOINTS.REFRESH_TOKEN}`,

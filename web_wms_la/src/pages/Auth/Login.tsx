@@ -46,12 +46,12 @@ const Login: React.FC = () => {
         message.success(`Chào mừng ${userInfo.fullName || userInfo.username}!`);
 
         // 3. Điều hướng dựa trên Role
-        navigate('/dashboard');
+        navigate('/admin/dashboard');
       } catch (userError) {
         console.error('Failed to fetch user info:', userError);
         // Vẫn điều hướng dù không lấy được user info (có thể lấy sau)
         message.warning('Đăng nhập thành công nhưng không lấy được thông tin người dùng.');
-        navigate('/dashboard');
+        navigate('/admin/dashboard');
       }
 
     } catch (error: unknown) {
