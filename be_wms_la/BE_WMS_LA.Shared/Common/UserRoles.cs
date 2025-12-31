@@ -8,6 +8,7 @@ namespace BE_WMS_LA.Shared.Common;
 public static class UserRoles
 {
     public const string Admin = "ADMIN";
+    public const string Manager = "MANAGER";
     public const string Receptionist = "RECEPTIONIST";
     public const string Technician = "TECHNICIAN";
     public const string Warehouse = "WAREHOUSE";

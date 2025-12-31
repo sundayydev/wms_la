@@ -24,7 +24,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
   BarcodeOutlined,
-  SearchOutlined,
   ExportOutlined,
   ShopOutlined
 } from '@ant-design/icons';

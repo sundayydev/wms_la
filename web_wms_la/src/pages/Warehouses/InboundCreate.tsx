@@ -11,7 +11,6 @@ import {
   Tag,
   Typography,
   message,
-  Divider,
   Row,
   Col,
   Alert,
@@ -22,7 +21,6 @@ import {
   ArrowLeftOutlined,
   DeleteOutlined,
   BarcodeOutlined,
-  SearchOutlined,
   ImportOutlined,
   InfoCircleOutlined,
   PrinterOutlined

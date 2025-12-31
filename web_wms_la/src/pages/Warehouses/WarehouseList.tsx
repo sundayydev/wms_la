@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   Card,
@@ -14,168 +14,224 @@ import {
   Tooltip,
   Popconfirm,
   Row,
-  Col
+  Col,
 } from 'antd';
 import {
   PlusOutlined,
   SearchOutlined,
   EditOutlined,
   DeleteOutlined,
-  HomeOutlined,
   PhoneOutlined,
-  UserOutlined
+  UserOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-
-// 1. Định nghĩa kiểu dữ liệu khớp với bảng SQL
-interface WarehouseType {
-  WarehouseID: string;
-  WarehouseName: string;
-  Address: string;
-  City: string;
-  District: string;
-  Ward: string;
-  PhoneNumber: string;
-  ManagerUserID: string; // Lưu ID
-  ManagerName?: string; // Tên hiển thị (Do FE map hoặc BE join)
-  IsActive: boolean;
-}
-
-// 2. Dữ liệu giả lập (Mock Data)
-const initialData: WarehouseType[] = [
-  {
-    WarehouseID: 'wh-001',
-    WarehouseName: 'Kho Tổng TP.HCM',
-    Address: '123 Kha Vạn Cân',
-    Ward: 'Phường Hiệp Bình Chánh',
-    District: 'TP. Thủ Đức',
-    City: 'TP. Hồ Chí Minh',
-    PhoneNumber: '0909123456',
-    ManagerUserID: 'user-01',
-    ManagerName: 'Nguyễn Văn Quản Lý',
-    IsActive: true,
-  },
-  {
-    WarehouseID: 'wh-002',
-    WarehouseName: 'Kho Phân Phối Hà Nội',
-    Address: '456 Giải Phóng',
-    Ward: 'Phường Giáp Bát',
-    District: 'Quận Hoàng Mai',
-    City: 'Hà Nội',
-    PhoneNumber: '0912345678',
-    ManagerUserID: 'user-02',
-    ManagerName: 'Trần Thị Thủ Kho',
-    IsActive: true,
-  },
-];
-
-// Danh sách User giả lập để chọn Manager
-const mockUsers = [
-  { label: 'Nguyễn Văn Quản Lý', value: 'user-01' },
-  { label: 'Trần Thị Thủ Kho', value: 'user-02' },
-  { label: 'Lê Văn Staff', value: 'user-03' },
-];
+import { warehousesService, usersService } from '../../services';
+import type { WarehouseListDto, CreateWarehouseDto, UpdateWarehouseDto } from '../../types/type.warehouse';
+import type { UserListDto } from '../../types/api.types';
 
 const WarehouseList: React.FC = () => {
-  const [data, setData] = useState<WarehouseType[]>(initialData);
+  const [data, setData] = useState<WarehouseListDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<UserListDto[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
 
-  // --- HÀM XỬ LÝ ---
+  // --- API CALLS ---
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const response = await warehousesService.getAllWarehouses(true); // Include inactive
+      if (response.success) {
+        setData(response.data);
+      } else {
+        message.warning(response.message);
+      }
+    } catch (error) {
+      console.error('Failed to fetch warehouses:', error);
+      message.error('Không thể tải danh sách kho');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      // Lấy danh sách user để chọn Manager (tạm thời lấy 100 user đầu tiên)
+      // Lý tưởng nhất là có API getManagers hoặc filter user theo role
+      const response = await usersService.getUsers({ pageSize: 100, isActive: true });
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    fetchUsers();
+  }, []);
+
+  // --- HANDLERS ---
 
   const handleAdd = () => {
     setEditingId(null);
     form.resetFields();
-    // Set mặc định IsActive = true
-    form.setFieldsValue({ IsActive: true });
+    form.setFieldsValue({ isActive: true });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (record: WarehouseType) => {
-    setEditingId(record.WarehouseID);
-    form.setFieldsValue(record);
-    setIsModalOpen(true);
+  const handleEdit = async (record: WarehouseListDto) => {
+    setEditingId(record.warehouseID);
+    // Fetch chi tiết để lấy đầy đủ thông tin (nếu cần)
+    // Ở đây ta dùng tạm data từ list, nhưng đúng ra nên gọi API detail nếu thiếu trường
+    try {
+      const detailRes = await warehousesService.getWarehouseById(record.warehouseID);
+      if (detailRes.success && detailRes.data) {
+        form.setFieldsValue({
+          warehouseName: detailRes.data.warehouseName,
+          address: detailRes.data.address,
+          phoneNumber: detailRes.data.phoneNumber,
+          managerUserID: detailRes.data.managerUserID,
+          isActive: detailRes.data.isActive
+        });
+        setIsModalOpen(true);
+      } else {
+        message.error('Không thể lấy chi tiết kho');
+      }
+    } catch (e) {
+      message.error('Lỗi khi tải thông tin kho');
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setData(data.filter((item) => item.WarehouseID !== id));
-    message.success('Đã xóa kho hàng');
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await warehousesService.deleteWarehouse(id);
+      if (res.success) {
+        message.success('Đã xóa kho hàng');
+        fetchData();
+      } else {
+        message.error(res.message || 'Xóa thất bại');
+      }
+    } catch (error) {
+      message.error('Có lỗi xảy ra khi xóa kho');
+    }
   };
 
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
 
-      // Tìm tên Manager dựa trên ID đã chọn để hiển thị ra bảng
-      const manager = mockUsers.find(u => u.value === values.ManagerUserID);
-      const newRecord = {
-        ...values,
-        ManagerName: manager?.label || 'Unknown',
-        WarehouseID: editingId || `wh-${Date.now()}` // Tạo ID giả
-      };
+      let success = false;
+      let msg = '';
 
       if (editingId) {
-        // Cập nhật
-        setData(data.map(item => item.WarehouseID === editingId ? newRecord : item));
-        message.success('Cập nhật kho thành công!');
+        // Update
+        const updateDto: UpdateWarehouseDto = {
+          warehouseName: values.warehouseName,
+          address: values.address,
+          phoneNumber: values.phoneNumber,
+          managerUserID: values.managerUserID,
+          isActive: values.isActive
+        };
+        const res = await warehousesService.updateWarehouse(editingId, updateDto);
+        success = res.success;
+        msg = res.message || 'Cập nhật thành công';
       } else {
-        // Thêm mới
-        setData([...data, newRecord]);
-        message.success('Tạo kho mới thành công!');
+        // Create
+        const createDto: CreateWarehouseDto = {
+          warehouseName: values.warehouseName,
+          address: values.address,
+          phoneNumber: values.phoneNumber,
+          managerUserID: values.managerUserID
+        };
+        const res = await warehousesService.createWarehouse(createDto);
+        success = res.success;
+        msg = res.message || 'Tạo kho thành công';
       }
-      setIsModalOpen(false);
+
+      if (success) {
+        message.success(msg);
+        setIsModalOpen(false);
+        fetchData();
+      } else {
+        message.error(msg);
+      }
+
     } catch (error) {
       console.log('Validate Failed:', error);
     }
   };
 
-  // --- CẤU HÌNH BẢNG ---
+  const handleRestore = async (id: string) => {
+    try {
+      const res = await warehousesService.restoreWarehouse(id);
+      if (res.success) {
+        message.success('Đã khôi phục kho');
+        fetchData();
+      } else {
+        message.error(res.message);
+      }
+    } catch (e) {
+      message.error('Lỗi khi khôi phục');
+    }
+  };
 
-  const columns: ColumnsType<WarehouseType> = [
+  // --- TABLE COLUMNS ---
+
+  const columns: ColumnsType<WarehouseListDto> = [
     {
       title: 'Tên Kho & Liên hệ',
-      dataIndex: 'WarehouseName',
+      dataIndex: 'warehouseName',
       key: 'name',
       render: (_, record) => (
         <div className="flex flex-col">
-          <span className="font-bold text-blue-600 text-base">{record.WarehouseName}</span>
+          <span className="font-bold text-blue-600 text-base">{record.warehouseName}</span>
           <span className="text-gray-500 text-sm">
-            <PhoneOutlined className="mr-1" /> {record.PhoneNumber}
+            <PhoneOutlined className="mr-1" /> {record.phoneNumber || 'N/A'}
           </span>
         </div>
       ),
     },
     {
       title: 'Địa chỉ',
+      dataIndex: 'address',
       key: 'address',
       responsive: ['md'],
-      render: (_, record) => (
-        <div className="text-sm">
-          <div className="font-medium text-gray-700">{record.Address}</div>
-          <div className="text-gray-500 text-xs">
-            {record.Ward}, {record.District}, {record.City}
-          </div>
+      render: (addr) => (
+        <div className="text-sm text-gray-700 max-w-xs truncate" title={addr}>
+          {addr || 'Chưa cập nhật'}
         </div>
       ),
     },
     {
       title: 'Quản lý',
-      dataIndex: 'ManagerUserID',
+      dataIndex: 'managerName',
       key: 'manager',
-      render: (_, record) => (
+      render: (name) => (
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
             <UserOutlined />
           </div>
-          <span className="font-medium text-gray-700">{record.ManagerName}</span>
+          <span className="font-medium text-gray-700">{name || 'Chưa chỉ định'}</span>
         </div>
       ),
     },
     {
+      title: 'Thống kê',
+      key: 'stats',
+      render: (_, record) => (
+        <div className="text-xs text-gray-500">
+          <div>NV: <b>{record.totalUsers}</b></div>
+          <div>SP: <b>{record.totalProducts}</b></div>
+        </div>
+      )
+    },
+    {
       title: 'Trạng thái',
-      dataIndex: 'IsActive',
+      dataIndex: 'isActive',
       key: 'status',
       render: (isActive) => (
         <Tag color={isActive ? 'success' : 'error'}>
@@ -196,20 +252,44 @@ const WarehouseList: React.FC = () => {
               onClick={() => handleEdit(record)}
             />
           </Tooltip>
-          <Popconfirm
-            title="Xóa kho hàng này?"
-            description="Lưu ý: Chỉ nên xóa kho nếu chưa có hàng hóa!"
-            onConfirm={() => handleDelete(record.WarehouseID)}
-            okText="Xóa"
-            cancelText="Hủy"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+
+          {record.isActive ? (
+            <Popconfirm
+              title="Xóa kho hàng này?"
+              description="Lưu ý: Chỉ nên xóa kho nếu chưa có hàng hóa!"
+              onConfirm={() => handleDelete(record.warehouseID)}
+              okText="Xóa"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          ) : (
+            // Nếu đã xóa mềm hoặc không hoạt động, có thể cho phép restore hoặc xóa thật (tuỳ logic BE)
+            // Backend hiện tại là Soft Delete khi gọi API Delete.
+            // Logic FE: Nếu !isActive chưa chắc là đã xóa mềm, mà có thể chỉ là inactive.
+            // Tuy nhiên, với API Delete hiện tại, nó set IsDeleted = true (thường là vậy) và IsActive = false.
+            // Nhưng API GetAll có param includeInactive.
+            // Thêm nút Restore nếu cần thiết, hoặc chỉ nút Delete.
+            <Button type="text" onClick={() => handleRestore(record.warehouseID)} title="Khôi phục">
+              <ReloadOutlined />
+            </Button>
+          )}
+
         </Space>
       ),
     },
   ];
+
+  // Filter Data
+  const filteredData = data.filter(item => {
+    const search = searchText.toLowerCase();
+    return (
+      item.warehouseName.toLowerCase().includes(search) ||
+      (item.managerName && item.managerName.toLowerCase().includes(search)) ||
+      (item.phoneNumber && item.phoneNumber.includes(search))
+    );
+  });
 
   return (
     <div className="w-full">
@@ -242,13 +322,11 @@ const WarehouseList: React.FC = () => {
       {/* TABLE */}
       <Card className="shadow-sm" bordered={false} bodyStyle={{ padding: 0 }}>
         <Table
+          loading={loading}
           columns={columns}
-          dataSource={data.filter(item =>
-            item.WarehouseName.toLowerCase().includes(searchText.toLowerCase()) ||
-            item.ManagerName?.toLowerCase().includes(searchText.toLowerCase())
-          )}
-          rowKey="WarehouseID"
-          pagination={{ pageSize: 5 }}
+          dataSource={filteredData}
+          rowKey="warehouseID"
+          pagination={{ pageSize: 10 }}
         />
       </Card>
 
@@ -258,7 +336,7 @@ const WarehouseList: React.FC = () => {
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => setIsModalOpen(false)}
-        width={700}
+        width={600}
         okText="Lưu thông tin"
         cancelText="Hủy bỏ"
       >
@@ -267,85 +345,58 @@ const WarehouseList: React.FC = () => {
           layout="vertical"
           className="mt-4"
         >
+          <Form.Item
+            name="warehouseName"
+            label="Tên kho"
+            rules={[{ required: true, message: 'Vui lòng nhập tên kho' }]}
+          >
+            <Input placeholder="Ví dụ: Kho Tổng TP.HCM" />
+          </Form.Item>
+
           <Row gutter={16}>
-            {/* Cột 1: Thông tin cơ bản */}
             <Col span={12}>
               <Form.Item
-                name="WarehouseName"
-                label="Tên kho"
-                rules={[{ required: true, message: 'Vui lòng nhập tên kho' }]}
-              >
-                <Input prefix={<HomeOutlined />} placeholder="Ví dụ: Kho Tổng HCM" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="PhoneNumber"
+                name="phoneNumber"
                 label="Số điện thoại"
-                rules={[{ required: true, message: 'Nhập số hotline kho' }]}
               >
                 <Input prefix={<PhoneOutlined />} placeholder="0909..." />
               </Form.Item>
             </Col>
-          </Row>
-
-          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="ManagerUserID"
-                label="Người quản lý (Manager)"
-                rules={[{ required: true, message: 'Chọn người quản lý kho' }]}
+                name="managerUserID"
+                label="Người quản lý"
               >
                 <Select
-                  placeholder="Chọn nhân viên"
-                  options={mockUsers}
+                  placeholder="Chọn quản lý"
                   showSearch
+                  optionFilterProp="children"
                   filterOption={(input, option) =>
                     (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                   }
+                  options={users.map(u => ({ label: `${u.fullName} (${u.username})`, value: u.userID }))}
                 />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="IsActive" label="Trạng thái hoạt động" valuePropName="checked">
-                <Switch checkedChildren="Đang hoạt động" unCheckedChildren="Đóng cửa" />
               </Form.Item>
             </Col>
           </Row>
 
-          <div className="bg-gray-50 p-4 rounded-md mb-4 border border-gray-200">
-            <span className="font-semibold text-gray-700 block mb-3">Địa chỉ chi tiết</span>
-            <Form.Item
-              name="Address"
-              label="Số nhà, tên đường"
-              rules={[{ required: true, message: 'Vui lòng nhập địa chỉ' }]}
-            >
-              <Input placeholder="Ví dụ: 123 Đường ABC" />
-            </Form.Item>
+          <Form.Item
+            name="address"
+            label="Địa chỉ"
+          >
+            <Input.TextArea rows={2} placeholder="Nhập địa chỉ chi tiết..." />
+          </Form.Item>
 
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item name="City" label="Tỉnh / Thành phố" rules={[{ required: true }]}>
-                  {/* Sau này nên dùng Select Load API */}
-                  <Input placeholder="TP.HCM" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="District" label="Quận / Huyện" rules={[{ required: true }]}>
-                  <Input placeholder="Thủ Đức" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="Ward" label="Phường / Xã" rules={[{ required: true }]}>
-                  <Input placeholder="Hiệp Bình Chánh" />
-                </Form.Item>
-              </Col>
-            </Row>
-          </div>
+          {editingId && (
+            <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+              <Switch checkedChildren="Hoạt động" unCheckedChildren="Ngưng hoạt động" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>
   );
 };
+
 
 export default WarehouseList;

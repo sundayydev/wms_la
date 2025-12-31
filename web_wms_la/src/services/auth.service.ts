@@ -77,15 +77,10 @@ export const register = async (data: RegisterRequest): Promise<UserInfo> => {
  * Làm mới Access Token
  * - Server đọc Refresh Token từ HttpOnly Cookie
  * - Trả về Access Token mới trong response body
+ * - KHÔNG CẦN gửi Access Token cũ trong Authorization header
  */
 export const refreshToken = async (): Promise<LoginResponse | null> => {
   try {
-    const currentToken = tokenManager.getAccessToken();
-    if (!currentToken) {
-      console.log('[AuthService] No current token, cannot refresh');
-      return null;
-    }
-
     console.log('[AuthService] Attempting token refresh...');
 
     // Import axios trực tiếp để tránh interceptor loop
@@ -97,7 +92,6 @@ export const refreshToken = async (): Promise<LoginResponse | null> => {
       {}, // Body trống, refresh token trong cookie
       {
         headers: {
-          'Authorization': `Bearer ${currentToken}`,
           'Content-Type': 'application/json',
         },
         withCredentials: true, // Quan trọng: gửi cookie
