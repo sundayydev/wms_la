@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Table,
   Card,
@@ -7,17 +7,11 @@ import {
   Tag,
   Space,
   Tooltip,
-  Popconfirm,
   Select,
   message,
   Avatar,
   Typography,
-  Badge,
   Dropdown,
-  Drawer,
-  Descriptions,
-  Tabs,
-  Empty,
   Statistic,
   Row,
   Col,
@@ -38,225 +32,18 @@ import {
   FilterOutlined,
   TableOutlined,
   AppstoreAddOutlined,
-  TagsOutlined,
   DollarOutlined,
   InboxOutlined,
-  SafetyCertificateOutlined,
-  FileTextOutlined,
-  SettingOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import type {
-  Component,
-  ProductType,
-  DeviceType,
-  ComponentStatus,
-} from '../../types/type.component';
-import {
-  PRODUCT_TYPE_CONFIG,
-  DEVICE_TYPE_CONFIG,
-  STATUS_CONFIG,
-} from '../../types/type.component';
+import productsService, {
+  type ProductListDto,
+  type CategoryDto,
+} from '../../services/products.service';
 
-const { Text, Paragraph } = Typography;
-
-// ============================================================
-// MOCK DATA - Sẽ thay bằng API call thực tế
-// ============================================================
-const mockData: Component[] = [
-  {
-    componentId: 'uuid-1',
-    sku: 'MOBY-M63-V2',
-    componentName: 'Máy kiểm kho PDA Mobydata M63 V2',
-    componentNameVN: 'Máy đọc mã vạch cầm tay',
-    productType: 'DEVICE',
-    deviceType: 'PDA',
-    brand: 'Mobydata',
-    model: 'M63 V2',
-    unit: 'Cái',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=pda1',
-    basePrice: 5500000,
-    sellPrice: 7500000,
-    wholesalePrice: 6800000,
-    isSerialized: true,
-    currentStock: 45,
-    minStockLevel: 10,
-    defaultWarrantyMonths: 12,
-    status: 'ACTIVE',
-    tags: ['Android', 'Bluetooth', 'IP65', '2D Scanner'],
-    specifications: {
-      OS: 'Android 13',
-      CPU: 'Octa-core 2.0GHz',
-      RAM: '4GB',
-      Storage: '64GB',
-      Battery: '5000mAh',
-      Scanner: '2D Honeywell',
-    },
-    updatedAt: '2024-12-28T10:30:00Z',
-  },
-  {
-    componentId: 'uuid-2',
-    sku: 'ZEBRA-TC21',
-    componentName: 'Zebra TC21 Android Mobile Computer',
-    componentNameVN: 'Máy tính di động Zebra TC21',
-    productType: 'DEVICE',
-    deviceType: 'PDA',
-    brand: 'Zebra',
-    model: 'TC21',
-    unit: 'Cái',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=zebra',
-    basePrice: 12000000,
-    sellPrice: 15500000,
-    wholesalePrice: 14000000,
-    isSerialized: true,
-    currentStock: 12,
-    minStockLevel: 5,
-    defaultWarrantyMonths: 24,
-    status: 'ACTIVE',
-    tags: ['Android', 'IP65', 'SE4710 Scanner', 'Enterprise'],
-    specifications: {
-      OS: 'Android 11',
-      CPU: 'Qualcomm SDM660',
-      RAM: '4GB',
-      Storage: '64GB',
-      Battery: '3100mAh',
-      Scanner: 'SE4710',
-    },
-    updatedAt: '2024-12-27T14:20:00Z',
-  },
-  {
-    componentId: 'uuid-3',
-    sku: 'ZEB-ZD421-DT',
-    componentName: 'Zebra ZD421 Direct Thermal Desktop Printer',
-    componentNameVN: 'Máy in tem Zebra ZD421',
-    productType: 'DEVICE',
-    deviceType: 'PRINTER',
-    brand: 'Zebra',
-    model: 'ZD421',
-    unit: 'Cái',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=printer',
-    basePrice: 8500000,
-    sellPrice: 11000000,
-    wholesalePrice: 10000000,
-    isSerialized: true,
-    currentStock: 8,
-    minStockLevel: 3,
-    defaultWarrantyMonths: 12,
-    status: 'ACTIVE',
-    tags: ['Direct Thermal', 'USB', 'Bluetooth', '203dpi'],
-    specifications: {
-      Print_Width: '104mm',
-      Resolution: '203dpi',
-      Speed: '152mm/s',
-      Interface: 'USB, Bluetooth, Ethernet',
-    },
-    updatedAt: '2024-12-26T09:15:00Z',
-  },
-  {
-    componentId: 'uuid-4',
-    sku: 'ESL-29-BW',
-    componentName: 'Electronic Shelf Label 2.9 inch (Black/White)',
-    componentNameVN: 'Nhãn giá điện tử 2.9 inch',
-    productType: 'DEVICE',
-    deviceType: 'ESL',
-    brand: 'Hanshow',
-    model: 'Lumina 2.9',
-    unit: 'Cái',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=esl',
-    basePrice: 180000,
-    sellPrice: 280000,
-    wholesalePrice: 220000,
-    isSerialized: false,
-    currentStock: 500,
-    minStockLevel: 100,
-    defaultWarrantyMonths: 36,
-    status: 'ACTIVE',
-    tags: ['E-ink', 'RF 433MHz', '5 years battery'],
-    specifications: {
-      Display_Size: '2.9 inch',
-      Display_Type: 'E-ink',
-      Resolution: '296x128',
-      Battery_Life: '5 years',
-    },
-    updatedAt: '2024-12-25T16:45:00Z',
-  },
-  {
-    componentId: 'uuid-5',
-    sku: 'CASE-M63-BLK',
-    componentName: 'Ốp lưng bảo vệ Mobydata M63 (Đen)',
-    productType: 'ACCESSORY',
-    brand: 'Mobydata',
-    model: 'M63 Case',
-    unit: 'Cái',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=case',
-    basePrice: 120000,
-    sellPrice: 250000,
-    wholesalePrice: 180000,
-    isSerialized: false,
-    currentStock: 200,
-    minStockLevel: 50,
-    status: 'ACTIVE',
-    tags: ['TPU', 'Shockproof'],
-    updatedAt: '2024-12-24T11:00:00Z',
-  },
-  {
-    componentId: 'uuid-6',
-    sku: 'LABEL-40x30-1000',
-    componentName: 'Giấy in tem 40x30mm (1000 tem/cuộn)',
-    productType: 'CONSUMABLE',
-    brand: 'Generic',
-    unit: 'Cuộn',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=label',
-    basePrice: 25000,
-    sellPrice: 45000,
-    wholesalePrice: 35000,
-    isSerialized: false,
-    currentStock: 1500,
-    minStockLevel: 200,
-    status: 'ACTIVE',
-    tags: ['Decal', 'White'],
-    updatedAt: '2024-12-23T08:30:00Z',
-  },
-  {
-    componentId: 'uuid-7',
-    sku: 'BAT-TC21-STD',
-    componentName: 'Pin Zebra TC21 Standard (3100mAh)',
-    productType: 'SPARE_PART',
-    brand: 'Zebra',
-    model: 'BTRY-TC2X-2XMAXX-01',
-    unit: 'Viên',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=battery',
-    basePrice: 850000,
-    sellPrice: 1200000,
-    wholesalePrice: 1000000,
-    isSerialized: true,
-    currentStock: 25,
-    minStockLevel: 10,
-    defaultWarrantyMonths: 6,
-    status: 'ACTIVE',
-    tags: ['Li-Ion', 'Original'],
-    updatedAt: '2024-12-22T13:20:00Z',
-  },
-  {
-    componentId: 'uuid-8',
-    sku: 'OLD-PDA-X100',
-    componentName: 'PDA Model X100 (Đã ngừng sản xuất)',
-    productType: 'DEVICE',
-    deviceType: 'PDA',
-    brand: 'Generic',
-    model: 'X100',
-    unit: 'Cái',
-    imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=oldpda',
-    basePrice: 2000000,
-    sellPrice: 3500000,
-    isSerialized: true,
-    currentStock: 2,
-    status: 'DISCONTINUED',
-    updatedAt: '2024-11-15T10:00:00Z',
-  },
-];
+const { Text } = Typography;
 
 // ============================================================
 // MAIN COMPONENT
@@ -266,79 +53,133 @@ const ProductList: React.FC = () => {
 
   // States
   const [loading, setLoading] = useState(false);
-  const [data] = useState<Component[]>(mockData);
+  const [data, setData] = useState<ProductListDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [selectedProductType, setSelectedProductType] = useState<ProductType | 'ALL'>('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<ComponentStatus | 'ALL'>('ALL');
-  const [selectedBrand, setSelectedBrand] = useState<string | undefined>();
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedSerialized, setSelectedSerialized] = useState<boolean | undefined>();
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Component | null>(null);
 
-  // Computed: Unique brands
-  const brands = useMemo(() => {
-    const uniqueBrands = [...new Set(data.map(item => item.brand).filter(Boolean))];
-    return uniqueBrands.sort();
-  }, [data]);
+  // Pagination
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  });
 
-  // Computed: Filtered data
-  const filteredData = useMemo(() => {
-    return data.filter(item => {
-      const matchSearch =
-        !searchText ||
-        item.componentName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.brand?.toLowerCase().includes(searchText.toLowerCase());
+  // Fetch products from API
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await productsService.getAllProducts(
+        pagination.current,
+        pagination.pageSize,
+        searchText || undefined,
+        selectedCategory,
+        selectedSerialized
+      );
 
-      const matchProductType = selectedProductType === 'ALL' || item.productType === selectedProductType;
-      const matchStatus = selectedStatus === 'ALL' || item.status === selectedStatus;
-      const matchBrand = !selectedBrand || item.brand === selectedBrand;
+      if (response.success) {
+        setData(response.data || []);
+        setPagination(prev => ({
+          ...prev,
+          total: response.totalCount || 0,
+        }));
+      } else {
+        message.error(response.message || 'Lỗi khi tải danh sách sản phẩm');
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      message.error('Không thể tải danh sách sản phẩm');
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.current, pagination.pageSize, searchText, selectedCategory, selectedSerialized]);
 
-      return matchSearch && matchProductType && matchStatus && matchBrand;
-    });
-  }, [data, searchText, selectedProductType, selectedStatus, selectedBrand]);
+  // Load categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await productsService.getCategories();
+        if (response.success && response.data) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Fetch products when filters change
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (pagination.current !== 1) {
+        setPagination(prev => ({ ...prev, current: 1 }));
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Computed: Statistics
   const stats = useMemo(() => {
     return {
-      total: data.length,
-      active: data.filter(item => item.status === 'ACTIVE').length,
-      lowStock: data.filter(item => (item.currentStock || 0) <= (item.minStockLevel || 0)).length,
+      total: pagination.total,
       serialized: data.filter(item => item.isSerialized).length,
+      totalStock: data.reduce((sum, item) => sum + (item.totalStock || 0), 0),
+      withVariants: data.filter(item => item.variantCount > 0).length,
     };
-  }, [data]);
+  }, [data, pagination.total]);
 
   // Handlers
-  const formatCurrency = (value?: number) => {
-    if (value === undefined) return '---';
+  const formatCurrency = (value?: number | null) => {
+    if (value === undefined || value === null) return '---';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
   };
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      message.success('Đã làm mới dữ liệu');
-    }, 800);
+    fetchProducts();
   };
 
-  const handleDelete = (id: string) => {
-    message.success('Đã xóa sản phẩm');
-    // TODO: Call API delete
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await productsService.deleteProduct(id);
+      if (response.success) {
+        message.success('Đã xóa sản phẩm thành công');
+        fetchProducts(); // Reload data
+      } else {
+        message.error(response.message || 'Không thể xóa sản phẩm');
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      message.error('Có lỗi xảy ra khi xóa sản phẩm');
+    }
   };
 
-  const handleViewDetail = (record: Component) => {
-    setSelectedProduct(record);
-    setDetailDrawerOpen(true);
+  const handleViewDetail = (record: ProductListDto) => {
+    navigate(`/admin/inventory/products/${record.componentID}`);
   };
 
   const handleExport = () => {
     message.info('Đang xuất Excel...');
-    // TODO: Call API export
+    // TODO: Implement export functionality
+  };
+
+  const handleTableChange = (paginationConfig: any) => {
+    setPagination(prev => ({
+      ...prev,
+      current: paginationConfig.current,
+      pageSize: paginationConfig.pageSize,
+    }));
   };
 
   // More actions dropdown
-  const getMoreActions = (record: Component): MenuProps['items'] => [
+  const getMoreActions = (record: ProductListDto): MenuProps['items'] => [
     {
       key: 'view',
       label: 'Xem chi tiết',
@@ -349,7 +190,7 @@ const ProductList: React.FC = () => {
       key: 'edit',
       label: 'Chỉnh sửa',
       icon: <EditOutlined />,
-      onClick: () => navigate(`/admin/inventory/products/${record.componentId}/edit`),
+      onClick: () => navigate(`/admin/inventory/products/${record.componentID}/edit`),
     },
     { type: 'divider' },
     {
@@ -363,13 +204,14 @@ const ProductList: React.FC = () => {
       label: 'Xóa sản phẩm',
       icon: <DeleteOutlined />,
       danger: true,
+      onClick: () => handleDelete(record.componentID),
     },
   ];
 
   // ============================================================
   // TABLE COLUMNS
   // ============================================================
-  const columns: ColumnsType<Component> = [
+  const columns: ColumnsType<ProductListDto> = [
     {
       title: 'Sản phẩm',
       key: 'product',
@@ -380,9 +222,9 @@ const ProductList: React.FC = () => {
           <Avatar
             shape="square"
             size={64}
-            src={record.imageUrl}
+            src={record.imageURL}
             icon={<AppstoreOutlined />}
-            className="bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-200 flex-shrink-0 shadow-sm"
+            className="bg-linear-to-br from-gray-100 to-gray-200 border border-gray-200 shrink-0 shadow-sm"
           />
           <div className="flex flex-col justify-center min-w-0">
             <Text
@@ -396,41 +238,25 @@ const ProductList: React.FC = () => {
               <Tag className="m-0 bg-gray-100 text-gray-600 border-gray-300 font-mono text-xs">
                 {record.sku}
               </Tag>
-              {record.brand && (
-                <span className="text-xs text-gray-500 font-medium">{record.brand}</span>
+              {record.categoryName && (
+                <span className="text-xs text-gray-500 font-medium">{record.categoryName}</span>
               )}
             </div>
-            {record.tags && record.tags.length > 0 && (
-              <div className="flex gap-1 mt-1.5 flex-wrap">
-                {record.tags.slice(0, 3).map(tag => (
-                  <Tag key={tag} className="m-0 text-xs" color="default">
-                    {tag}
-                  </Tag>
-                ))}
-                {record.tags.length > 3 && (
-                  <Tag className="m-0 text-xs">+{record.tags.length - 3}</Tag>
-                )}
-              </div>
-            )}
           </div>
         </div>
       ),
     },
     {
-      title: 'Phân loại',
-      key: 'type',
+      title: 'Danh mục',
+      dataIndex: 'categoryName',
+      key: 'category',
       width: 160,
-      render: (_, record) => (
-        <div className="flex flex-col gap-1">
-          <Tag color={PRODUCT_TYPE_CONFIG[record.productType]?.color}>
-            {PRODUCT_TYPE_CONFIG[record.productType]?.label}
-          </Tag>
-          {record.deviceType && (
-            <span className="text-xs text-gray-500">
-              {DEVICE_TYPE_CONFIG[record.deviceType]?.label}
-            </span>
-          )}
-        </div>
+      render: (categoryName: string | null) => (
+        categoryName ? (
+          <Tag color="blue">{categoryName}</Tag>
+        ) : (
+          <span className="text-gray-400">---</span>
+        )
       ),
     },
     {
@@ -455,26 +281,30 @@ const ProductList: React.FC = () => {
     },
     {
       title: 'Tồn kho',
+      dataIndex: 'totalStock',
       key: 'stock',
       width: 100,
       align: 'center',
-      sorter: (a, b) => (a.currentStock || 0) - (b.currentStock || 0),
-      render: (_, record) => {
-        const isLowStock = (record.currentStock || 0) <= (record.minStockLevel || 0);
-        return (
-          <Tooltip title={isLowStock ? `Dưới mức tối thiểu (${record.minStockLevel})` : ''}>
-            <span
-              className={`font-semibold text-base ${isLowStock ? 'text-red-500' : 'text-gray-700'
-                }`}
-            >
-              {record.currentStock ?? '---'}
-            </span>
-            {isLowStock && (
-              <div className="text-xs text-red-400">Sắp hết</div>
-            )}
-          </Tooltip>
-        );
-      },
+      sorter: (a, b) => (a.totalStock || 0) - (b.totalStock || 0),
+      render: (stock: number) => (
+        <span className="font-semibold text-base text-gray-700">
+          {stock ?? 0}
+        </span>
+      ),
+    },
+    {
+      title: 'Biến thể',
+      dataIndex: 'variantCount',
+      key: 'variants',
+      width: 100,
+      align: 'center',
+      render: (count: number) => (
+        count > 0 ? (
+          <Tag color="geekblue">{count} biến thể</Tag>
+        ) : (
+          <span className="text-gray-400">---</span>
+        )
+      ),
     },
     {
       title: 'Giá bán',
@@ -495,36 +325,12 @@ const ProductList: React.FC = () => {
       ),
     },
     {
-      title: 'Bảo hành',
-      dataIndex: 'defaultWarrantyMonths',
-      key: 'warranty',
+      title: 'Đơn vị',
+      dataIndex: 'unit',
+      key: 'unit',
       width: 100,
       align: 'center',
-      render: (months?: number) =>
-        months ? (
-          <Tag icon={<SafetyCertificateOutlined />} color="green">
-            {months} tháng
-          </Tag>
-        ) : (
-          <span className="text-gray-400">---</span>
-        ),
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      width: 140,
-      align: 'center',
-      render: (status: ComponentStatus) => (
-        <Badge
-          status={STATUS_CONFIG[status]?.badge}
-          text={
-            <span className={`text-${STATUS_CONFIG[status]?.color}-600`}>
-              {STATUS_CONFIG[status]?.label}
-            </span>
-          }
-        />
-      ),
+      render: (unit: string | null) => unit || '---',
     },
     {
       title: '',
@@ -592,20 +398,19 @@ const ProductList: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
             <Statistic
-              title={<span className="text-gray-500">Đang kinh doanh</span>}
-              value={stats.active}
+              title={<span className="text-gray-500">Tổng tồn kho</span>}
+              value={stats.totalStock}
               valueStyle={{ color: '#52c41a' }}
-              prefix={<Badge status="success" />}
+              prefix={<InboxOutlined className="text-green-500" />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
             <Statistic
-              title={<span className="text-gray-500">Sắp hết hàng</span>}
-              value={stats.lowStock}
-              valueStyle={{ color: stats.lowStock > 0 ? '#ff4d4f' : undefined }}
-              prefix={<InboxOutlined className={stats.lowStock > 0 ? 'text-red-500' : 'text-gray-400'} />}
+              title={<span className="text-gray-500">Có biến thể</span>}
+              value={stats.withVariants}
+              prefix={<AppstoreAddOutlined className="text-orange-500" />}
             />
           </Card>
         </Col>
@@ -626,7 +431,7 @@ const ProductList: React.FC = () => {
           {/* Search */}
           <div className="flex-1 max-w-md">
             <Input
-              placeholder="Tìm theo tên, SKU, thương hiệu..."
+              placeholder="Tìm theo tên, SKU..."
               prefix={<SearchOutlined className="text-gray-400" />}
               allowClear
               value={searchText}
@@ -638,42 +443,43 @@ const ProductList: React.FC = () => {
           {/* Filters */}
           <div className="flex flex-wrap gap-3 items-center">
             <Select
-              placeholder="Loại sản phẩm"
+              placeholder="Danh mục"
+              allowClear
+              showSearch
+              className="w-48"
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={categories.map(cat => ({
+                value: cat.categoryID,
+                label: cat.categoryName,
+              }))}
+              loading={categories.length === 0}
+            />
+
+            <Select
+              placeholder="Loại quản lý"
               allowClear
               className="w-40"
-              value={selectedProductType === 'ALL' ? undefined : selectedProductType}
-              onChange={val => setSelectedProductType(val || 'ALL')}
+              value={selectedSerialized === undefined ? undefined : selectedSerialized ? 'serialized' : 'quantity'}
+              onChange={val => {
+                if (val === 'serialized') setSelectedSerialized(true);
+                else if (val === 'quantity') setSelectedSerialized(false);
+                else setSelectedSerialized(undefined);
+              }}
               options={[
-                ...Object.entries(PRODUCT_TYPE_CONFIG).map(([key, config]) => ({
-                  value: key,
-                  label: config.label,
-                })),
+                { value: 'serialized', label: 'Serial/IMEI' },
+                { value: 'quantity', label: 'Số lượng' },
               ]}
             />
 
-            <Select
-              placeholder="Thương hiệu"
-              allowClear
-              showSearch
-              className="w-36"
-              value={selectedBrand}
-              onChange={setSelectedBrand}
-              options={brands.map(brand => ({ value: brand, label: brand }))}
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+              loading={loading}
             />
-
-            <Select
-              placeholder="Trạng thái"
-              allowClear
-              className="w-40"
-              value={selectedStatus === 'ALL' ? undefined : selectedStatus}
-              onChange={val => setSelectedStatus(val || 'ALL')}
-              options={Object.entries(STATUS_CONFIG).map(([key, config]) => ({
-                value: key,
-                label: config.label,
-              }))}
-            />
-
-            <Button icon={<ReloadOutlined />} onClick={handleRefresh} />
 
             <Segmented
               options={[
@@ -687,32 +493,26 @@ const ProductList: React.FC = () => {
         </div>
 
         {/* Active filters */}
-        {(selectedProductType !== 'ALL' || selectedStatus !== 'ALL' || selectedBrand) && (
+        {(selectedCategory || selectedSerialized !== undefined) && (
           <div className="mt-3 flex items-center gap-2">
             <FilterOutlined className="text-gray-400" />
             <span className="text-sm text-gray-500">Bộ lọc:</span>
-            {selectedProductType !== 'ALL' && (
-              <Tag closable onClose={() => setSelectedProductType('ALL')}>
-                {PRODUCT_TYPE_CONFIG[selectedProductType]?.label}
+            {selectedCategory && (
+              <Tag closable onClose={() => setSelectedCategory(undefined)}>
+                {categories.find(c => c.categoryID === selectedCategory)?.categoryName || selectedCategory}
               </Tag>
             )}
-            {selectedBrand && (
-              <Tag closable onClose={() => setSelectedBrand(undefined)}>
-                {selectedBrand}
-              </Tag>
-            )}
-            {selectedStatus !== 'ALL' && (
-              <Tag closable onClose={() => setSelectedStatus('ALL')}>
-                {STATUS_CONFIG[selectedStatus]?.label}
+            {selectedSerialized !== undefined && (
+              <Tag closable onClose={() => setSelectedSerialized(undefined)}>
+                {selectedSerialized ? 'Serial/IMEI' : 'Số lượng'}
               </Tag>
             )}
             <Button
               type="link"
               size="small"
               onClick={() => {
-                setSelectedProductType('ALL');
-                setSelectedStatus('ALL');
-                setSelectedBrand(undefined);
+                setSelectedCategory(undefined);
+                setSelectedSerialized(undefined);
                 setSearchText('');
               }}
             >
@@ -726,192 +526,23 @@ const ProductList: React.FC = () => {
       <Card className="shadow-sm" bordered={false} bodyStyle={{ padding: 0 }}>
         <Table
           columns={columns}
-          dataSource={filteredData}
-          rowKey="componentId"
+          dataSource={data}
+          rowKey="componentID"
           loading={loading}
           pagination={{
-            pageSize: 10,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
             showSizeChanger: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} / ${total} sản phẩm`,
+            pageSizeOptions: ['10', '20', '50', '100'],
           }}
-          scroll={{ x: 1400 }}
+          onChange={handleTableChange}
+          scroll={{ x: 1200 }}
           rowClassName="hover:bg-blue-50/30"
         />
       </Card>
 
-      {/* DETAIL DRAWER */}
-      <Drawer
-        title={
-          <div className="flex items-center gap-3">
-            <Avatar
-              shape="square"
-              size={48}
-              src={selectedProduct?.imageUrl}
-              icon={<AppstoreOutlined />}
-            />
-            <div>
-              <div className="font-semibold">{selectedProduct?.componentName}</div>
-              <div className="text-sm text-gray-500 font-mono">{selectedProduct?.sku}</div>
-            </div>
-          </div>
-        }
-        placement="right"
-        width={600}
-        open={detailDrawerOpen}
-        onClose={() => setDetailDrawerOpen(false)}
-        extra={
-          <Space>
-            <Button icon={<EditOutlined />} onClick={() => {
-              setDetailDrawerOpen(false);
-              navigate(`/admin/inventory/products/${selectedProduct?.componentId}/edit`);
-            }}>
-              Sửa
-            </Button>
-          </Space>
-        }
-      >
-        {selectedProduct && (
-          <Tabs
-            items={[
-              {
-                key: 'info',
-                label: (
-                  <span>
-                    <FileTextOutlined /> Thông tin
-                  </span>
-                ),
-                children: (
-                  <div className="space-y-6">
-                    <Descriptions column={2} size="small" bordered>
-                      <Descriptions.Item label="SKU" span={1}>
-                        <Text copyable className="font-mono">
-                          {selectedProduct.sku}
-                        </Text>
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Barcode" span={1}>
-                        {selectedProduct.barcode || '---'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Loại sản phẩm" span={1}>
-                        <Tag color={PRODUCT_TYPE_CONFIG[selectedProduct.productType]?.color}>
-                          {PRODUCT_TYPE_CONFIG[selectedProduct.productType]?.label}
-                        </Tag>
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Loại thiết bị" span={1}>
-                        {selectedProduct.deviceType
-                          ? DEVICE_TYPE_CONFIG[selectedProduct.deviceType]?.label
-                          : '---'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Thương hiệu" span={1}>
-                        {selectedProduct.brand || '---'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Model" span={1}>
-                        {selectedProduct.model || '---'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Đơn vị" span={1}>
-                        {selectedProduct.unit || '---'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Trạng thái" span={1}>
-                        <Badge
-                          status={STATUS_CONFIG[selectedProduct.status]?.badge}
-                          text={STATUS_CONFIG[selectedProduct.status]?.label}
-                        />
-                      </Descriptions.Item>
-                    </Descriptions>
-
-                    <Card size="small" title={<><DollarOutlined /> Giá cả</>}>
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <div className="text-gray-500 text-sm">Giá vốn</div>
-                          <div className="font-semibold text-lg">
-                            {formatCurrency(selectedProduct.basePrice)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500 text-sm">Giá bán lẻ</div>
-                          <div className="font-bold text-lg text-blue-600">
-                            {formatCurrency(selectedProduct.sellPrice)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500 text-sm">Giá sỉ</div>
-                          <div className="font-semibold text-lg">
-                            {formatCurrency(selectedProduct.wholesalePrice)}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-
-                    <Card size="small" title={<><InboxOutlined /> Kho hàng</>}>
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <div className="text-gray-500 text-sm">Tồn kho</div>
-                          <div className="font-bold text-2xl text-gray-800">
-                            {selectedProduct.currentStock ?? 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500 text-sm">Tối thiểu</div>
-                          <div className="font-semibold text-lg">
-                            {selectedProduct.minStockLevel ?? 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500 text-sm">Quản lý</div>
-                          <div>
-                            {selectedProduct.isSerialized ? (
-                              <Tag color="purple">Serial/IMEI</Tag>
-                            ) : (
-                              <Tag color="cyan">Số lượng</Tag>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                ),
-              },
-              {
-                key: 'specs',
-                label: (
-                  <span>
-                    <SettingOutlined /> Thông số
-                  </span>
-                ),
-                children: selectedProduct.specifications ? (
-                  <Descriptions column={1} size="small" bordered>
-                    {Object.entries(selectedProduct.specifications).map(([key, value]) => (
-                      <Descriptions.Item key={key} label={key.replace(/_/g, ' ')}>
-                        {value}
-                      </Descriptions.Item>
-                    ))}
-                  </Descriptions>
-                ) : (
-                  <Empty description="Chưa có thông số kỹ thuật" />
-                ),
-              },
-              {
-                key: 'tags',
-                label: (
-                  <span>
-                    <TagsOutlined /> Tags
-                  </span>
-                ),
-                children: selectedProduct.tags && selectedProduct.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProduct.tags.map(tag => (
-                      <Tag key={tag} color="blue">
-                        {tag}
-                      </Tag>
-                    ))}
-                  </div>
-                ) : (
-                  <Empty description="Chưa có tags" />
-                ),
-              },
-            ]}
-          />
-        )}
-      </Drawer>
     </div>
   );
 };

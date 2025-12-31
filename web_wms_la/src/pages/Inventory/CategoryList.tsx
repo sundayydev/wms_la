@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   Card,
@@ -11,7 +11,8 @@ import {
   Tooltip,
   Popconfirm,
   Typography,
-  Tag
+  Tag,
+  Switch
 } from 'antd';
 import {
   PlusOutlined,
@@ -20,68 +21,52 @@ import {
   DeleteOutlined,
   TagsOutlined,
   FolderOpenOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  UndoOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { categoriesService } from '../../services';
+import type { CategoryListDto, CreateCategoryDto, UpdateCategoryDto } from '../../types/type.category';
 
 const { Text } = Typography;
 
 // ============================================================================
-// 1. TYPES & MOCK DATA
-// ============================================================================
-
-interface CategoryType {
-  CategoryID: string;
-  CategoryName: string;
-  ProductCount: number; // Trường giả lập (Frontend only)
-  CreatedAt: string;
-  UpdatedAt: string;
-}
-
-const initialData: CategoryType[] = [
-  {
-    CategoryID: 'cat-001',
-    CategoryName: 'Điện thoại thông minh',
-    ProductCount: 150,
-    CreatedAt: '2024-01-01',
-    UpdatedAt: '2024-01-01',
-  },
-  {
-    CategoryID: 'cat-002',
-    CategoryName: 'Laptop & Macbook',
-    ProductCount: 45,
-    CreatedAt: '2024-01-10',
-    UpdatedAt: '2024-02-15',
-  },
-  {
-    CategoryID: 'cat-003',
-    CategoryName: 'Phụ kiện - Cáp sạc',
-    ProductCount: 320,
-    CreatedAt: '2024-03-05',
-    UpdatedAt: '2024-03-05',
-  },
-  {
-    CategoryID: 'cat-004',
-    CategoryName: 'Linh kiện sửa chữa',
-    ProductCount: 1200,
-    CreatedAt: '2024-04-20',
-    UpdatedAt: '2024-04-20',
-  },
-];
-
-// ============================================================================
-// 2. COMPONENT CHÍNH
+// COMPONENT CHÍNH
 // ============================================================================
 
 const CategoryList: React.FC = () => {
-  const [data, setData] = useState<CategoryType[]>(initialData);
+  const [data, setData] = useState<CategoryListDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<CategoryType | null>(null);
+  const [editingRecord, setEditingRecord] = useState<CategoryListDto | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   const [form] = Form.useForm();
+
+  // --- LOAD DATA ---
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+
+      const response = await categoriesService.getAllCategories(includeDeleted);
+
+      if (response.success && response.data) {
+        setData(response.data);
+      } else {
+        message.error(response.message || 'Không thể tải danh sách danh mục');
+      }
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Lỗi khi tải danh sách danh mục');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, [includeDeleted]);
 
   // --- HANDLERS ---
 
@@ -91,16 +76,48 @@ const CategoryList: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (record: CategoryType) => {
+  const handleEdit = (record: CategoryListDto) => {
     setEditingRecord(record);
-    form.setFieldsValue({ CategoryName: record.CategoryName });
+    form.setFieldsValue({ categoryName: record.categoryName });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    // Logic gọi API xóa (Soft Delete)
-    setData(data.filter(item => item.CategoryID !== id));
-    message.success('Đã xóa danh mục');
+  const handleDelete = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await categoriesService.deleteCategory(id);
+
+      if (response.success) {
+        message.success('Đã xóa danh mục thành công');
+        loadCategories();
+      } else {
+        message.error(response.message || 'Không thể xóa danh mục');
+      }
+    } catch (error: any) {
+      console.error('Error deleting category:', error);
+      message.error(error?.response?.data?.message || 'Lỗi khi xóa danh mục');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await categoriesService.restoreCategory(id);
+
+      if (response.success) {
+        message.success('Đã khôi phục danh mục thành công');
+        loadCategories();
+      } else {
+        message.error(response.message || 'Không thể khôi phục danh mục');
+      }
+    } catch (error: any) {
+      console.error('Error restoring category:', error);
+      message.error(error?.response?.data?.message || 'Lỗi khi khôi phục danh mục');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -108,34 +125,42 @@ const CategoryList: React.FC = () => {
       const values = await form.validateFields();
       setLoading(true);
 
-      // Giả lập delay API
-      await new Promise(resolve => setTimeout(resolve, 600));
-
       if (editingRecord) {
-        // Update logic
-        const updatedData = data.map(item =>
-          item.CategoryID === editingRecord.CategoryID
-            ? { ...item, CategoryName: values.CategoryName, UpdatedAt: dayjs().format('YYYY-MM-DD') }
-            : item
-        );
-        setData(updatedData);
-        message.success('Cập nhật thành công');
-      } else {
-        // Create logic
-        const newItem: CategoryType = {
-          CategoryID: `cat-${Date.now()}`,
-          CategoryName: values.CategoryName,
-          ProductCount: 0,
-          CreatedAt: dayjs().format('YYYY-MM-DD'),
-          UpdatedAt: dayjs().format('YYYY-MM-DD'),
+        // Update
+        const updateDto: UpdateCategoryDto = {
+          categoryName: values.categoryName,
         };
-        setData([newItem, ...data]); // Thêm vào đầu danh sách
-        message.success('Thêm danh mục mới thành công');
-      }
+        const response = await categoriesService.updateCategory(editingRecord.categoryID, updateDto);
 
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Validate Failed:', error);
+        if (response.success) {
+          message.success('Cập nhật danh mục thành công');
+          setIsModalOpen(false);
+          loadCategories();
+        } else {
+          message.error(response.message || 'Không thể cập nhật danh mục');
+        }
+      } else {
+        // Create
+        const createDto: CreateCategoryDto = {
+          categoryName: values.categoryName,
+        };
+        const response = await categoriesService.createCategory(createDto);
+
+        if (response.success) {
+          message.success('Thêm danh mục mới thành công');
+          setIsModalOpen(false);
+          loadCategories();
+        } else {
+          message.error(response.message || 'Không thể thêm danh mục');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error saving category:', error);
+      if (error?.errorFields) {
+        // Validation error
+        return;
+      }
+      message.error(error?.response?.data?.message || 'Lỗi khi lưu danh mục');
     } finally {
       setLoading(false);
     }
@@ -143,26 +168,36 @@ const CategoryList: React.FC = () => {
 
   // --- TABLE COLUMNS ---
 
-  const columns: ColumnsType<CategoryType> = [
+  const columns: ColumnsType<CategoryListDto> = [
     {
       title: 'Tên danh mục',
-      dataIndex: 'CategoryName',
+      dataIndex: 'categoryName',
       key: 'name',
-      render: (text) => (
+      render: (text, record) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <FolderOpenOutlined className="text-lg" />
           </div>
-          <span className="font-semibold text-gray-700 text-base">{text}</span>
+          <div className="flex flex-col">
+            <span className={`font-semibold text-base ${record.deletedAt ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+              {text}
+            </span>
+            {record.deletedAt && (
+              <Text type="danger" className="text-xs">
+                Đã xóa: {dayjs(record.deletedAt).format('DD/MM/YYYY HH:mm')}
+              </Text>
+            )}
+          </div>
         </div>
       ),
     },
     {
       title: 'Số lượng SP',
-      dataIndex: 'ProductCount',
+      dataIndex: 'componentCount',
       key: 'count',
       align: 'center',
-      sorter: (a, b) => a.ProductCount - b.ProductCount,
+      width: 150,
+      sorter: (a, b) => a.componentCount - b.componentCount,
       render: (count) => (
         <Tag color="cyan" className="rounded-full px-3">
           {count} sản phẩm
@@ -171,8 +206,16 @@ const CategoryList: React.FC = () => {
     },
     {
       title: 'Ngày tạo',
-      dataIndex: 'CreatedAt',
+      dataIndex: 'createdAt',
       key: 'created',
+      width: 150,
+      render: (date) => <Text type="secondary">{dayjs(date).format('DD/MM/YYYY')}</Text>
+    },
+    {
+      title: 'Cập nhật',
+      dataIndex: 'updatedAt',
+      key: 'updated',
+      width: 150,
       render: (date) => <Text type="secondary">{dayjs(date).format('DD/MM/YYYY')}</Text>
     },
     {
@@ -180,31 +223,56 @@ const CategoryList: React.FC = () => {
       key: 'action',
       width: 120,
       align: 'center',
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Chỉnh sửa">
-            <Button
-              type="text"
-              icon={<EditOutlined className="text-blue-600" />}
-              onClick={() => handleEdit(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Xóa danh mục?"
-            description="Hành động này sẽ không xóa các sản phẩm bên trong."
-            onConfirm={() => handleDelete(record.CategoryID)}
-            okText="Xóa"
-            cancelText="Hủy"
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="Xóa">
-              <Button type="text" danger icon={<DeleteOutlined />} />
+      render: (_, record) => {
+        if (record.deletedAt) {
+          // Danh mục đã xóa - chỉ hiển thị nút khôi phục
+          return (
+            <Tooltip title="Khôi phục">
+              <Button
+                type="primary"
+                icon={<UndoOutlined />}
+                onClick={() => handleRestore(record.categoryID)}
+                size="small"
+              >
+                Khôi phục
+              </Button>
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
+          );
+        }
+
+        // Danh mục đang hoạt động - hiển thị edit và delete
+        return (
+          <Space>
+            <Tooltip title="Chỉnh sửa">
+              <Button
+                type="text"
+                icon={<EditOutlined className="text-blue-600" />}
+                onClick={() => handleEdit(record)}
+              />
+            </Tooltip>
+            <Popconfirm
+              title="Xóa danh mục?"
+              description="Hành động này sẽ không xóa các sản phẩm bên trong."
+              onConfirm={() => handleDelete(record.categoryID)}
+              okText="Xóa"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Xóa">
+                <Button type="text" danger icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
+
+  // Filtered data based on search
+  const filteredData = data.filter(item =>
+    item.categoryName?.toLowerCase()
+      .includes(searchText?.toLowerCase() ?? "") ?? false
+  );
 
   return (
     <div className="w-full">
@@ -228,7 +296,7 @@ const CategoryList: React.FC = () => {
 
       {/* FILTER & TOOLBAR */}
       <Card className="mb-6 shadow-sm" bordered={false} bodyStyle={{ padding: '16px' }}>
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <Input
             placeholder="Tìm kiếm danh mục..."
             prefix={<SearchOutlined className="text-gray-400" />}
@@ -236,9 +304,20 @@ const CategoryList: React.FC = () => {
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
           />
-          <Tooltip title="Làm mới dữ liệu">
-            <Button icon={<ReloadOutlined />} onClick={() => message.info('Đã làm mới!')} />
-          </Tooltip>
+          <Space>
+            <div className="flex items-center gap-2">
+              <Text>Hiển thị danh mục đã xóa:</Text>
+              <Switch
+                checked={includeDeleted}
+                onChange={setIncludeDeleted}
+                checkedChildren="Có"
+                unCheckedChildren="Không"
+              />
+            </div>
+            <Tooltip title="Làm mới dữ liệu">
+              <Button icon={<ReloadOutlined />} onClick={loadCategories} />
+            </Tooltip>
+          </Space>
         </div>
       </Card>
 
@@ -246,12 +325,16 @@ const CategoryList: React.FC = () => {
       <Card className="shadow-sm" bordered={false} bodyStyle={{ padding: 0 }}>
         <Table
           columns={columns}
-          dataSource={data.filter(item =>
-            item.CategoryName.toLowerCase().includes(searchText.toLowerCase())
-          )}
-          rowKey="CategoryID"
-          pagination={{ pageSize: 8 }}
+          dataSource={filteredData}
+          rowKey="categoryID"
+          pagination={{
+            pageSize: 10,
+            showTotal: (total) => `Tổng ${total} danh mục`,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100']
+          }}
           loading={loading}
+          rowClassName={(record) => record.deletedAt ? 'bg-gray-50' : ''}
         />
       </Card>
 
@@ -267,7 +350,7 @@ const CategoryList: React.FC = () => {
       >
         <Form form={form} layout="vertical" className="pt-4">
           <Form.Item
-            name="CategoryName"
+            name="categoryName"
             label="Tên danh mục"
             rules={[
               { required: true, message: 'Vui lòng nhập tên danh mục' },

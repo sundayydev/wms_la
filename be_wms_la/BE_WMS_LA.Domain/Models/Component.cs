@@ -30,9 +30,49 @@ public class Component
     public string ComponentName { get; set; } = string.Empty;
 
     /// <summary>
+    /// Tên tiếng Việt/Tên tờ khai (VD: Máy đọc mã vạch)
+    /// </summary>
+    [StringLength(255)]
+    public string? ComponentNameVN { get; set; }
+
+    /// <summary>
     /// FK: Liên kết đến bảng Categories
     /// </summary>
     public Guid? CategoryID { get; set; }
+
+    #region Phân loại sản phẩm
+
+    /// <summary>
+    /// Phân loại sản phẩm: DEVICE, ACCESSORY, CONSUMABLE, SPARE_PART, SOFTWARE
+    /// </summary>
+    [StringLength(50)]
+    public string ProductType { get; set; } = "DEVICE";
+
+    /// <summary>
+    /// Thương hiệu (VD: Zebra, Honeywell, Mobydata, Datalogic)
+    /// </summary>
+    [StringLength(100)]
+    public string? Brand { get; set; }
+
+    /// <summary>
+    /// Model (VD: TC21, M63, DS2208)
+    /// </summary>
+    [StringLength(100)]
+    public string? Model { get; set; }
+
+    /// <summary>
+    /// Mã sản phẩm gốc từ nhà sản xuất
+    /// </summary>
+    [StringLength(100)]
+    public string? ManufacturerSKU { get; set; }
+
+    /// <summary>
+    /// Mã vạch sản phẩm (EAN/UPC)
+    /// </summary>
+    [StringLength(100)]
+    public string? Barcode { get; set; }
+
+    #endregion
 
     /// <summary>
     /// Đơn vị tính (Cái, Chiếc, Bộ, Hộp)
@@ -45,6 +85,12 @@ public class Component
     /// </summary>
     [StringLength(500)]
     public string? ImageURL { get; set; }
+
+    /// <summary>
+    /// Gallery ảnh dạng JSON Array (["url1", "url2", "url3"])
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string ImageGallery { get; set; } = "[]";
 
     #region Giá cả
 
@@ -60,6 +106,12 @@ public class Component
     [Column(TypeName = "decimal(15,2)")]
     public decimal? SellPrice { get; set; }
 
+    /// <summary>
+    /// Giá sỉ
+    /// </summary>
+    [Column(TypeName = "decimal(15,2)")]
+    public decimal? WholesalePrice { get; set; }
+
     #endregion
 
     #region Quản lý kho
@@ -70,10 +122,63 @@ public class Component
     public bool IsSerialized { get; set; } = true;
 
     /// <summary>
-    /// Thông số kỹ thuật dạng JSON (VD: {"OS": "Android 13", "RAM": "4GB"})
+    /// Mức tồn kho tối thiểu (cảnh báo)
+    /// </summary>
+    public int MinStockLevel { get; set; } = 0;
+
+    /// <summary>
+    /// Mức tồn kho tối đa
+    /// </summary>
+    public int? MaxStockLevel { get; set; }
+
+    /// <summary>
+    /// Số tháng bảo hành mặc định
+    /// </summary>
+    public int DefaultWarrantyMonths { get; set; } = 12;
+
+    #endregion
+
+    #region Thông tin vật lý
+
+    /// <summary>
+    /// Trọng lượng (kg)
+    /// </summary>
+    [Column(TypeName = "decimal(10,3)")]
+    public decimal? Weight { get; set; }
+
+    /// <summary>
+    /// Chiều dài (cm)
+    /// </summary>
+    [Column(TypeName = "decimal(10,2)")]
+    public decimal? Length { get; set; }
+
+    /// <summary>
+    /// Chiều rộng (cm)
+    /// </summary>
+    [Column(TypeName = "decimal(10,2)")]
+    public decimal? Width { get; set; }
+
+    /// <summary>
+    /// Chiều cao (cm)
+    /// </summary>
+    [Column(TypeName = "decimal(10,2)")]
+    public decimal? Height { get; set; }
+
+    #endregion
+
+    #region Thông số & Tài liệu
+
+    /// <summary>
+    /// Thông số kỹ thuật dạng JSON (Grouped format with k, v, q)
     /// </summary>
     [Column(TypeName = "jsonb")]
     public string Specifications { get; set; } = "{}";
+
+    /// <summary>
+    /// Tags để tìm kiếm nhanh (VD: ["Android", "Bluetooth", "IP65", "2D Scanner"])
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string Tags { get; set; } = "[]";
 
     /// <summary>
     /// Tài liệu liên quan dạng JSON Array (Datasheet, Manual, Driver)
@@ -86,6 +191,34 @@ public class Component
     /// </summary>
     [Column(TypeName = "jsonb")]
     public string Competitors { get; set; } = "[]";
+
+    /// <summary>
+    /// Sản phẩm tương thích (cho phụ kiện)
+    /// VD: [{"ComponentID": "xxx", "SKU": "MOBY-M63-V2", "Name": "PDA M63"}]
+    /// </summary>
+    [Column(TypeName = "jsonb")]
+    public string CompatibleWith { get; set; } = "[]";
+
+    #endregion
+
+    #region Trạng thái & SEO
+
+    /// <summary>
+    /// Trạng thái sản phẩm: ACTIVE, DISCONTINUED, COMING_SOON, OUT_OF_STOCK
+    /// </summary>
+    [StringLength(50)]
+    public string Status { get; set; } = "ACTIVE";
+
+    /// <summary>
+    /// Mô tả ngắn
+    /// </summary>
+    [StringLength(500)]
+    public string? ShortDescription { get; set; }
+
+    /// <summary>
+    /// Mô tả đầy đủ (HTML)
+    /// </summary>
+    public string? FullDescription { get; set; }
 
     #endregion
 

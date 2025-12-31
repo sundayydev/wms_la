@@ -1,5 +1,16 @@
 // Types cho bảng Components dựa trên Database Schema
 
+export interface SpecificationItem {
+    k: string;  // key - tên thông số
+    v: string;  // value - giá trị
+    q?: boolean | number; // showOnQuote - hiển thị khi báo giá
+}
+
+export interface SpecificationGroup {
+    groupName: string;
+    items: SpecificationItem[];
+}
+
 // Phân loại sản phẩm
 export type ProductType = 'DEVICE' | 'ACCESSORY' | 'CONSUMABLE' | 'SPARE_PART' | 'SOFTWARE';
 
@@ -76,7 +87,7 @@ export interface Component {
     height?: number;
 
     // JSONB fields
-    specifications?: Record<string, string>;
+    specifications?: Record<string, any>;
     tags?: string[];
     documents?: DocumentItem[];
     competitors?: CompetitorItem[];
@@ -91,6 +102,27 @@ export interface Component {
     createdAt?: string;
     updatedAt?: string;
     deletedAt?: string;
+
+    // Relations
+    variants?: Variant[];
+}
+
+export interface Variant {
+    variantId: string;
+    partNumber: string;
+    variantName?: string;
+    variantDescription?: string;
+    variantSpecs?: string;
+    basePrice?: number;
+    sellPrice?: number;
+    wholesalePrice?: number;
+    barcode?: string;
+    minStockLevel: number;
+    maxStockLevel?: number;
+    isActive: boolean;
+    isDefault: boolean;
+    sortOrder: number;
+    stockCount: number;
 }
 
 // Interface cho Documents

@@ -22,9 +22,49 @@ public class CreateProductDto
     public string ComponentName { get; set; } = string.Empty;
 
     /// <summary>
+    /// Tên tiếng Việt / Tên tờ khai
+    /// </summary>
+    [StringLength(255, ErrorMessage = "Tên tiếng Việt tối đa 255 ký tự")]
+    public string? ComponentNameVN { get; set; }
+
+    /// <summary>
     /// Danh mục
     /// </summary>
     public Guid? CategoryID { get; set; }
+
+    #region Phân loại sản phẩm
+
+    /// <summary>
+    /// Phân loại sản phẩm: DEVICE, ACCESSORY, CONSUMABLE, SPARE_PART, SOFTWARE
+    /// </summary>
+    [StringLength(50)]
+    public string ProductType { get; set; } = "DEVICE";
+
+    /// <summary>
+    /// Thương hiệu
+    /// </summary>
+    [StringLength(100)]
+    public string? Brand { get; set; }
+
+    /// <summary>
+    /// Model
+    /// </summary>
+    [StringLength(100)]
+    public string? Model { get; set; }
+
+    /// <summary>
+    /// Mã sản phẩm gốc từ nhà sản xuất
+    /// </summary>
+    [StringLength(100)]
+    public string? ManufacturerSKU { get; set; }
+
+    /// <summary>
+    /// Mã vạch (EAN/UPC)
+    /// </summary>
+    [StringLength(100)]
+    public string? Barcode { get; set; }
+
+    #endregion
 
     /// <summary>
     /// Đơn vị tính
@@ -36,8 +76,14 @@ public class CreateProductDto
     /// Đường dẫn ảnh
     /// </summary>
     [StringLength(500, ErrorMessage = "URL ảnh tối đa 500 ký tự")]
-    [Url(ErrorMessage = "URL ảnh không hợp lệ")]
     public string? ImageURL { get; set; }
+
+    /// <summary>
+    /// Gallery ảnh (JSON Array)
+    /// </summary>
+    public string ImageGallery { get; set; } = "[]";
+
+    #region Giá cả
 
     /// <summary>
     /// Giá nhập
@@ -52,14 +98,74 @@ public class CreateProductDto
     public decimal? SellPrice { get; set; }
 
     /// <summary>
+    /// Giá sỉ
+    /// </summary>
+    [Range(0, double.MaxValue, ErrorMessage = "Giá sỉ phải >= 0")]
+    public decimal? WholesalePrice { get; set; }
+
+    #endregion
+
+    #region Quản lý kho
+
+    /// <summary>
     /// Quản lý theo Serial
     /// </summary>
     public bool IsSerialized { get; set; } = true;
 
     /// <summary>
+    /// Mức tồn kho tối thiểu
+    /// </summary>
+    [Range(0, int.MaxValue)]
+    public int MinStockLevel { get; set; } = 0;
+
+    /// <summary>
+    /// Mức tồn kho tối đa
+    /// </summary>
+    public int? MaxStockLevel { get; set; }
+
+    /// <summary>
+    /// Số tháng bảo hành mặc định
+    /// </summary>
+    [Range(0, 120)]
+    public int DefaultWarrantyMonths { get; set; } = 12;
+
+    #endregion
+
+    #region Thông tin vật lý
+
+    /// <summary>
+    /// Trọng lượng (kg)
+    /// </summary>
+    public decimal? Weight { get; set; }
+
+    /// <summary>
+    /// Chiều dài (cm)
+    /// </summary>
+    public decimal? Length { get; set; }
+
+    /// <summary>
+    /// Chiều rộng (cm)
+    /// </summary>
+    public decimal? Width { get; set; }
+
+    /// <summary>
+    /// Chiều cao (cm)
+    /// </summary>
+    public decimal? Height { get; set; }
+
+    #endregion
+
+    #region Thông số & Tài liệu
+
+    /// <summary>
     /// Thông số kỹ thuật (JSON)
     /// </summary>
     public string Specifications { get; set; } = "{}";
+
+    /// <summary>
+    /// Tags (JSON Array)
+    /// </summary>
+    public string Tags { get; set; } = "[]";
 
     /// <summary>
     /// Tài liệu (JSON)
@@ -70,4 +176,32 @@ public class CreateProductDto
     /// Danh sách sản phẩm đối thủ (JSON)
     /// </summary>
     public string Competitors { get; set; } = "[]";
+
+    /// <summary>
+    /// Sản phẩm tương thích (JSON)
+    /// </summary>
+    public string CompatibleWith { get; set; } = "[]";
+
+    #endregion
+
+    #region Trạng thái & SEO
+
+    /// <summary>
+    /// Trạng thái: ACTIVE, DISCONTINUED, COMING_SOON, OUT_OF_STOCK
+    /// </summary>
+    [StringLength(50)]
+    public string Status { get; set; } = "ACTIVE";
+
+    /// <summary>
+    /// Mô tả ngắn
+    /// </summary>
+    [StringLength(500)]
+    public string? ShortDescription { get; set; }
+
+    /// <summary>
+    /// Mô tả đầy đủ (HTML)
+    /// </summary>
+    public string? FullDescription { get; set; }
+
+    #endregion
 }

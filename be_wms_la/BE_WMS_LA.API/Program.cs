@@ -37,6 +37,9 @@ if (!string.IsNullOrEmpty(redisConnectionString))
 // --- ĐĂNG KÝ REPOSITORIES ---
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.UserRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.WarehouseRepository>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.CategoryRepository>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.SupplierRepository>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.ProductRepository>();
 
 // --- ĐĂNG KÝ SERVICES ---
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.AuthService>();
@@ -45,6 +48,7 @@ builder.Services.AddScoped<BE_WMS_LA.Core.Services.PermissionService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.SupplierService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.ProductService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.WarehouseService>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Services.CategoryService>();
 
 // --- CẤU HÌNH JWT SETTINGS ---
 // Thêm section JwtSettings vào IConfiguration để AuthService có thể đọc
