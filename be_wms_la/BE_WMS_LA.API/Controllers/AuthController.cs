@@ -130,7 +130,7 @@ public class AuthController : ControllerBase
     [HttpPost("refresh-token")]
     [AllowAnonymous]
     [EndpointSummary("Làm mới Token")]
-    [EndpointDescription("Làm mới Access Token bằng Refresh Token từ HttpOnly Cookie. Gửi kèm Access Token cũ trong header Authorization.")]
+    [EndpointDescription("Làm mới Access Token bằng Refresh Token từ HttpOnly Cookie. KHÔNG CẦN gửi Access Token cũ trong header Authorization.")]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<LoginResponseDto>>(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RefreshToken()
@@ -153,14 +153,8 @@ public class AuthController : ControllerBase
             return Unauthorized(ApiResponse<LoginResponseDto>.ErrorResponse("Refresh Token không tồn tại. Vui lòng đăng nhập lại."));
         }
 
-        // Lấy access token từ header (có thể đã hết hạn)
-        var accessToken = GetAccessTokenFromHeader();
-        if (string.IsNullOrEmpty(accessToken))
-        {
-            return Unauthorized(ApiResponse<LoginResponseDto>.ErrorResponse("Access Token không được cung cấp"));
-        }
-
-        var result = await _authService.RefreshTokenAsync(refreshToken, accessToken);
+        // Gọi service chỉ với refreshToken (không cần accessToken)
+        var result = await _authService.RefreshTokenAsync(refreshToken);
 
         if (!result.Success)
         {

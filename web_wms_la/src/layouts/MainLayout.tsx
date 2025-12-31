@@ -1,6 +1,6 @@
 // src/layouts/MainLayout.tsx
 import React, { useState, useEffect } from 'react';
-import { Layout, Button, theme, Dropdown, Avatar, Space, Grid } from 'antd';
+import { Layout, Button, theme, Dropdown, Avatar, Space, Grid, message, Modal } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -8,19 +8,25 @@ import {
   LogoutOutlined,
   SettingOutlined,
   MenuOutlined,
-  BellOutlined
+  BellOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 
-// Import Component Sidebar vừa tách
+// Import Component Sidebar và Auth Service
 import Sidebar from './components/Sidebar';
+import { logout, getCurrentUser } from '../services/auth.service';
+import type { UserInfo } from '../types/api.types';
 
 const { Header, Content } = Layout;
 const { useBreakpoint } = Grid;
+const { confirm } = Modal;
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
   const [openDrawer, setOpenDrawer] = useState(false);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const {
     token: { colorBgContainer, borderRadiusLG },
@@ -33,6 +39,24 @@ const MainLayout: React.FC = () => {
   // Logic kiểm tra mobile
   const isMobile = !screens.md;
 
+  // Lấy thông tin user khi component mount
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const user = await getCurrentUser();
+        setUserInfo(user);
+      } catch (error) {
+        console.error('Failed to fetch user info:', error);
+        // Nếu lỗi 401, có thể redirect về login
+        if (error instanceof Error && error.message.includes('401')) {
+          navigate('/auth/login');
+        }
+      }
+    };
+
+    fetchUserInfo();
+  }, [navigate]);
+
   // Tự động đóng Drawer khi chuyển trang (để UX tốt hơn)
   useEffect(() => {
     if (isMobile) {
@@ -40,24 +64,57 @@ const MainLayout: React.FC = () => {
     }
   }, [location.pathname, isMobile]);
 
+  // Hàm xử lý đăng xuất
+  const handleLogout = () => {
+    confirm({
+      title: 'Xác nhận đăng xuất',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
+      okText: 'Đăng xuất',
+      cancelText: 'Hủy',
+      okType: 'danger',
+      onOk: async () => {
+        setLoggingOut(true);
+        try {
+          await logout();
+          message.success('Đăng xuất thành công');
+          navigate('/auth/login');
+        } catch (error) {
+          message.error('Đăng xuất thất bại. Vui lòng thử lại.');
+          console.error('Logout error:', error);
+        } finally {
+          setLoggingOut(false);
+        }
+      },
+    });
+  };
+
   // Menu Dropdown của User (Header)
   const userMenu = [
     {
-      key: 'profile', label: < Link to="/profile" > Thông tin cá nhân</Link >, icon: <UserOutlined />
+      key: 'profile',
+      label: <Link to="/admin/profile">Thông tin cá nhân</Link>,
+      icon: <UserOutlined />
     },
-    { key: 'settings', label: <Link to="/system/settings">Cài đặt hệ thống</Link>, icon: <SettingOutlined /> },
+    {
+      key: 'settings',
+      label: <Link to="/admin/system/settings">Cài đặt hệ thống</Link>,
+      icon: <SettingOutlined />
+    },
     { type: 'divider' as const },
     {
       key: 'logout',
-      label: 'Đăng xuất',
+      label: loggingOut ? 'Đang đăng xuất...' : 'Đăng xuất',
       icon: <LogoutOutlined />,
       danger: true,
-      onClick: () => {
-        localStorage.removeItem('access_token');
-        navigate('/auth/login');
-      },
+      disabled: loggingOut,
+      onClick: handleLogout,
     },
   ];
+
+  // Lấy tên hiển thị từ userInfo
+  const displayName = userInfo?.fullName || userInfo?.username || 'User';
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <Layout className="min-h-screen">
@@ -100,11 +157,21 @@ const MainLayout: React.FC = () => {
               className="text-lg rounded-full text-gray-600"
             />
 
-            {!isMobile && <span className="text-gray-600 font-medium">Xin chào, Admin</span>}
+            {!isMobile && (
+              <span className="text-gray-600 font-medium">
+                Xin chào, {displayName}
+              </span>
+            )}
 
             <Dropdown menu={{ items: userMenu }} placement="bottomRight" arrow>
-              <Space className="cursor-pointer p-2 rounded-full transition">
-                <Avatar className="bg-blue-100 text-blue-600" icon={<UserOutlined />} />
+              <Space className="cursor-pointer p-2 rounded-full hover:bg-gray-100 transition">
+                <Avatar
+                  className="bg-blue-100 text-blue-600"
+                  src={userInfo?.avatar}
+                  icon={!userInfo?.avatar && <UserOutlined />}
+                >
+                  {!userInfo?.avatar && userInitial}
+                </Avatar>
               </Space>
             </Dropdown>
           </div>
@@ -125,7 +192,7 @@ const MainLayout: React.FC = () => {
         </Content>
 
         <div className="text-center pb-4 text-gray-400 text-xs md:text-sm">
-          WMS LA Project ©2025 Created by You
+          WMS LA Project ©2025 Created by SundayyDev
         </div>
       </Layout>
     </Layout>

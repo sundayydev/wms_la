@@ -177,7 +177,73 @@ public class AuthService
     }
 
     /// <summary>
-    /// Làm mới Access Token
+    /// Làm mới Access Token (chỉ cần Refresh Token)
+    /// </summary>
+    public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
+    {
+        // 0. Kiểm tra Redis có sẵn không
+        if (_redis == null || _redisDb == null)
+        {
+            return AuthResult.Error("Redis không khả dụng");
+        }
+
+        // 1. Tìm user từ refresh token trong Redis
+        var db = _redis.GetDatabase();
+        var keys = _redis.GetServer(_redis!.GetEndPoints().First()).Keys(pattern: "refresh_token:*");
+
+        Guid userId = Guid.Empty;
+        foreach (var key in keys)
+        {
+            var storedToken = await db.StringGetAsync(key);
+            if (storedToken == refreshToken)
+            {
+                // Extract userId from key "refresh_token:{userId}"
+                var keyString = key.ToString();
+                var userIdString = keyString.Replace("refresh_token:", "");
+                if (Guid.TryParse(userIdString, out userId))
+                {
+                    break;
+                }
+            }
+        }
+
+        if (userId == Guid.Empty)
+        {
+            return AuthResult.Error("Refresh token không hợp lệ hoặc đã hết hạn");
+        }
+
+        // 2. Validate refresh token
+        if (!await ValidateRefreshTokenAsync(userId, refreshToken))
+        {
+            return AuthResult.Error("Refresh token không hợp lệ hoặc đã hết hạn");
+        }
+
+        // 3. Tìm user
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null || !user.IsActive || user.DeletedAt.HasValue)
+        {
+            return AuthResult.Error("Người dùng không tồn tại hoặc đã bị vô hiệu hóa");
+        }
+
+        // 4. Tạo token mới
+        var expirationMinutes = GetAccessTokenExpirationMinutes();
+        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
+        var newAccessToken = GenerateAccessToken(user, expiresAt);
+        var newRefreshToken = GenerateRefreshToken();
+
+        // 5. Lưu refresh token mới vào Redis (token rotation)
+        await SaveRefreshTokenAsync(userId, newRefreshToken);
+
+        return AuthResult.SuccessResult(
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+            expiresAt: new DateTimeOffset(expiresAt).ToUnixTimeSeconds(),
+            expiresInMinutes: expirationMinutes,
+            message: "Làm mới token thành công");
+    }
+
+    /// <summary>
+    /// Làm mới Access Token (với Access Token cũ)
     /// </summary>
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken, string accessToken)
     {

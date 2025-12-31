@@ -51,7 +51,12 @@ export { apiClient, tokenManager, handleApiError } from '../config/api.config';
 export { default as suppliersService } from './suppliers.service';
 export * from './suppliers.service';
 
+// Warehouses Service
+export { default as warehousesService } from './warehouses.service';
+export * from './warehouses.service';
+
 // Types
 export type * from '../types/api.types';
 export type * from '../types/type.supplier';
+export type * from '../types/type.warehouse';
 
