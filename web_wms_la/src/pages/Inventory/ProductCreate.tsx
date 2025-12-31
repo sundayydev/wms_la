@@ -10,7 +10,6 @@ import {
   Select,
   Switch,
   Space,
-  Upload,
   Typography,
   Divider,
   message,
@@ -20,6 +19,7 @@ import {
   Breadcrumb,
   Alert,
   Image,
+  Spin,
 } from 'antd';
 import {
   SaveOutlined,
@@ -41,16 +41,17 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import type { UploadProps } from 'antd';
-import type {
-  Component,
-  ProductType,
-} from '../../types/type.component';
+import type { ProductType } from '../../types/type.component';
 import {
   PRODUCT_TYPE_CONFIG,
-  DEVICE_TYPE_CONFIG,
   STATUS_CONFIG,
 } from '../../types/type.component';
+import productsService, {
+  type CategoryDto,
+  type CreateProductDto,
+  convertFormToCreateDto,
+  convertDtoToFormData,
+} from '../../services/products.service';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -90,57 +91,97 @@ const ProductCreate: React.FC = () => {
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
   const [productType, setProductType] = useState<ProductType>('DEVICE');
   const [previewImage, setPreviewImage] = useState<string>('');
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+
+  // Load categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await productsService.getCategories();
+        if (response.success && response.data) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        message.warning('Không thể tải danh sách danh mục');
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   // Load data if edit mode
   useEffect(() => {
     if (isEditMode && id) {
-      // TODO: Fetch product data by ID
-      message.info(`Đang tải thông tin sản phẩm: ${id}`);
+      const loadProduct = async () => {
+        setLoadingData(true);
+        try {
+          const response = await productsService.getProductById(id);
+          if (response.success && response.data) {
+            const formData = convertDtoToFormData(response.data);
+            form.setFieldsValue(formData);
+            if (formData.imageUrl) {
+              setPreviewImage(formData.imageUrl);
+            }
+            message.success('Đã tải thông tin sản phẩm');
+          } else {
+            message.error(response.message || 'Không tìm thấy sản phẩm');
+            navigate('/admin/inventory/products');
+          }
+        } catch (error) {
+          console.error('Failed to load product:', error);
+          message.error('Có lỗi khi tải thông tin sản phẩm');
+          navigate('/admin/inventory/products');
+        } finally {
+          setLoadingData(false);
+        }
+      };
+
+      loadProduct();
     }
-  }, [isEditMode, id]);
+  }, [isEditMode, id, form, navigate]);
 
   // Watch productType changes
   const handleProductTypeChange = (value: ProductType) => {
     setProductType(value);
-    if (value !== 'DEVICE') {
-      form.setFieldValue('deviceType', undefined);
-    }
   };
 
   // Submit form
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      // Convert specifications array to object
-      const specObject = (values.specifications || []).reduce(
-        (acc: Record<string, string>, curr: { key: string; value: string }) => {
-          if (curr.key && curr.value) {
-            acc[curr.key] = curr.value;
-          }
-          return acc;
-        },
-        {}
-      );
+      // Convert form data to DTO
+      const dto = convertFormToCreateDto(values);
 
-      const payload: Partial<Component> = {
-        ...values,
-        specifications: specObject,
-        tags: values.tags || [],
-        documents: values.documents || [],
-        competitors: values.competitors || [],
-      };
+      console.log('Payload gửi đi:', dto);
 
-      console.log('Payload gửi đi:', payload);
+      let response;
+      if (isEditMode && id) {
+        // Update existing product
+        response = await productsService.updateProduct(id, dto);
+      } else {
+        // Create new product
+        response = await productsService.createProduct(dto);
+      }
 
-      // TODO: Call API create/update
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      message.success(isEditMode ? 'Cập nhật sản phẩm thành công!' : 'Thêm sản phẩm thành công!');
-      navigate('/admin/inventory/products');
-    } catch (error) {
-      message.error('Có lỗi xảy ra. Vui lòng thử lại!');
+      if (response.success) {
+        message.success(isEditMode ? 'Cập nhật sản phẩm thành công!' : 'Thêm sản phẩm thành công!');
+        navigate('/admin/inventory/products');
+      } else {
+        // Show error messages from API
+        if (response.errors && response.errors.length > 0) {
+          response.errors.forEach((err: string) => message.error(err));
+        } else {
+          message.error(response.message || 'Có lỗi xảy ra. Vui lòng thử lại!');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error saving product:', error);
+      const errorMessage = error?.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại!';
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -156,20 +197,6 @@ const ProductCreate: React.FC = () => {
     return value ? Number(value.replace(/,/g, '')) : 0;
   };
 
-  // Upload props
-  const uploadProps: UploadProps = {
-    listType: 'picture-card',
-    maxCount: 1,
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-      return false;
-    },
-  };
-
   // ============================================================
   // RENDER SECTIONS
   // ============================================================
@@ -177,10 +204,10 @@ const ProductCreate: React.FC = () => {
   // Section 1: Basic Info
   const renderBasicInfo = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <InfoCircleOutlined className="text-blue-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <InfoCircleOutlined style={{ color: '#3b82f6' }} />
           Thông tin cơ bản
         </span>
       }
@@ -195,9 +222,9 @@ const ProductCreate: React.FC = () => {
             tooltip="Mã định danh duy nhất của sản phẩm"
           >
             <Input
-              prefix={<BarcodeOutlined className="text-gray-400" />}
+              prefix={<BarcodeOutlined style={{ color: '#9ca3af' }} />}
               placeholder="VD: MOBY-M63-V2"
-              className="font-mono"
+              style={{ fontFamily: 'monospace' }}
             />
           </Form.Item>
         </Col>
@@ -207,7 +234,7 @@ const ProductCreate: React.FC = () => {
             label="Mã vạch (Barcode/EAN)"
             tooltip="Mã vạch quốc tế của sản phẩm"
           >
-            <Input placeholder="VD: 8935235123456" className="font-mono" />
+            <Input placeholder="VD: 8935235123456" style={{ fontFamily: 'monospace' }} />
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
@@ -280,10 +307,10 @@ const ProductCreate: React.FC = () => {
   // Section 2: Classification
   const renderClassification = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <AppstoreOutlined className="text-purple-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AppstoreOutlined style={{ color: '#a855f7' }} />
           Phân loại sản phẩm
         </span>
       }
@@ -312,56 +339,54 @@ const ProductCreate: React.FC = () => {
         </Col>
         <Col xs={24} md={8}>
           <Form.Item
-            name="deviceType"
-            label="Loại thiết bị"
-            tooltip="Chỉ áp dụng khi loại sản phẩm là Thiết bị"
-          >
-            <Select
-              placeholder="Chọn loại thiết bị"
-              disabled={productType !== 'DEVICE'}
-              allowClear
-              options={Object.entries(DEVICE_TYPE_CONFIG).map(([key, config]) => ({
-                value: key,
-                label: config.label,
-              }))}
-            />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={8}>
-          <Form.Item
             name="status"
             label="Trạng thái"
             initialValue="ACTIVE"
           >
             <Select
-              options={Object.entries(STATUS_CONFIG).map(([key, config]) => ({
-                value: key,
-                label: (
-                  <span className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full bg-${config.color}-500`}></span>
-                    {config.label}
-                  </span>
-                ),
-              }))}
+              options={Object.entries(STATUS_CONFIG).map(([key, config]) => {
+                const colorMap: Record<string, string> = {
+                  green: '#22c55e',
+                  red: '#ef4444',
+                  gray: '#9ca3af',
+                  yellow: '#eab308',
+                };
+                return {
+                  value: key,
+                  label: (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: colorMap[config.color] || '#9ca3af',
+                        display: 'inline-block'
+                      }}></span>
+                      {config.label}
+                    </span>
+                  ),
+                };
+              })}
             />
           </Form.Item>
         </Col>
 
         {/* Category */}
-        <Col xs={24} md={12}>
+        <Col xs={24} md={16}>
           <Form.Item name="categoryId" label="Danh mục sản phẩm">
             <Select
               showSearch
               placeholder="Chọn danh mục"
               allowClear
-              options={[
-                { value: 'cat-1', label: 'Thiết bị cầm tay (Handheld)' },
-                { value: 'cat-2', label: 'Máy in tem nhãn' },
-                { value: 'cat-3', label: 'Nhãn giá điện tử (ESL)' },
-                { value: 'cat-4', label: 'Phụ kiện thiết bị' },
-                { value: 'cat-5', label: 'Vật tư tiêu hao' },
-                { value: 'cat-6', label: 'Linh kiện thay thế' },
-              ]}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={categories.map((cat) => ({
+                value: cat.categoryID,
+                label: cat.categoryName,
+              }))}
+              loading={categories.length === 0}
+              notFoundContent={categories.length === 0 ? 'Đang tải danh mục...' : 'Không có danh mục'}
             />
           </Form.Item>
         </Col>
@@ -371,10 +396,10 @@ const ProductCreate: React.FC = () => {
           <Form.Item
             name="isSerialized"
             label={
-              <span className="flex items-center gap-2">
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Quản lý theo Serial/IMEI
                 <Tooltip title="Bật nếu cần quét mã Serial/IMEI cho từng sản phẩm khi nhập xuất kho">
-                  <QuestionCircleOutlined className="text-gray-400" />
+                  <QuestionCircleOutlined style={{ color: '#9ca3af' }} />
                 </Tooltip>
               </span>
             }
@@ -384,7 +409,6 @@ const ProductCreate: React.FC = () => {
             <Switch
               checkedChildren="Có Serial"
               unCheckedChildren="Số lượng"
-              className="bg-gray-300"
             />
           </Form.Item>
         </Col>
@@ -395,10 +419,10 @@ const ProductCreate: React.FC = () => {
   // Section 3: Pricing
   const renderPricing = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <DollarOutlined className="text-green-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <DollarOutlined style={{ color: '#22c55e' }} />
           Giá cả
         </span>
       }
@@ -446,7 +470,7 @@ const ProductCreate: React.FC = () => {
         message="Lợi nhuận được tính tự động khi bạn nhập Giá nhập và Giá bán"
         type="info"
         showIcon
-        className="mt-2"
+        style={{ marginTop: 8 }}
       />
     </Card>
   );
@@ -454,10 +478,10 @@ const ProductCreate: React.FC = () => {
   // Section 4: Inventory & Warranty
   const renderInventory = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <BoxPlotOutlined className="text-orange-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BoxPlotOutlined style={{ color: '#f97316' }} />
           Kho hàng & Bảo hành
         </span>
       }
@@ -481,8 +505,8 @@ const ProductCreate: React.FC = () => {
           <Form.Item
             name="defaultWarrantyMonths"
             label={
-              <span className="flex items-center gap-1">
-                <SafetyCertificateOutlined className="text-green-500" />
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <SafetyCertificateOutlined style={{ color: '#22c55e' }} />
                 Bảo hành (tháng)
               </span>
             }
@@ -493,7 +517,7 @@ const ProductCreate: React.FC = () => {
         </Col>
       </Row>
 
-      <Divider className="text-sm text-gray-500">
+      <Divider style={{ fontSize: '14px', color: '#6b7280' }}>
         Thông tin vật lý (Vận chuyển)
       </Divider>
 
@@ -525,115 +549,221 @@ const ProductCreate: React.FC = () => {
   // Section 5: Media
   const renderMedia = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <PictureOutlined className="text-pink-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <PictureOutlined style={{ color: '#ec4899' }} />
           Hình ảnh & Media
         </span>
       }
     >
       <Row gutter={[24, 16]}>
-        <Col xs={24} md={8}>
-          <Form.Item name="imageUrl" label="Ảnh đại diện">
-            <Upload {...uploadProps}>
-              {previewImage ? (
-                <Image
-                  src={previewImage}
-                  alt="preview"
-                  style={{ width: '100%', height: 100, objectFit: 'contain' }}
-                  preview={false}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center p-4">
-                  <PlusOutlined />
-                  <div className="mt-2 text-xs">Tải ảnh lên</div>
-                </div>
-              )}
-            </Upload>
-          </Form.Item>
-        </Col>
         <Col xs={24} md={16}>
           <Form.Item
             name="imageUrl"
-            label="Hoặc nhập URL ảnh"
+            label="URL ảnh sản phẩm"
+            tooltip="Dán link ảnh sản phẩm, ảnh sẽ hiển thị bên cạnh"
           >
             <Input
-              prefix={<LinkOutlined className="text-gray-400" />}
+              prefix={<LinkOutlined style={{ color: '#9ca3af' }} />}
               placeholder="https://example.com/image.jpg"
               onChange={(e) => setPreviewImage(e.target.value)}
+              allowClear
             />
           </Form.Item>
 
-          <Text type="secondary" className="text-xs">
-            Hỗ trợ định dạng: JPG, PNG, WebP. Kích thước tối đa: 5MB
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            Hỗ trợ định dạng: JPG, PNG, WebP. Click vào ảnh để xem phóng to.
           </Text>
+        </Col>
+        <Col xs={24} md={8}>
+          <Form.Item label="Xem trước">
+            <div
+              style={{
+                border: '1px dashed #d9d9d9',
+                borderRadius: 8,
+                padding: 8,
+                minHeight: 150,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#fafafa'
+              }}
+            >
+              {previewImage ? (
+                <Image
+                  src={previewImage}
+                  alt="Ảnh sản phẩm"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: 200,
+                    objectFit: 'contain',
+                    cursor: 'pointer'
+                  }}
+                  preview={{
+                    mask: (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <PictureOutlined style={{ fontSize: 20 }} />
+                        <span style={{ fontSize: 12 }}>Xem ảnh</span>
+                      </div>
+                    ),
+                  }}
+                  fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgesANyIGdIYAAAAJcEhZcwAADsQAAA7EAZUrDhsAABzSSURBVHhe7d0JnFTVnffxX3dVdVVXL2xNN82+L7KIgIIgiKIiis4YNWNcWDTGJM5MJidxlsxMnMnEySTjmJiMxjHGMZGJJq64gsgiIpsLOwIiW0M33dC0dNWu+qGp4uXee+vWq+6upqq7+P95P1Jd9S73nHv/59xzb1VRTE8FYMFDz4Gz/w7gGAwBEBgCIDAEQGAIgMAQAIEhAAJDAASGAAgMARAYAiAwBEBgCIDAEACBIQACQwAEhgAIDAEQGAIgMARAYAiAwBAAgSEAAkMABIYACAwBEBgCIDAEQGAIgMAQAIEhAAJDAASGAAgMARAYAiAwBEBgCIDAEACBIQACQwAEhgAIDAEQGAIgMARAYAiAwBAAgSEAAkMABIYACA=="
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: '#9ca3af' }}>
+                  <PictureOutlined style={{ fontSize: 32, marginBottom: 8 }} />
+                  <div style={{ fontSize: 12 }}>Chưa có ảnh</div>
+                  <div style={{ fontSize: 11 }}>Dán URL ảnh bên trái</div>
+                </div>
+              )}
+            </div>
+          </Form.Item>
         </Col>
       </Row>
     </Card>
   );
 
-  // Section 6: Specifications (Dynamic)
+  // Section 6: Specifications (Dynamic with Groups)
   const renderSpecifications = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <SettingOutlined className="text-indigo-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <SettingOutlined style={{ color: '#6366f1' }} />
           Thông số kỹ thuật
         </span>
       }
     >
       <Form.List name="specifications">
-        {(fields, { add, remove }) => (
+        {(groupFields, { add: addGroup, remove: removeGroup }) => (
           <>
-            {fields.length === 0 && (
-              <div className="text-center py-6 text-gray-400">
-                Chưa có thông số kỹ thuật. Click nút bên dưới để thêm.
+            {groupFields.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>
+                Chưa có thông số kỹ thuật. Click nút bên dưới để thêm nhóm thông số.
               </div>
             )}
 
-            {fields.map(({ key, name, ...restField }) => (
-              <Row key={key} gutter={16} align="middle" className="mb-3">
-                <Col xs={10}>
+            {groupFields.map(({ key: groupKey, name: groupName, ...groupRestField }) => (
+              <Card
+                key={groupKey}
+                size="small"
+                style={{ marginBottom: 16, backgroundColor: '#f9fafb' }}
+                title={
                   <Form.Item
-                    {...restField}
-                    name={[name, 'key']}
-                    rules={[{ required: true, message: 'Nhập tên thông số' }]}
+                    {...groupRestField}
+                    name={[groupName, 'groupName']}
+                    rules={[{ required: true, message: 'Nhập tên nhóm' }]}
                     className="mb-0"
+                    style={{ flex: 1 }}
                   >
-                    <Input placeholder="Tên thông số (VD: CPU, RAM)" />
+                    <Input
+                      placeholder="Tên nhóm (VD: PERFORMANCE PARAMETER)"
+                      style={{ fontWeight: 600, textTransform: 'uppercase' }}
+                    />
                   </Form.Item>
-                </Col>
-                <Col xs={12}>
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'value']}
-                    rules={[{ required: true, message: 'Nhập giá trị' }]}
-                    className="mb-0"
-                  >
-                    <Input placeholder="Giá trị (VD: Octa-core 2.0GHz)" />
-                  </Form.Item>
-                </Col>
-                <Col xs={2}>
+                }
+                extra={
                   <Button
                     type="text"
                     danger
-                    icon={<MinusCircleOutlined />}
-                    onClick={() => remove(name)}
-                  />
-                </Col>
-              </Row>
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeGroup(groupName)}
+                    size="small"
+                  >
+                    Xóa nhóm
+                  </Button>
+                }
+              >
+                <Form.List name={[groupName, 'items']}>
+                  {(itemFields, { add: addItem, remove: removeItem }) => (
+                    <>
+                      {/* Header */}
+                      {itemFields.length > 0 && (
+                        <Row gutter={8} style={{ marginBottom: 8, paddingLeft: 4 }}>
+                          <Col xs={9}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Thông số (k)</Text>
+                          </Col>
+                          <Col xs={10}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Giá trị (v)</Text>
+                          </Col>
+                          <Col xs={3}>
+                            <Tooltip title="Hiển thị khi báo giá (q)">
+                              <Text type="secondary" style={{ fontSize: 12 }}>Báo giá</Text>
+                            </Tooltip>
+                          </Col>
+                          <Col xs={2}></Col>
+                        </Row>
+                      )}
+
+                      {itemFields.map(({ key: itemKey, name: itemName, ...itemRestField }) => (
+                        <Row key={itemKey} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                          <Col xs={9}>
+                            <Form.Item
+                              {...itemRestField}
+                              name={[itemName, 'k']}
+                              rules={[{ required: true, message: 'Nhập tên' }]}
+                              className="mb-0"
+                            >
+                              <Input placeholder="VD: CPU, RAM" size="small" />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={10}>
+                            <Form.Item
+                              {...itemRestField}
+                              name={[itemName, 'v']}
+                              rules={[{ required: true, message: 'Nhập giá trị' }]}
+                              className="mb-0"
+                            >
+                              <Input placeholder="VD: Octa-core 2.0GHz" size="small" />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={3} style={{ textAlign: 'center' }}>
+                            <Form.Item
+                              {...itemRestField}
+                              name={[itemName, 'q']}
+                              valuePropName="checked"
+                              className="mb-0"
+                            >
+                              <Switch size="small" />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={2}>
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<MinusCircleOutlined />}
+                              onClick={() => removeItem(itemName)}
+                            />
+                          </Col>
+                        </Row>
+                      ))}
+
+                      <Button
+                        type="dashed"
+                        onClick={() => addItem({ k: '', v: '', q: false })}
+                        block
+                        icon={<PlusOutlined />}
+                        size="small"
+                        style={{ marginTop: 4 }}
+                      >
+                        Thêm thông số
+                      </Button>
+                    </>
+                  )}
+                </Form.List>
+              </Card>
             ))}
 
             <Button
               type="dashed"
-              onClick={() => add()}
+              onClick={() => addGroup({ groupName: '', items: [] })}
               block
               icon={<PlusOutlined />}
-              className="mt-2"
+              style={{ marginTop: 8 }}
             >
-              Thêm thông số kỹ thuật
+              Thêm nhóm thông số kỹ thuật
             </Button>
           </>
         )}
@@ -641,22 +771,34 @@ const ProductCreate: React.FC = () => {
 
       <Collapse
         ghost
-        className="mt-4"
+        style={{ marginTop: 16 }}
         items={[{
           key: '1',
-          label: <Text type="secondary" className="text-xs">Gợi ý thông số phổ biến</Text>,
+          label: <Text type="secondary" style={{ fontSize: '12px' }}>Gợi ý nhóm thông số phổ biến</Text>,
           children: (
-            <div className="flex flex-wrap gap-2">
-              {['OS', 'CPU', 'RAM', 'Storage', 'Display', 'Battery', 'Scanner', 'IP Rating', 'Resolution', 'Print Width', 'Interface'].map(spec => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {[
+                { name: 'PERFORMANCE PARAMETER', items: ['OS', 'CPU', 'RAM / Flash', 'USB Charging'] },
+                { name: 'PHYSICAL SPECIFICATIONS', items: ['Weight', 'Dimension', 'LCD', 'Battery', 'Camera'] },
+                { name: 'ENVIRONMENTAL SPECIFICATIONS', items: ['IP Rating', 'Drop', 'Operation Temperature'] },
+                { name: 'COMMUNICATION', items: ['WiFi', 'Bluetooth', '4G/LTE', 'NFC'] },
+              ].map(group => (
                 <Tag
-                  key={spec}
-                  className="cursor-pointer hover:bg-blue-50"
+                  key={group.name}
+                  color="blue"
+                  style={{ cursor: 'pointer' }}
                   onClick={() => {
                     const specs = form.getFieldValue('specifications') || [];
-                    form.setFieldValue('specifications', [...specs, { key: spec, value: '' }]);
+                    form.setFieldValue('specifications', [
+                      ...specs,
+                      {
+                        groupName: group.name,
+                        items: group.items.map(item => ({ k: item, v: '', q: false }))
+                      }
+                    ]);
                   }}
                 >
-                  + {spec}
+                  + {group.name}
                 </Tag>
               ))}
             </div>
@@ -669,10 +811,10 @@ const ProductCreate: React.FC = () => {
   // Section 7: Tags
   const renderTags = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <TagsOutlined className="text-cyan-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <TagsOutlined style={{ color: '#06b6d4' }} />
           Tags & Từ khóa
         </span>
       }
@@ -721,10 +863,10 @@ const ProductCreate: React.FC = () => {
   // Section 8: Documents
   const renderDocuments = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <FileTextOutlined className="text-amber-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileTextOutlined style={{ color: '#f59e0b' }} />
           Tài liệu đính kèm
         </span>
       }
@@ -733,7 +875,7 @@ const ProductCreate: React.FC = () => {
         {(fields, { add, remove }) => (
           <>
             {fields.length === 0 && (
-              <div className="text-center py-6 text-gray-400">
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>
                 Chưa có tài liệu. Click nút bên dưới để thêm.
               </div>
             )}
@@ -741,9 +883,9 @@ const ProductCreate: React.FC = () => {
             {fields.map(({ key, name, ...restField }) => (
               <div
                 key={key}
-                className="flex gap-3 mb-3 p-3 bg-gray-50 rounded-lg items-center"
+                style={{ display: 'flex', gap: 12, marginBottom: 12, padding: 12, backgroundColor: '#f9fafb', borderRadius: 8, alignItems: 'center' }}
               >
-                <FileTextOutlined className="text-xl text-blue-500" />
+                <FileTextOutlined style={{ fontSize: '20px', color: '#3b82f6' }} />
 
                 <Form.Item
                   {...restField}
@@ -804,10 +946,10 @@ const ProductCreate: React.FC = () => {
   // Section 9: Description
   const renderDescription = () => (
     <Card
-      className="shadow-sm mb-6"
+      style={{ marginBottom: 24, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
       title={
-        <span className="flex items-center gap-2">
-          <FileTextOutlined className="text-gray-500" />
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileTextOutlined style={{ color: '#6b7280' }} />
           Mô tả sản phẩm
         </span>
       }
@@ -835,88 +977,78 @@ const ProductCreate: React.FC = () => {
   // ============================================================
   return (
     <div className="w-full max-w-6xl mx-auto">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        className="mb-4"
-        items={[
-          { title: <Link to="/admin/inventory/products">Sản phẩm</Link> },
-          { title: isEditMode ? 'Chỉnh sửa' : 'Thêm mới' },
-        ]}
-      />
+      {/* Sticky Header */}
+      <div className="bg-white border-b shadow-sm mb-6">
+        <div className="py-4 px-6">
+          <Breadcrumb
+            className="mb-3"
+            items={[
+              { title: <Link to="/admin/inventory/products">Sản phẩm</Link> },
+              { title: isEditMode ? 'Chỉnh sửa' : 'Thêm mới' },
+            ]}
+          />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <Title level={3} className="m-0 flex items-center gap-3">
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/admin/inventory/products')}
-            />
-            {isEditMode ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
-          </Title>
-          <Text type="secondary" className="ml-10">
-            {isEditMode ? 'Cập nhật thông tin sản phẩm' : 'Điền đầy đủ thông tin để tạo sản phẩm'}
-          </Text>
+          <div className="flex flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/admin/inventory/products')}
+              />
+              <div>
+                <Title level={3} className="m-0">
+                  {isEditMode ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
+                </Title>
+                <Text type="secondary" className="text-sm">
+                  {isEditMode ? 'Cập nhật thông tin sản phẩm' : 'Điền đầy đủ thông tin để tạo sản phẩm'}
+                </Text>
+              </div>
+            </div>
+
+            <Space>
+              <Button onClick={() => navigate('/admin/inventory/products')}>
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={loading}
+                onClick={() => form.submit()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isEditMode ? 'Cập nhật' : 'Tạo sản phẩm'}
+              </Button>
+            </Space>
+          </div>
         </div>
-
-        <Space>
-          <Button onClick={() => navigate('/admin/inventory/products')}>
-            Hủy
-          </Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={loading}
-            onClick={() => form.submit()}
-            className="bg-blue-600"
-          >
-            {isEditMode ? 'Cập nhật' : 'Tạo sản phẩm'}
-          </Button>
-        </Space>
       </div>
 
       {/* Form */}
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        initialValues={{
-          productType: 'DEVICE',
-          status: 'ACTIVE',
-          isSerialized: true,
-          defaultWarrantyMonths: 12,
-          unit: 'Cái',
-        }}
-        scrollToFirstError
-      >
-        {renderBasicInfo()}
-        {renderClassification()}
-        {renderPricing()}
-        {renderInventory()}
-        {renderMedia()}
-        {renderSpecifications()}
-        {renderTags()}
-        {renderDocuments()}
-        {renderDescription()}
-
-        {/* Sticky Footer */}
-        <div className="sticky bottom-0 bg-white border-t py-4 px-6 -mx-6 flex justify-end gap-3 shadow-lg">
-          <Button onClick={() => navigate('/admin/inventory/products')}>
-            Hủy bỏ
-          </Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={loading}
-            onClick={() => form.submit()}
-            size="large"
-            className="bg-blue-600 px-8"
-          >
-            {isEditMode ? 'Cập nhật sản phẩm' : 'Tạo sản phẩm'}
-          </Button>
-        </div>
-      </Form>
+      <Spin spinning={loadingData} tip="Đang tải thông tin sản phẩm...">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{
+            productType: 'DEVICE',
+            status: 'ACTIVE',
+            isSerialized: true,
+            defaultWarrantyMonths: 12,
+            unit: 'Cái',
+          }}
+          scrollToFirstError
+        >
+          {renderBasicInfo()}
+          {renderClassification()}
+          {renderPricing()}
+          {renderInventory()}
+          {renderMedia()}
+          {renderSpecifications()}
+          {renderTags()}
+          {renderDocuments()}
+          {renderDescription()}
+        </Form>
+      </Spin>
     </div>
   );
 };

@@ -183,15 +183,35 @@ public class ProductService
             ComponentID = Guid.NewGuid(),
             SKU = dto.SKU,
             ComponentName = dto.ComponentName,
+            ComponentNameVN = dto.ComponentNameVN,
             CategoryID = dto.CategoryID,
+            ProductType = dto.ProductType,
+            Brand = dto.Brand,
+            Model = dto.Model,
+            ManufacturerSKU = dto.ManufacturerSKU,
+            Barcode = dto.Barcode,
             Unit = dto.Unit,
             ImageURL = dto.ImageURL,
+            ImageGallery = dto.ImageGallery,
             BasePrice = dto.BasePrice,
             SellPrice = dto.SellPrice,
+            WholesalePrice = dto.WholesalePrice,
             IsSerialized = dto.IsSerialized,
+            MinStockLevel = dto.MinStockLevel,
+            MaxStockLevel = dto.MaxStockLevel,
+            DefaultWarrantyMonths = dto.DefaultWarrantyMonths,
+            Weight = dto.Weight,
+            Length = dto.Length,
+            Width = dto.Width,
+            Height = dto.Height,
             Specifications = dto.Specifications,
+            Tags = dto.Tags,
             Documents = dto.Documents,
             Competitors = dto.Competitors,
+            CompatibleWith = dto.CompatibleWith,
+            Status = dto.Status,
+            ShortDescription = dto.ShortDescription,
+            FullDescription = dto.FullDescription,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -228,15 +248,35 @@ public class ProductService
 
         // Cập nhật các trường
         if (!string.IsNullOrEmpty(dto.ComponentName)) component.ComponentName = dto.ComponentName;
+        if (dto.ComponentNameVN != null) component.ComponentNameVN = dto.ComponentNameVN;
         if (dto.CategoryID.HasValue) component.CategoryID = dto.CategoryID;
+        if (dto.ProductType != null) component.ProductType = dto.ProductType;
+        if (dto.Brand != null) component.Brand = dto.Brand;
+        if (dto.Model != null) component.Model = dto.Model;
+        if (dto.ManufacturerSKU != null) component.ManufacturerSKU = dto.ManufacturerSKU;
+        if (dto.Barcode != null) component.Barcode = dto.Barcode;
         if (dto.Unit != null) component.Unit = dto.Unit;
         if (dto.ImageURL != null) component.ImageURL = dto.ImageURL;
+        if (dto.ImageGallery != null) component.ImageGallery = dto.ImageGallery;
         if (dto.BasePrice.HasValue) component.BasePrice = dto.BasePrice;
         if (dto.SellPrice.HasValue) component.SellPrice = dto.SellPrice;
+        if (dto.WholesalePrice.HasValue) component.WholesalePrice = dto.WholesalePrice;
         if (dto.IsSerialized.HasValue) component.IsSerialized = dto.IsSerialized.Value;
+        if (dto.MinStockLevel.HasValue) component.MinStockLevel = dto.MinStockLevel.Value;
+        if (dto.MaxStockLevel.HasValue) component.MaxStockLevel = dto.MaxStockLevel;
+        if (dto.DefaultWarrantyMonths.HasValue) component.DefaultWarrantyMonths = dto.DefaultWarrantyMonths.Value;
+        if (dto.Weight.HasValue) component.Weight = dto.Weight;
+        if (dto.Length.HasValue) component.Length = dto.Length;
+        if (dto.Width.HasValue) component.Width = dto.Width;
+        if (dto.Height.HasValue) component.Height = dto.Height;
         if (dto.Specifications != null) component.Specifications = dto.Specifications;
+        if (dto.Tags != null) component.Tags = dto.Tags;
         if (dto.Documents != null) component.Documents = dto.Documents;
         if (dto.Competitors != null) component.Competitors = dto.Competitors;
+        if (dto.CompatibleWith != null) component.CompatibleWith = dto.CompatibleWith;
+        if (dto.Status != null) component.Status = dto.Status;
+        if (dto.ShortDescription != null) component.ShortDescription = dto.ShortDescription;
+        if (dto.FullDescription != null) component.FullDescription = dto.FullDescription;
 
         component.UpdatedAt = DateTime.UtcNow;
 
@@ -518,16 +558,36 @@ public class ProductService
             ComponentID = component.ComponentID,
             SKU = component.SKU,
             ComponentName = component.ComponentName,
+            ComponentNameVN = component.ComponentNameVN,
             CategoryID = component.CategoryID,
             CategoryName = component.Category?.CategoryName,
+            ProductType = component.ProductType,
+            Brand = component.Brand,
+            Model = component.Model,
+            ManufacturerSKU = component.ManufacturerSKU,
+            Barcode = component.Barcode,
             Unit = component.Unit,
             ImageURL = component.ImageURL,
+            ImageGallery = component.ImageGallery,
             BasePrice = component.BasePrice,
             SellPrice = component.SellPrice,
+            WholesalePrice = component.WholesalePrice,
             IsSerialized = component.IsSerialized,
+            MinStockLevel = component.MinStockLevel,
+            MaxStockLevel = component.MaxStockLevel,
+            DefaultWarrantyMonths = component.DefaultWarrantyMonths,
+            Weight = component.Weight,
+            Length = component.Length,
+            Width = component.Width,
+            Height = component.Height,
             Specifications = component.Specifications,
+            Tags = component.Tags,
             Documents = component.Documents,
             Competitors = component.Competitors,
+            CompatibleWith = component.CompatibleWith,
+            Status = component.Status,
+            ShortDescription = component.ShortDescription,
+            FullDescription = component.FullDescription,
             CreatedAt = component.CreatedAt,
             UpdatedAt = component.UpdatedAt,
             VariantCount = component.Variants.Count,

@@ -109,19 +109,6 @@ CREATE TABLE Components (
     -- 'SPARE_PART' (Linh kiện thay thế): Pin, Màn hình, Mainboard
     -- 'SOFTWARE' (Phần mềm/License): License app, Phần mềm quản lý
     
-    -- [MỚI] Phân loại thiết bị cụ thể (cho ProductType = DEVICE)
-    DeviceType VARCHAR(50),
-    -- 'PDA' (Máy kiểm kho cầm tay)
-    -- 'PRINTER' (Máy in)
-    -- 'SCANNER' (Máy quét mã vạch)
-    -- 'ESL' (Electronic Shelf Label - Nhãn giá điện tử)
-    -- 'RFID_READER' (Đầu đọc RFID)
-    -- 'NFC_READER' (Đầu đọc NFC)
-    -- 'KIOSK' (Máy Kiosk)
-    -- 'TERMINAL' (Máy POS/Terminal)
-    -- 'GATEWAY' (Gateway/Access Point)
-    -- 'OTHER' (Khác)
-    
     -- [MỚI] Thương hiệu & Model
     Brand NVARCHAR(100), -- VD: Zebra, Honeywell, Mobydata, Datalogic
     Model NVARCHAR(100), -- VD: TC21, M63, DS2208
@@ -156,9 +143,36 @@ CREATE TABLE Components (
     Height DECIMAL(10, 2), -- Chiều cao (cm)
     
     -- Lưu thông số kỹ thuật (Dạng Key-Value)
-    -- Ví dụ cho PDA: {"OS": "Android 13", "CPU": "Octa-core 2.0GHz", "RAM": "4GB", "IP_Rating": "IP65", "Battery": "5000mAh", "Scanner": "2D Honeywell"}
-    -- Ví dụ cho Printer: {"Print_Width": "80mm", "Resolution": "203dpi", "Interface": "Bluetooth, USB", "Battery": "2600mAh"}
-    -- Ví dụ cho ESL: {"Display_Size": "2.9inch", "Display_Type": "E-ink", "Protocol": "RF 433MHz", "Battery_Life": "5 years"}
+    --     {
+    --   "PERFORMANCE PARAMETER": [
+    --     { "k": "OS", "v": "Android 12", "q": 1 },
+    --     { "k": "CPU", "v": "Octa Core, 2.0GHz", "q": 1 },
+    --     { "k": "RAM / Flash", "v": "3GB / 32GB", "q": 1 },
+    --     { "k": "USB Charging", "v": "USB 2.0 OTG,Type-C" }
+    --   ],
+    --   "PHYSICAL SPECIFICATIONS": [
+    --     { "k": "Weight", "v": "274 g (with battery)" },
+    --     { "k": "Dimension", "v": "166 mm x 71 mm x 17 mm" },
+    --     { "k": "LCD", "v": "4.0 inch IPS 800*480, visible under sunshine", "q": 1 },
+    --     { "k": "Touch", "v": "GFF capacitive screen, multi-touch" },
+    --     { "k": "Battery", "v": "5100mAh, removable + Built-in battery 80mA", "q": 1 },
+    --     { "k": "Standby Time", "v": "42 days" },
+    --     { "k": "Charging Time", "v": "Over 65% in 1 hour, fully-charged in 2.5 hours" },
+    --     { "k": "Working Hours", "v": "18 hours", "q": 1 },
+    --     { "k": "Battery Life", "v": "500 charge and discharge > 80%" },
+    --     { "k": "Keypad", "v": "Anti wear 20 key, internally transparent industrial keyboard", "q": 1 },
+    --     { "k": "Camera", "v": "Auto focus 13Mega, dual flash LED", "q": 1 },
+    --     { "k": "Extend Slot", "v": "Nano SIM, TF 128 GB" }
+    --   ],
+    --   "ENVIRONMENTAL SPECIFICATIONS": [
+    --     { "k": "Storage Temperature", "v": "-30°C to 70°C" },
+    --     { "k": "Operation Temperature", "v": "-25°C to +55°C" },
+    --     { "k": "ESD", "v": "8K/15K" },
+    --     { "k": "IP Rating", "v": "IP67", "q": 1 },
+    --     { "k": "Drop", "v": "1.8m on concrete, 3 times each side", "q": 1 },
+    --     { "k": "Tumble", "v": "3000 hits of 0.5m tumble, 600 hits of 1m tumble" }
+    --   ]
+    -- }
     Specifications JSONB DEFAULT '{}', 
     
     -- [MỚI] Tags để tìm kiếm nhanh

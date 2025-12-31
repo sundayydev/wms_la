@@ -68,6 +68,7 @@ const NotFound = Loadable(lazy(() => import('../pages/Exception/NotFound')));
 // Inventory & Warehouse
 const ProductList = Loadable(lazy(() => import('../pages/Inventory/ProductList')));
 const ProductCreate = Loadable(lazy(() => import('../pages/Inventory/ProductCreate')));
+const ProductDetail = Loadable(lazy(() => import('../pages/Inventory/ProductDetail')));
 const WarehouseList = Loadable(lazy(() => import('../pages/Warehouses/WarehouseList')));
 
 // Partners & Customers
@@ -157,6 +158,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'products', element: <ProductList /> },    // /admin/inventory/products
           { path: 'products/create', element: <ProductCreate /> }, // /admin/inventory/products/create
+          { path: 'products/:id', element: <ProductDetail /> }, // /admin/inventory/products/:id (detail)
           { path: 'products/:id/edit', element: <ProductCreate /> }, // /admin/inventory/products/:id/edit
           { path: '', element: <Navigate to="products" /> }, // Mặc định về products
           { path: 'categories', element: <CategoryList /> }, // /inventory/categories

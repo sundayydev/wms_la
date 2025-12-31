@@ -219,11 +219,23 @@ namespace BE_WMS_LA.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<decimal?>("BasePrice")
                         .HasColumnType("decimal(15,2)");
 
+                    b.Property<string>("Brand")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid?>("CategoryID")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CompatibleWith")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("Competitors")
                         .IsRequired()
@@ -234,13 +246,30 @@ namespace BE_WMS_LA.Core.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("ComponentNameVN")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DefaultWarrantyMonths")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Documents")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("FullDescription")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("Height")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("ImageGallery")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
@@ -251,6 +280,28 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Property<bool>("IsSerialized")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal?>("Length")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("ManufacturerSKU")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("MaxStockLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinStockLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ProductType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("SKU")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -259,7 +310,20 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Property<decimal?>("SellPrice")
                         .HasColumnType("decimal(15,2)");
 
+                    b.Property<string>("ShortDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Tags")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
@@ -269,6 +333,15 @@ namespace BE_WMS_LA.Core.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("Weight")
+                        .HasColumnType("decimal(10,3)");
+
+                    b.Property<decimal?>("WholesalePrice")
+                        .HasColumnType("decimal(15,2)");
+
+                    b.Property<decimal?>("Width")
+                        .HasColumnType("decimal(10,2)");
 
                     b.HasKey("ComponentID");
 
