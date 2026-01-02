@@ -28,6 +28,12 @@ public class ProductDetailDto
     public Guid? CategoryID { get; set; }
     public string? CategoryName { get; set; }
 
+    /// <summary>
+    /// Nhà sản xuất (Manufacturer/Supplier)
+    /// </summary>
+    public Guid? SupplierID { get; set; }
+    public string? SupplierName { get; set; }
+
     #region Phân loại sản phẩm
 
     /// <summary>

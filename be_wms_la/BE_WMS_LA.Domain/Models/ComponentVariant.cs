@@ -119,7 +119,6 @@ public class ComponentVariant
     public virtual Component Component { get; set; } = null!;
 
     public virtual ICollection<ProductInstance> ProductInstances { get; set; } = new List<ProductInstance>();
-    public virtual ICollection<SupplierProduct> SupplierProducts { get; set; } = new List<SupplierProduct>();
 
     #endregion
 }

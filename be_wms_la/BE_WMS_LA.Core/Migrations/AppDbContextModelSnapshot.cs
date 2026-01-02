@@ -323,6 +323,9 @@ namespace BE_WMS_LA.Core.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid?>("SupplierID")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Tags")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -349,6 +352,8 @@ namespace BE_WMS_LA.Core.Migrations
 
                     b.HasIndex("SKU")
                         .IsUnique();
+
+                    b.HasIndex("SupplierID");
 
                     b.ToTable("Components");
                 });
@@ -2191,112 +2196,6 @@ namespace BE_WMS_LA.Core.Migrations
                     b.ToTable("Suppliers");
                 });
 
-            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SupplierProduct", b =>
-                {
-                    b.Property<Guid>("SupplierProductID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ComponentID")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal?>("DeliveryRating")
-                        .HasColumnType("decimal(3,2)");
-
-                    b.Property<DateTime?>("DiscontinuedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InternalNotes")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsPreferred")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastDeliveryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastPriceUpdate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("LeadTimeDays")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("MinOrderQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<int>("OrderMultiple")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("PriceValidFrom")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("PriceValidTo")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Priority")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("QualityRating")
-                        .HasColumnType("decimal(3,2)");
-
-                    b.Property<Guid>("SupplierID")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SupplierPartNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("SupplierSKU")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("TierPricing")
-                        .HasColumnType("jsonb");
-
-                    b.Property<int>("TotalOrderedQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TotalReceivedQuantity")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("UnitCost")
-                        .HasColumnType("decimal(15,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("VariantID")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("SupplierProductID");
-
-                    b.HasIndex("ComponentID");
-
-                    b.HasIndex("VariantID");
-
-                    b.HasIndex("SupplierID", "ComponentID", "VariantID")
-                        .IsUnique();
-
-                    b.ToTable("SupplierProducts");
-                });
-
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("UserID")
@@ -2555,7 +2454,14 @@ namespace BE_WMS_LA.Core.Migrations
                         .HasForeignKey("CategoryID")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("BE_WMS_LA.Domain.Models.Supplier", "Supplier")
+                        .WithMany("Components")
+                        .HasForeignKey("SupplierID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Category");
+
+                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.ComponentVariant", b =>
@@ -2914,32 +2820,6 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Navigation("StockTransfer");
                 });
 
-            modelBuilder.Entity("BE_WMS_LA.Domain.Models.SupplierProduct", b =>
-                {
-                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
-                        .WithMany("SupplierProducts")
-                        .HasForeignKey("ComponentID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BE_WMS_LA.Domain.Models.Supplier", "Supplier")
-                        .WithMany("SupplierProducts")
-                        .HasForeignKey("SupplierID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BE_WMS_LA.Domain.Models.ComponentVariant", "Variant")
-                        .WithMany("SupplierProducts")
-                        .HasForeignKey("VariantID")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Component");
-
-                    b.Navigation("Supplier");
-
-                    b.Navigation("Variant");
-                });
-
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.User", b =>
                 {
                     b.HasOne("BE_WMS_LA.Domain.Models.Warehouse", "Warehouse")
@@ -3013,16 +2893,12 @@ namespace BE_WMS_LA.Core.Migrations
                 {
                     b.Navigation("ProductInstances");
 
-                    b.Navigation("SupplierProducts");
-
                     b.Navigation("Variants");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.ComponentVariant", b =>
                 {
                     b.Navigation("ProductInstances");
-
-                    b.Navigation("SupplierProducts");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Customer", b =>
@@ -3065,11 +2941,11 @@ namespace BE_WMS_LA.Core.Migrations
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Supplier", b =>
                 {
+                    b.Navigation("Components");
+
                     b.Navigation("Payments");
 
                     b.Navigation("PurchaseOrders");
-
-                    b.Navigation("SupplierProducts");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.User", b =>

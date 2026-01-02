@@ -117,7 +117,7 @@ public class SupplierService
     public async Task<ApiResponse<SupplierDetailDto>> GetByIdAsync(Guid id)
     {
         var supplier = await _context.Suppliers
-            .Include(s => s.SupplierProducts)
+            .Include(s => s.Components)
             .Include(s => s.PurchaseOrders)
             .FirstOrDefaultAsync(s => s.SupplierID == id && s.DeletedAt == null);
 
@@ -136,7 +136,7 @@ public class SupplierService
     public async Task<ApiResponse<SupplierDetailDto>> GetByCodeAsync(string code)
     {
         var supplier = await _context.Suppliers
-            .Include(s => s.SupplierProducts)
+            .Include(s => s.Components)
             .Include(s => s.PurchaseOrders)
             .FirstOrDefaultAsync(s => s.SupplierCode == code && s.DeletedAt == null);
 
@@ -375,7 +375,7 @@ public class SupplierService
             IsActive = supplier.IsActive,
             CreatedAt = supplier.CreatedAt,
             UpdatedAt = supplier.UpdatedAt,
-            ProductCount = supplier.SupplierProducts?.Count ?? 0,
+            ProductCount = supplier.Components?.Count ?? 0,
             PurchaseOrderCount = supplier.PurchaseOrders?.Count ?? 0
         };
     }

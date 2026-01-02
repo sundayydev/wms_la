@@ -113,6 +113,9 @@ CREATE TABLE Components (
     Brand NVARCHAR(100), -- VD: Zebra, Honeywell, Mobydata, Datalogic
     Model NVARCHAR(100), -- VD: TC21, M63, DS2208
     
+    -- Nhà sản xuất
+    SupplierID UUID, -- FK: Nhà sản xuất (NULL = chưa xác định)
+    
     -- [MỚI] Mã sản phẩm gốc từ nhà sản xuất
     ManufacturerSKU VARCHAR(100), -- Part number gốc từ hãng
     Barcode VARCHAR(100), -- Mã vạch sản phẩm (EAN/UPC)
@@ -588,79 +591,21 @@ CREATE TABLE Suppliers (
 );
 
 -- =====================================================
--- SupplierProducts || Sản phẩm từ Nhà cung cấp
+-- Components.SupplierID - Nhà sản xuất
 -- =====================================================
--- Quản lý mối liên hệ giữa Nhà cung cấp và Sản phẩm
--- Một sản phẩm có thể được cung cấp bởi nhiều NCC với giá khác nhau
--- VD: PDA Mobydata M63 có thể mua từ NCC A (giá 5tr) hoặc NCC B (giá 4.8tr)
-CREATE TABLE SupplierProducts (
-    SupplierProductID UUID PRIMARY KEY DEFAULT GEN_RANDOM_UUID(),
-    SupplierID UUID NOT NULL, -- FK: Nhà cung cấp
-    ComponentID UUID NOT NULL, -- FK: Sản phẩm (SKU)
-    VariantID UUID, -- FK: Biến thể cụ thể (Part Number) - NULL nếu áp dụng cho tất cả biến thể
-    
-    -- =============== MÃ SẢN PHẨM TỪ NCC ===============
-    SupplierSKU VARCHAR(100), -- Mã sản phẩm theo NCC (nếu khác với SKU nội bộ)
-    SupplierPartNumber VARCHAR(100), -- Part Number từ NCC
-    
-    -- =============== GIÁ CẢ ===============
-    UnitCost DECIMAL(15, 2) NOT NULL, -- Giá nhập từ NCC (đơn giá)
-    Currency VARCHAR(10) DEFAULT 'VND', -- Loại tiền (VND, USD, CNY)
-    
-    -- Giá theo số lượng (nếu có)
-    TierPricing JSONB DEFAULT '[]', -- Bảng giá theo số lượng
-    -- VD: [{"minQty": 1, "price": 5000000}, {"minQty": 10, "price": 4800000}, {"minQty": 50, "price": 4500000}]
-    
-    -- Thời hạn giá
-    PriceValidFrom DATE, -- Giá có hiệu lực từ
-    PriceValidTo DATE, -- Giá có hiệu lực đến
-    LastPriceUpdate TIMESTAMP, -- Lần cập nhật giá gần nhất
-    
-    -- =============== THÔNG TIN ĐẶT HÀNG ===============
-    MinOrderQuantity INT DEFAULT 1, -- Số lượng đặt tối thiểu (MOQ)
-    OrderMultiple INT DEFAULT 1, -- Bội số đặt hàng (VD: phải đặt theo lô 10 cái)
-    LeadTimeDays INT, -- Thời gian giao hàng dự kiến (số ngày)
-    
-    -- =============== ƯU TIÊN ===============
-    IsPreferred BOOLEAN DEFAULT FALSE, -- TRUE = NCC ưu tiên cho sản phẩm này
-    Priority INT DEFAULT 0, -- Mức độ ưu tiên (0 = thấp nhất)
-    
-    -- =============== CHẤT LƯỢNG & ĐÁNH GIÁ ===============
-    QualityRating DECIMAL(3, 2), -- Đánh giá chất lượng (0.00 - 5.00)
-    DeliveryRating DECIMAL(3, 2), -- Đánh giá giao hàng đúng hạn
-    LastDeliveryDate DATE, -- Lần giao hàng gần nhất
-    TotalOrderedQuantity INT DEFAULT 0, -- Tổng số lượng đã đặt
-    TotalReceivedQuantity INT DEFAULT 0, -- Tổng số lượng đã nhận
-    
-    -- =============== TRẠNG THÁI ===============
-    IsActive BOOLEAN DEFAULT TRUE,
-    DiscontinuedDate DATE, -- Ngày NCC ngừng cung cấp sản phẩm này
-    
-    -- =============== GHI CHÚ ===============
-    Notes TEXT, -- Ghi chú (VD: Chỉ còn hàng cũ, Hàng mới về cuối tháng)
-    InternalNotes TEXT, -- Ghi chú nội bộ (VD: NCC hay giao chậm)
-    
-    -- Audit
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DeletedAt TIMESTAMP NULL,
-    
-    -- Ràng buộc: Không trùng cặp (NCC, Sản phẩm, Biến thể)
-    UNIQUE(SupplierID, ComponentID, VariantID),
-    
-    FOREIGN KEY (SupplierID) REFERENCES Suppliers(SupplierID) ON DELETE CASCADE,
-    FOREIGN KEY (ComponentID) REFERENCES Components(ComponentID) ON DELETE CASCADE,
-    FOREIGN KEY (VariantID) REFERENCES ComponentVariants(VariantID) ON DELETE SET NULL
-);
+-- 1 Component → 1 Supplier (Nhà sản xuất)
+-- SupplierID có thể NULL (chưa xác định)
+-- Khi xóa Supplier → set NULL (không phá dữ liệu cũ)
+ALTER TABLE Components 
+    ADD CONSTRAINT fk_components_supplier 
+    FOREIGN KEY (SupplierID) REFERENCES Suppliers(SupplierID) 
+    ON DELETE SET NULL;
 
--- Index cho truy vấn nhanh
-CREATE INDEX idx_supplier_products_supplier ON SupplierProducts(SupplierID);
-CREATE INDEX idx_supplier_products_component ON SupplierProducts(ComponentID);
-CREATE INDEX idx_supplier_products_variant ON SupplierProducts(VariantID);
-CREATE INDEX idx_supplier_products_preferred ON SupplierProducts(IsPreferred) WHERE IsPreferred = TRUE;
-CREATE INDEX idx_supplier_products_active ON SupplierProducts(IsActive) WHERE IsActive = TRUE;
+CREATE INDEX idx_components_supplier ON Components(SupplierID);
 
-COMMENT ON TABLE SupplierProducts IS 'Quản lý mối liên hệ giữa Nhà cung cấp và Sản phẩm - NCC nào cung cấp sản phẩm gì với giá bao nhiêu';
+COMMENT ON COLUMN Components.SupplierID IS 'Nhà sản xuất - 1 Component chỉ có 1 Supplier, NULL = chưa xác định';
+
+
 
 -- Customers || Khách hàng
 CREATE TABLE Customers (

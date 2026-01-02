@@ -28,6 +28,7 @@ export interface CreateProductDto {
     componentName: string;
     componentNameVN?: string;
     categoryID?: string;
+    supplierID?: string;
     productType: string;
     brand?: string;
     model?: string;
@@ -66,6 +67,8 @@ export interface ProductDetailDto {
     componentNameVN?: string | null;
     categoryID?: string | null;
     categoryName?: string | null;
+    supplierID?: string | null;
+    supplierName?: string | null;
     productType: string;
     brand?: string | null;
     model?: string | null;
@@ -292,6 +295,7 @@ export const convertFormToCreateDto = (formData: any): CreateProductDto => {
         componentName: formData.componentName,
         componentNameVN: formData.componentNameVN || undefined,
         categoryID: formData.categoryId || undefined,
+        supplierID: formData.supplierId || undefined,
         productType: formData.productType || 'DEVICE',
         brand: formData.brand || undefined,
         model: formData.model || undefined,
@@ -408,6 +412,7 @@ export const convertDtoToFormData = (dto: ProductDetailDto): any => {
         componentName: dto.componentName,
         componentNameVN: dto.componentNameVN,
         categoryId: dto.categoryID,
+        supplierId: dto.supplierID,
         productType: dto.productType,
         brand: dto.brand,
         model: dto.model,

@@ -48,6 +48,12 @@ export interface Component {
     componentNameVN?: string;
     categoryId?: string;
     category?: Category;
+    supplierId?: string;
+    supplier?: {
+        supplierId: string;
+        supplierName: string;
+        supplierCode?: string;
+    };
 
     // Phân loại
     productType: ProductType;

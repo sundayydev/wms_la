@@ -88,6 +88,7 @@ namespace BE_WMS_LA.Core.Migrations
                     BankAccount = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     BankName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     Notes = table.Column<string>(type: "text", nullable: true),
+                    LogoUrl = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -96,37 +97,6 @@ namespace BE_WMS_LA.Core.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Suppliers", x => x.SupplierID);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Components",
-                columns: table => new
-                {
-                    ComponentID = table.Column<Guid>(type: "uuid", nullable: false),
-                    SKU = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    ComponentName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    CategoryID = table.Column<Guid>(type: "uuid", nullable: true),
-                    Unit = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    ImageURL = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    BasePrice = table.Column<decimal>(type: "numeric(15,2)", nullable: true),
-                    SellPrice = table.Column<decimal>(type: "numeric(15,2)", nullable: true),
-                    IsSerialized = table.Column<bool>(type: "boolean", nullable: false),
-                    Specifications = table.Column<string>(type: "jsonb", nullable: false),
-                    Documents = table.Column<string>(type: "jsonb", nullable: false),
-                    Competitors = table.Column<string>(type: "jsonb", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Components", x => x.ComponentID);
-                    table.ForeignKey(
-                        name: "FK_Components_Categories_CategoryID",
-                        column: x => x.CategoryID,
-                        principalTable: "Categories",
-                        principalColumn: "CategoryID",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -154,6 +124,64 @@ namespace BE_WMS_LA.Core.Migrations
                         principalTable: "Customers",
                         principalColumn: "CustomerID",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Components",
+                columns: table => new
+                {
+                    ComponentID = table.Column<Guid>(type: "uuid", nullable: false),
+                    SKU = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    ComponentName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ComponentNameVN = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    CategoryID = table.Column<Guid>(type: "uuid", nullable: true),
+                    SupplierID = table.Column<Guid>(type: "uuid", nullable: true),
+                    ProductType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Brand = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Model = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    ManufacturerSKU = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Barcode = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Unit = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    ImageURL = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    ImageGallery = table.Column<string>(type: "jsonb", nullable: false),
+                    BasePrice = table.Column<decimal>(type: "numeric(15,2)", nullable: true),
+                    SellPrice = table.Column<decimal>(type: "numeric(15,2)", nullable: true),
+                    WholesalePrice = table.Column<decimal>(type: "numeric(15,2)", nullable: true),
+                    IsSerialized = table.Column<bool>(type: "boolean", nullable: false),
+                    MinStockLevel = table.Column<int>(type: "integer", nullable: false),
+                    MaxStockLevel = table.Column<int>(type: "integer", nullable: true),
+                    DefaultWarrantyMonths = table.Column<int>(type: "integer", nullable: false),
+                    Weight = table.Column<decimal>(type: "numeric(10,3)", nullable: true),
+                    Length = table.Column<decimal>(type: "numeric(10,2)", nullable: true),
+                    Width = table.Column<decimal>(type: "numeric(10,2)", nullable: true),
+                    Height = table.Column<decimal>(type: "numeric(10,2)", nullable: true),
+                    Specifications = table.Column<string>(type: "jsonb", nullable: false),
+                    Tags = table.Column<string>(type: "jsonb", nullable: false),
+                    Documents = table.Column<string>(type: "jsonb", nullable: false),
+                    Competitors = table.Column<string>(type: "jsonb", nullable: false),
+                    CompatibleWith = table.Column<string>(type: "jsonb", nullable: false),
+                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    ShortDescription = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    FullDescription = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Components", x => x.ComponentID);
+                    table.ForeignKey(
+                        name: "FK_Components_Categories_CategoryID",
+                        column: x => x.CategoryID,
+                        principalTable: "Categories",
+                        principalColumn: "CategoryID",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Components_Suppliers_SupplierID",
+                        column: x => x.SupplierID,
+                        principalTable: "Suppliers",
+                        principalColumn: "SupplierID",
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -187,63 +215,6 @@ namespace BE_WMS_LA.Core.Migrations
                         column: x => x.ComponentID,
                         principalTable: "Components",
                         principalColumn: "ComponentID",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "SupplierProducts",
-                columns: table => new
-                {
-                    SupplierProductID = table.Column<Guid>(type: "uuid", nullable: false),
-                    SupplierID = table.Column<Guid>(type: "uuid", nullable: false),
-                    ComponentID = table.Column<Guid>(type: "uuid", nullable: false),
-                    VariantID = table.Column<Guid>(type: "uuid", nullable: true),
-                    SupplierSKU = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    SupplierPartNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    UnitCost = table.Column<decimal>(type: "numeric(15,2)", nullable: false),
-                    Currency = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
-                    TierPricing = table.Column<string>(type: "jsonb", nullable: true),
-                    PriceValidFrom = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    PriceValidTo = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastPriceUpdate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    MinOrderQuantity = table.Column<int>(type: "integer", nullable: false),
-                    OrderMultiple = table.Column<int>(type: "integer", nullable: false),
-                    LeadTimeDays = table.Column<int>(type: "integer", nullable: true),
-                    IsPreferred = table.Column<bool>(type: "boolean", nullable: false),
-                    Priority = table.Column<int>(type: "integer", nullable: false),
-                    QualityRating = table.Column<decimal>(type: "numeric(3,2)", nullable: true),
-                    DeliveryRating = table.Column<decimal>(type: "numeric(3,2)", nullable: true),
-                    LastDeliveryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    TotalOrderedQuantity = table.Column<int>(type: "integer", nullable: false),
-                    TotalReceivedQuantity = table.Column<int>(type: "integer", nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DiscontinuedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Notes = table.Column<string>(type: "text", nullable: true),
-                    InternalNotes = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SupplierProducts", x => x.SupplierProductID);
-                    table.ForeignKey(
-                        name: "FK_SupplierProducts_ComponentVariants_VariantID",
-                        column: x => x.VariantID,
-                        principalTable: "ComponentVariants",
-                        principalColumn: "VariantID",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_SupplierProducts_Components_ComponentID",
-                        column: x => x.ComponentID,
-                        principalTable: "Components",
-                        principalColumn: "ComponentID",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_SupplierProducts_Suppliers_SupplierID",
-                        column: x => x.SupplierID,
-                        principalTable: "Suppliers",
-                        principalColumn: "SupplierID",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -1028,6 +999,11 @@ namespace BE_WMS_LA.Core.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Components_SupplierID",
+                table: "Components",
+                column: "SupplierID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ComponentVariants_ComponentID",
                 table: "ComponentVariants",
                 column: "ComponentID");
@@ -1308,22 +1284,6 @@ namespace BE_WMS_LA.Core.Migrations
                 table: "StockTransfers",
                 column: "TransferCode",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SupplierProducts_ComponentID",
-                table: "SupplierProducts",
-                column: "ComponentID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SupplierProducts_SupplierID_ComponentID_VariantID",
-                table: "SupplierProducts",
-                columns: new[] { "SupplierID", "ComponentID", "VariantID" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SupplierProducts_VariantID",
-                table: "SupplierProducts",
-                column: "VariantID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Suppliers_SupplierCode",
@@ -1636,9 +1596,6 @@ namespace BE_WMS_LA.Core.Migrations
                 name: "StockTransferDetails");
 
             migrationBuilder.DropTable(
-                name: "SupplierProducts");
-
-            migrationBuilder.DropTable(
                 name: "UserPermission");
 
             migrationBuilder.DropTable(
@@ -1660,9 +1617,6 @@ namespace BE_WMS_LA.Core.Migrations
                 name: "Permission");
 
             migrationBuilder.DropTable(
-                name: "Suppliers");
-
-            migrationBuilder.DropTable(
                 name: "ProductInstances");
 
             migrationBuilder.DropTable(
@@ -1676,6 +1630,9 @@ namespace BE_WMS_LA.Core.Migrations
 
             migrationBuilder.DropTable(
                 name: "Categories");
+
+            migrationBuilder.DropTable(
+                name: "Suppliers");
 
             migrationBuilder.DropTable(
                 name: "User");

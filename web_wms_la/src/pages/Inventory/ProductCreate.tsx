@@ -52,6 +52,8 @@ import productsService, {
   convertFormToCreateDto,
   convertDtoToFormData,
 } from '../../services/products.service';
+import suppliersService from '../../services/suppliers.service';
+import type { SupplierListDto } from '../../types/type.supplier';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -95,22 +97,35 @@ const ProductCreate: React.FC = () => {
   const [productType, setProductType] = useState<ProductType>('DEVICE');
   const [previewImage, setPreviewImage] = useState<string>('');
   const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierListDto[]>([]);
 
-  // Load categories on mount
+  // Load categories and suppliers on mount
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
       try {
-        const response = await productsService.getCategories();
-        if (response.success && response.data) {
-          setCategories(response.data);
+        // Load categories
+        const categoriesResponse = await productsService.getCategories();
+        if (categoriesResponse.success && categoriesResponse.data) {
+          setCategories(categoriesResponse.data);
         }
       } catch (error) {
         console.error('Failed to load categories:', error);
         message.warning('Không thể tải danh sách danh mục');
       }
+
+      try {
+        // Load suppliers for select
+        const suppliersResponse = await suppliersService.getSuppliersForSelect();
+        if (suppliersResponse.success && suppliersResponse.data) {
+          setSuppliers(suppliersResponse.data);
+        }
+      } catch (error) {
+        console.error('Failed to load suppliers:', error);
+        message.warning('Không thể tải danh sách nhà cung cấp');
+      }
     };
 
-    loadCategories();
+    loadData();
   }, []);
 
   // Load data if edit mode
@@ -387,6 +402,30 @@ const ProductCreate: React.FC = () => {
               }))}
               loading={categories.length === 0}
               notFoundContent={categories.length === 0 ? 'Đang tải danh mục...' : 'Không có danh mục'}
+            />
+          </Form.Item>
+        </Col>
+
+        {/* Supplier (Manufacturer) */}
+        <Col xs={24} md={16}>
+          <Form.Item
+            name="supplierId"
+            label="Nhà sản xuất / Nhà cung cấp"
+            tooltip="Chọn nhà sản xuất (Manufacturer) của sản phẩm này"
+          >
+            <Select
+              showSearch
+              placeholder="Chọn nhà sản xuất"
+              allowClear
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={suppliers.map((sup) => ({
+                value: sup.supplierID,
+                label: `${sup.supplierName} (${sup.supplierCode})`,
+              }))}
+              loading={suppliers.length === 0}
+              notFoundContent={suppliers.length === 0 ? 'Đang tải...' : 'Không có nhà cung cấp'}
             />
           </Form.Item>
         </Col>
@@ -976,7 +1015,7 @@ const ProductCreate: React.FC = () => {
   // MAIN RENDER
   // ============================================================
   return (
-    <div className="w-full max-w-6xl mx-auto">
+    <div className="w-full mx-auto">
       {/* Sticky Header */}
       <div className="bg-white border-b shadow-sm mb-6">
         <div className="py-4 px-6">

@@ -40,6 +40,11 @@ public class Component
     /// </summary>
     public Guid? CategoryID { get; set; }
 
+    /// <summary>
+    /// FK: Nhà sản xuất (Manufacturer) - NULL = chưa xác định
+    /// </summary>
+    public Guid? SupplierID { get; set; }
+
     #region Phân loại sản phẩm
 
     /// <summary>
@@ -239,6 +244,12 @@ public class Component
     public virtual Category? Category { get; set; }
 
     /// <summary>
+    /// Nhà sản xuất (Manufacturer) - 1 Component chỉ có 1 Supplier
+    /// </summary>
+    [ForeignKey(nameof(SupplierID))]
+    public virtual Supplier? Supplier { get; set; }
+
+    /// <summary>
     /// Danh sách các instance (chiếc máy cụ thể) của sản phẩm này
     /// </summary>
     public virtual ICollection<ProductInstance> ProductInstances { get; set; } = new List<ProductInstance>();
@@ -247,11 +258,6 @@ public class Component
     /// Danh sách các biến thể (Part Number) của sản phẩm này
     /// </summary>
     public virtual ICollection<ComponentVariant> Variants { get; set; } = new List<ComponentVariant>();
-
-    /// <summary>
-    /// Danh sách NCC cung cấp sản phẩm này
-    /// </summary>
-    public virtual ICollection<SupplierProduct> SupplierProducts { get; set; } = new List<SupplierProduct>();
 
     #endregion
 }
