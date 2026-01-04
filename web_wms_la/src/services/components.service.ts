@@ -112,6 +112,16 @@ export const getComponents = async (params?: ComponentFilterParams): Promise<Com
     throw new Error(response.data.message);
 };
 
+// Lấy danh sách sản phẩm cho dropdown (không phân trang)
+export const getComponentsForSelect = async (): Promise<Component[]> => {
+    const response = await apiClient.get<any>(`${BASE_URL}/select`);
+    if (response.data.success) {
+        const data = response.data.data;
+        return Array.isArray(data) ? data.map((item: any) => mapToComponent(item)) : [];
+    }
+    throw new Error(response.data.message || 'Không thể lấy danh sách sản phẩm');
+};
+
 // Lấy chi tiết sản phẩm
 export const getComponentById = async (id: string): Promise<Component> => {
     const response = await apiClient.get<any>(`${BASE_URL}/${id}`);
