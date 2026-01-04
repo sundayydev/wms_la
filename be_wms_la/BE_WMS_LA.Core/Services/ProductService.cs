@@ -575,6 +575,259 @@ public class ProductService
 
     #endregion
 
+    #region Compatible Products
+
+    /// <summary>
+    /// Lấy danh sách sản phẩm tương thích của một sản phẩm
+    /// </summary>
+    public async Task<ApiResponse<List<CompatibleProductDto>>> GetCompatibleProductsAsync(Guid componentId)
+    {
+        var component = await _context.Components
+            .FirstOrDefaultAsync(c => c.ComponentID == componentId && c.DeletedAt == null);
+
+        if (component == null)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không tìm thấy sản phẩm");
+        }
+
+        // Parse JSON CompatibleWith
+        var compatibleIds = ParseCompatibleIds(component.CompatibleWith);
+
+        if (compatibleIds.Count == 0)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.SuccessResponse(new List<CompatibleProductDto>());
+        }
+
+        // Lấy thông tin các sản phẩm tương thích
+        var compatibleProducts = await _context.Components
+            .Where(c => compatibleIds.Contains(c.ComponentID) && c.DeletedAt == null)
+            .Select(c => new CompatibleProductDto
+            {
+                ComponentID = c.ComponentID,
+                SKU = c.SKU,
+                Name = c.ComponentName,
+                ImageURL = c.ImageURL,
+                ProductType = c.ProductType
+            })
+            .ToListAsync();
+
+        return ApiResponse<List<CompatibleProductDto>>.SuccessResponse(compatibleProducts);
+    }
+
+    /// <summary>
+    /// Thêm một sản phẩm vào danh sách tương thích
+    /// </summary>
+    public async Task<ApiResponse<List<CompatibleProductDto>>> AddCompatibleProductAsync(Guid componentId, Guid compatibleComponentId)
+    {
+        var component = await _context.Components
+            .FirstOrDefaultAsync(c => c.ComponentID == componentId && c.DeletedAt == null);
+
+        if (component == null)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không tìm thấy sản phẩm");
+        }
+
+        // Kiểm tra sản phẩm tương thích tồn tại
+        var compatibleComponent = await _context.Components
+            .FirstOrDefaultAsync(c => c.ComponentID == compatibleComponentId && c.DeletedAt == null);
+
+        if (compatibleComponent == null)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không tìm thấy sản phẩm tương thích");
+        }
+
+        // Không cho thêm chính nó
+        if (componentId == compatibleComponentId)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không thể thêm chính sản phẩm này làm tương thích");
+        }
+
+        // Parse và thêm
+        var compatibleIds = ParseCompatibleIds(component.CompatibleWith);
+
+        if (compatibleIds.Contains(compatibleComponentId))
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Sản phẩm đã có trong danh sách tương thích");
+        }
+
+        compatibleIds.Add(compatibleComponentId);
+        component.CompatibleWith = SerializeCompatibleWith(compatibleIds);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return await GetCompatibleProductsAsync(componentId);
+    }
+
+    /// <summary>
+    /// Thêm nhiều sản phẩm vào danh sách tương thích
+    /// </summary>
+    public async Task<ApiResponse<List<CompatibleProductDto>>> AddCompatibleProductsAsync(Guid componentId, List<Guid> compatibleComponentIds)
+    {
+        var component = await _context.Components
+            .FirstOrDefaultAsync(c => c.ComponentID == componentId && c.DeletedAt == null);
+
+        if (component == null)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không tìm thấy sản phẩm");
+        }
+
+        // Kiểm tra các sản phẩm tương thích tồn tại
+        var validIds = await _context.Components
+            .Where(c => compatibleComponentIds.Contains(c.ComponentID) && c.DeletedAt == null && c.ComponentID != componentId)
+            .Select(c => c.ComponentID)
+            .ToListAsync();
+
+        if (validIds.Count == 0)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không có sản phẩm hợp lệ để thêm");
+        }
+
+        // Parse và thêm
+        var compatibleIds = ParseCompatibleIds(component.CompatibleWith);
+        var addedCount = 0;
+
+        foreach (var id in validIds)
+        {
+            if (!compatibleIds.Contains(id))
+            {
+                compatibleIds.Add(id);
+                addedCount++;
+            }
+        }
+
+        if (addedCount == 0)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Tất cả sản phẩm đã có trong danh sách");
+        }
+
+        component.CompatibleWith = SerializeCompatibleWith(compatibleIds);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var result = await GetCompatibleProductsAsync(componentId);
+        result.Message = $"Đã thêm {addedCount} sản phẩm tương thích";
+        return result;
+    }
+
+    /// <summary>
+    /// Xóa một sản phẩm khỏi danh sách tương thích
+    /// </summary>
+    public async Task<ApiResponse<List<CompatibleProductDto>>> RemoveCompatibleProductAsync(Guid componentId, Guid compatibleComponentId)
+    {
+        var component = await _context.Components
+            .FirstOrDefaultAsync(c => c.ComponentID == componentId && c.DeletedAt == null);
+
+        if (component == null)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không tìm thấy sản phẩm");
+        }
+
+        var compatibleIds = ParseCompatibleIds(component.CompatibleWith);
+
+        if (!compatibleIds.Contains(compatibleComponentId))
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Sản phẩm không có trong danh sách tương thích");
+        }
+
+        compatibleIds.Remove(compatibleComponentId);
+        component.CompatibleWith = SerializeCompatibleWith(compatibleIds);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var result = await GetCompatibleProductsAsync(componentId);
+        result.Message = "Đã xóa sản phẩm khỏi danh sách tương thích";
+        return result;
+    }
+
+    /// <summary>
+    /// Cập nhật toàn bộ danh sách sản phẩm tương thích (thay thế hoàn toàn)
+    /// </summary>
+    public async Task<ApiResponse<List<CompatibleProductDto>>> UpdateCompatibleProductsAsync(Guid componentId, List<Guid> compatibleComponentIds)
+    {
+        var component = await _context.Components
+            .FirstOrDefaultAsync(c => c.ComponentID == componentId && c.DeletedAt == null);
+
+        if (component == null)
+        {
+            return ApiResponse<List<CompatibleProductDto>>.ErrorResponse("Không tìm thấy sản phẩm");
+        }
+
+        // Lọc bỏ chính nó và các ID không hợp lệ
+        var validIds = await _context.Components
+            .Where(c => compatibleComponentIds.Contains(c.ComponentID) && c.DeletedAt == null && c.ComponentID != componentId)
+            .Select(c => c.ComponentID)
+            .ToListAsync();
+
+        component.CompatibleWith = SerializeCompatibleWith(validIds);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var result = await GetCompatibleProductsAsync(componentId);
+        result.Message = $"Đã cập nhật danh sách tương thích ({validIds.Count} sản phẩm)";
+        return result;
+    }
+
+    /// <summary>
+    /// Parse JSON CompatibleWith thành List Guid
+    /// </summary>
+    private static List<Guid> ParseCompatibleIds(string compatibleWithJson)
+    {
+        if (string.IsNullOrEmpty(compatibleWithJson) || compatibleWithJson == "[]")
+        {
+            return new List<Guid>();
+        }
+
+        try
+        {
+            var items = System.Text.Json.JsonSerializer.Deserialize<List<CompatibleProductJsonItem>>(compatibleWithJson);
+            return items?.Select(x => x.ComponentID).Where(id => id != Guid.Empty).ToList() ?? new List<Guid>();
+        }
+        catch
+        {
+            return new List<Guid>();
+        }
+    }
+
+    /// <summary>
+    /// Serialize List Guid thành JSON format cho CompatibleWith
+    /// </summary>
+    private string SerializeCompatibleWith(List<Guid> componentIds)
+    {
+        if (componentIds.Count == 0)
+        {
+            return "[]";
+        }
+
+        // Lấy thông tin SKU và Name để lưu vào JSON
+        var items = _context.Components
+            .Where(c => componentIds.Contains(c.ComponentID))
+            .Select(c => new CompatibleProductJsonItem
+            {
+                ComponentID = c.ComponentID,
+                SKU = c.SKU,
+                Name = c.ComponentName
+            })
+            .ToList();
+
+        return System.Text.Json.JsonSerializer.Serialize(items);
+    }
+
+    /// <summary>
+    /// Internal class để parse JSON CompatibleWith
+    /// </summary>
+    private class CompatibleProductJsonItem
+    {
+        public Guid ComponentID { get; set; }
+        public string SKU { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+    }
+
+    #endregion
+
     #region Private Methods
 
     private ProductDetailDto MapToDetailDto(Component component)

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"   # Port API (cho code C# gọi vào)
+      - "9090:9090"   # Port Console (cho bạn vào web quản lý)
+    volumes:
+      # Dòng dưới nghĩa là: Lưu dữ liệu vào thư mục "minio_data" 
+      # nằm cùng chỗ với file docker-compose này.
+      - ./minio_data:/data 
+    environment:
+      MINIO_ROOT_USER: "admin"
+      MINIO_ROOT_PASSWORD: "adminerpla"
+    # Lệnh khởi chạy server
+    command: server /data --console-address ":9090"
+    restart: always # Tự khởi động lại nếu máy tính reset
