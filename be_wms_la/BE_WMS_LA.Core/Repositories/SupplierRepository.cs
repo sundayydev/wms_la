@@ -76,7 +76,7 @@ public class SupplierRepository
     public async Task<Supplier?> GetByIdAsync(Guid id)
     {
         return await _context.Suppliers
-            .Include(s => s.SupplierProducts)
+            .Include(s => s.Components)
             .Include(s => s.PurchaseOrders)
             .FirstOrDefaultAsync(s => s.SupplierID == id && s.DeletedAt == null);
     }
@@ -87,7 +87,7 @@ public class SupplierRepository
     public async Task<Supplier?> GetByCodeAsync(string code)
     {
         return await _context.Suppliers
-            .Include(s => s.SupplierProducts)
+            .Include(s => s.Components)
             .Include(s => s.PurchaseOrders)
             .FirstOrDefaultAsync(s => s.SupplierCode == code && s.DeletedAt == null);
     }

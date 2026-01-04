@@ -29,8 +29,7 @@ public class ProductRepository
         var query = _context.Components
             .Include(c => c.Category)
             .Include(c => c.Variants)
-            .Include(c => c.SupplierProducts)
-                .ThenInclude(sp => sp.Supplier)
+            .Include(c => c.Supplier)
             .Where(c => c.DeletedAt == null)
             .AsQueryable();
 
@@ -49,10 +48,10 @@ public class ProductRepository
             query = query.Where(c => c.CategoryID == categoryId.Value);
         }
 
-        // Lọc theo nhà cung cấp
+        // Lọc theo nhà cung cấp (Manufacturer)
         if (supplierId.HasValue)
         {
-            query = query.Where(c => c.SupplierProducts.Any(sp => sp.SupplierID == supplierId.Value));
+            query = query.Where(c => c.SupplierID == supplierId.Value);
         }
 
         return await query
@@ -68,8 +67,7 @@ public class ProductRepository
         return await _context.Components
             .Include(c => c.Category)
             .Include(c => c.Variants)
-            .Include(c => c.SupplierProducts)
-                .ThenInclude(sp => sp.Supplier)
+            .Include(c => c.Supplier)
             .FirstOrDefaultAsync(c => c.ComponentID == id && c.DeletedAt == null);
     }
 
@@ -81,8 +79,7 @@ public class ProductRepository
         return await _context.Components
             .Include(c => c.Category)
             .Include(c => c.Variants)
-            .Include(c => c.SupplierProducts)
-                .ThenInclude(sp => sp.Supplier)
+            .Include(c => c.Supplier)
             .FirstOrDefaultAsync(c => c.SKU == sku && c.DeletedAt == null);
     }
 
@@ -196,12 +193,12 @@ public class ProductRepository
     }
 
     /// <summary>
-    /// Đếm số sản phẩm theo nhà cung cấp
+    /// Đếm số sản phẩm theo nhà sản xuất (Manufacturer)
     /// </summary>
     public async Task<int> CountBySupplierAsync(Guid supplierId)
     {
         return await _context.Components
-            .CountAsync(c => c.SupplierProducts.Any(sp => sp.SupplierID == supplierId) && c.DeletedAt == null);
+            .CountAsync(c => c.SupplierID == supplierId && c.DeletedAt == null);
     }
 
     /// <summary>

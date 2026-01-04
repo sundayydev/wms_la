@@ -46,6 +46,12 @@ const mapToComponent = (dto: any): Component => {
         categoryName: dto.categoryName || '',
     } : undefined;
 
+    const supplier = dto.supplierID ? {
+        supplierId: dto.supplierID,
+        supplierName: dto.supplierName || '',
+        supplierCode: dto.supplierCode,
+    } : undefined;
+
     return {
         componentId: dto.componentID,
         sku: dto.sku,
@@ -53,6 +59,8 @@ const mapToComponent = (dto: any): Component => {
         componentNameVN: dto.componentNameVN,
         categoryId: dto.categoryID,
         category,
+        supplierId: dto.supplierID,
+        supplier,
         productType: dto.productType,
         brand: dto.brand,
         model: dto.model,
@@ -104,6 +112,16 @@ export const getComponents = async (params?: ComponentFilterParams): Promise<Com
     throw new Error(response.data.message);
 };
 
+// Lấy danh sách sản phẩm cho dropdown (không phân trang)
+export const getComponentsForSelect = async (): Promise<Component[]> => {
+    const response = await apiClient.get<any>(`${BASE_URL}/select`);
+    if (response.data.success) {
+        const data = response.data.data;
+        return Array.isArray(data) ? data.map((item: any) => mapToComponent(item)) : [];
+    }
+    throw new Error(response.data.message || 'Không thể lấy danh sách sản phẩm');
+};
+
 // Lấy chi tiết sản phẩm
 export const getComponentById = async (id: string): Promise<Component> => {
     const response = await apiClient.get<any>(`${BASE_URL}/${id}`);
@@ -135,34 +153,32 @@ export const deleteComponent = async (id: string): Promise<void> => {
 };
 
 // Lấy danh sách thương hiệu (distinct)
-export const getBrands = async (): Promise<string[]> => {
-    // Note: Backend might not have this specific endpoint on ProductsController
-    // ProductsController has GetAllForSelect?
-    // If '/brands' doesn't exist, this will fail.
-    // Based on ProductsController.cs, it does NOT have /brands.
-    // It has /categories.
-    // I will comment it out or leave it to fail? 
-    // The user didn't ask to fix getBrands, but it's good to be aware.
-    // I'll leave it as is to avoid over-engineering, assuming user might add it.
-    const response = await apiClient.get<string[]>(`${BASE_URL}/brands`);
-    return response.data;
-};
+// TODO: API endpoint /brands không tồn tại trong ProductsController backend
+// Cần thêm endpoint này ở backend nếu muốn sử dụng
+// export const getBrands = async (): Promise<string[]> => {
+//     const response = await apiClient.get<string[]>(`${BASE_URL}/brands`);
+//     return response.data;
+// };
 
 // Xuất Excel
-export const exportComponentsToExcel = async (params?: ComponentFilterParams): Promise<Blob> => {
-    const response = await apiClient.get(`${BASE_URL}/export`, {
-        params,
-        responseType: 'blob',
-    });
-    return response.data;
-};
+// TODO: API endpoint /export không tồn tại trong ProductsController backend
+// Cần thêm endpoint này ở backend nếu muốn sử dụng
+// export const exportComponentsToExcel = async (params?: ComponentFilterParams): Promise<Blob> => {
+//     const response = await apiClient.get(`${BASE_URL}/export`, {
+//         params,
+//         responseType: 'blob',
+//     });
+//     return response.data;
+// };
 
 // Import Excel
-export const importComponentsFromExcel = async (file: File): Promise<{ success: number; errors: string[] }> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await apiClient.post<{ success: number; errors: string[] }>(`${BASE_URL}/import`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-};
+// TODO: API endpoint /import không tồn tại trong ProductsController backend
+// Cần thêm endpoint này ở backend nếu muốn sử dụng
+// export const importComponentsFromExcel = async (file: File): Promise<{ success: number; errors: string[] }> => {
+//     const formData = new FormData();
+//     formData.append('file', file);
+//     const response = await apiClient.post<{ success: number; errors: string[] }>(`${BASE_URL}/import`, formData, {
+//         headers: { 'Content-Type': 'multipart/form-data' },
+//     });
+//     return response.data;
+// };

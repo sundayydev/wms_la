@@ -11,11 +11,9 @@ import {
   Switch,
   message,
   Tooltip,
-  Popconfirm,
   Row,
   Col,
   Tabs,
-  Spin,
   Empty,
   Statistic,
   Descriptions,
@@ -25,6 +23,7 @@ import {
   Select,
   Avatar,
   Dropdown,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -50,6 +49,7 @@ import {
   MoreOutlined,
   FileExcelOutlined,
   LinkOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { FilterValue } from 'antd/es/table/interface';
@@ -344,28 +344,29 @@ const SupplierList: React.FC = () => {
     {
       title: 'Nhà cung cấp',
       key: 'supplier',
-      width: 320,
+      width: 300,
+      fixed: 'left',
       render: (_, record) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <Avatar
             size={48}
             src={record.logoUrl}
-            icon={!record.logoUrl && <FaBuilding />}
-            className="bg-blue-100 text-blue-600 shrink-0"
+            icon={!record.logoUrl && <ShopOutlined />}
+            className="bg-gradient-to-br border border-blue-500 shrink-0"
           />
-          <div>
+          <div className="min-w-0 flex-1">
             <a
-              className="font-bold text-blue-600 hover:underline text-base"
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline text-base block truncate"
               onClick={() => handleViewDetail(record)}
             >
               {record.supplierName}
             </a>
             <div className="flex items-center gap-2 mt-1">
-              <Tag className="m-0 bg-gray-100" icon={<IdcardOutlined />}>
+              <Tag className="m-0" icon={<IdcardOutlined />}>
                 {record.supplierCode}
               </Tag>
               {record.city && (
-                <Tag className="m-0" icon={<EnvironmentOutlined />} color="blue">
+                <Tag className="m-0" icon={<EnvironmentOutlined />} color="cyan">
                   {record.city}
                 </Tag>
               )}
@@ -377,22 +378,29 @@ const SupplierList: React.FC = () => {
     {
       title: 'Liên hệ',
       key: 'contact',
-      width: 200,
+      width: 220,
       render: (_, record) => (
-        <div className="flex flex-col gap-1 text-sm">
+        <div className="flex flex-col gap-1.5 text-sm">
           {record.contactPerson && (
             <div className="flex items-center gap-2 text-gray-700">
-              <UserOutlined /> {record.contactPerson}
+              <UserOutlined className="text-gray-400" />
+              <span className="font-medium">{record.contactPerson}</span>
             </div>
           )}
           {record.phoneNumber && (
-            <div className="flex items-center gap-2 text-gray-500">
-              <PhoneOutlined /> <a href={`tel:${record.phoneNumber}`}>{record.phoneNumber}</a>
+            <div className="flex items-center gap-2">
+              <PhoneOutlined className="text-green-500" />
+              <a href={`tel:${record.phoneNumber}`} className="text-gray-600 hover:text-blue-600">
+                {record.phoneNumber}
+              </a>
             </div>
           )}
           {record.email && (
-            <div className="flex items-center gap-2 text-blue-500 truncate max-w-[180px]">
-              <MailOutlined /> <a href={`mailto:${record.email}`}>{record.email}</a>
+            <div className="flex items-center gap-2">
+              <MailOutlined className="text-blue-500" />
+              <a href={`mailto:${record.email}`} className="text-gray-600 hover:text-blue-600 truncate max-w-[160px]">
+                {record.email}
+              </a>
             </div>
           )}
         </div>
@@ -401,7 +409,7 @@ const SupplierList: React.FC = () => {
     {
       title: 'Trạng thái',
       dataIndex: 'isActive',
-      width: 130,
+      width: 120,
       align: 'center',
       filters: [
         { text: 'Hoạt động', value: true },
@@ -409,12 +417,11 @@ const SupplierList: React.FC = () => {
       ],
       onFilter: (value, record) => record.isActive === value,
       render: (active: boolean) => (
-        <Tag
-          color={active ? 'success' : 'default'}
-          icon={active ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-        >
-          {active ? 'Hoạt động' : 'Ngừng GD'}
-        </Tag>
+        <Badge
+          status={active ? 'success' : 'default'}
+          text={active ? 'Hoạt động' : 'Ngừng GD'}
+          className="font-medium"
+        />
       ),
     },
     {
@@ -423,11 +430,8 @@ const SupplierList: React.FC = () => {
       width: 120,
       responsive: ['lg'],
       render: (date: string) => (
-        <div className="text-sm">
-          <div className="flex items-center gap-1">
-            <CalendarOutlined className="text-gray-400" />
-            {date ? new Date(date).toLocaleDateString('vi-VN') : '---'}
-          </div>
+        <div className="text-sm text-gray-600">
+          {date ? new Date(date).toLocaleDateString('vi-VN') : '---'}
         </div>
       ),
     },
@@ -438,8 +442,8 @@ const SupplierList: React.FC = () => {
       align: 'center',
       fixed: 'right',
       render: (_, record) => (
-        <Dropdown menu={{ items: getActionMenuItems(record) }} trigger={['click']}>
-          <Button type="text" icon={<MoreOutlined />} />
+        <Dropdown menu={{ items: getActionMenuItems(record) }} trigger={['click']} placement="bottomRight">
+          <Button type="text" icon={<MoreOutlined />} className="hover:bg-gray-100" />
         </Dropdown>
       ),
     },
@@ -454,7 +458,7 @@ const SupplierList: React.FC = () => {
           {
             key: '1',
             label: (
-              <span>
+              <span className="flex items-center gap-2">
                 <InfoCircleOutlined /> Thông tin chung
               </span>
             ),
@@ -510,12 +514,12 @@ const SupplierList: React.FC = () => {
                   </Col>
                 </Row>
 
-                <div className="bg-gray-50 p-4 rounded mb-4 border border-gray-100">
-                  <span className="font-semibold text-gray-700 block mb-2">
-                    <GlobalOutlined /> Địa chỉ
+                <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
+                  <span className="font-semibold text-blue-700 block mb-3 flex items-center gap-2">
+                    <EnvironmentOutlined /> Địa chỉ
                   </span>
-                  <Form.Item name="address" className="mb-2">
-                    <Input placeholder="Số nhà, tên đường..." prefix={<EnvironmentOutlined />} />
+                  <Form.Item name="address" className="mb-3">
+                    <Input placeholder="Số nhà, tên đường..." />
                   </Form.Item>
                   <Form.Item name="city" className="mb-0">
                     <Input placeholder="Tỉnh / Thành phố" />
@@ -527,14 +531,16 @@ const SupplierList: React.FC = () => {
           {
             key: '2',
             label: (
-              <span>
+              <span className="flex items-center gap-2">
                 <UserOutlined /> Liên hệ & Tài chính
               </span>
             ),
             children: (
               <>
-                <div className="mb-4">
-                  <span className="font-semibold text-blue-600 block mb-2">Người liên hệ</span>
+                <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-100">
+                  <span className="font-semibold text-green-700 block mb-3 flex items-center gap-2">
+                    <UserOutlined /> Người liên hệ
+                  </span>
                   <Row gutter={16}>
                     <Col span={8}>
                       <Form.Item name="contactPerson" label="Họ tên">
@@ -554,8 +560,10 @@ const SupplierList: React.FC = () => {
                   </Row>
                 </div>
 
-                <div className="mb-4">
-                  <span className="font-semibold text-green-600 block mb-2">Tài khoản ngân hàng</span>
+                <div className="bg-purple-50 p-4 rounded-lg mb-4 border border-purple-100">
+                  <span className="font-semibold text-purple-700 block mb-3 flex items-center gap-2">
+                    <BankOutlined /> Tài khoản ngân hàng
+                  </span>
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item name="bankName" label="Tên Ngân hàng">
@@ -582,179 +590,188 @@ const SupplierList: React.FC = () => {
   );
 
   // === DETAIL MODAL CONTENT ===
-  const detailModalContent = (
-    <div>
-      {loadingDetail ? (
-        <div className="flex justify-center items-center h-64">
-          <Spin size="large" />
-        </div>
-      ) : selectedSupplier ? (
-        <>
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <Avatar
-              size={64}
-              src={selectedSupplier.logoUrl}
-              icon={!selectedSupplier.logoUrl && <FaBuilding />}
-              className="bg-blue-100 text-blue-600"
+  const detailModalContent = selectedSupplier && (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+        <Avatar
+          size={72}
+          src={selectedSupplier.logoUrl}
+          icon={!selectedSupplier.logoUrl && <ShopOutlined />}
+          className="bg-white shadow-lg"
+        />
+        <div className="flex-1">
+          <Title level={4} className="mb-0">
+            {selectedSupplier.supplierName}
+          </Title>
+          <Space className="mt-2">
+            <Tag color="blue" icon={<IdcardOutlined />}>
+              {selectedSupplier.supplierCode}
+            </Tag>
+            <Badge
+              status={selectedSupplier.isActive ? 'success' : 'default'}
+              text={selectedSupplier.isActive ? 'Đang hoạt động' : 'Ngừng giao dịch'}
             />
-            <div className="flex-1">
-              <Title level={4} style={{ marginBottom: 4 }}>
-                {selectedSupplier.supplierName}
-              </Title>
-              <Space>
-                <Tag color="blue" icon={<IdcardOutlined />}>{selectedSupplier.supplierCode}</Tag>
-                <Badge
-                  status={selectedSupplier.isActive ? 'success' : 'default'}
-                  text={selectedSupplier.isActive ? 'Đang hoạt động' : 'Ngừng giao dịch'}
-                />
-              </Space>
-            </div>
-          </div>
+          </Space>
+        </div>
+      </div>
 
-          {/* Basic Info */}
-          <Divider orientation="horizontal" orientationMargin={0}>
-            <Space><InfoCircleOutlined /> Thông tin cơ bản</Space>
-          </Divider>
-          <Descriptions column={2} size="small" labelStyle={{ fontWeight: 500, color: '#666' }}>
-            <Descriptions.Item label="Mã số thuế">{selectedSupplier.taxCode || '---'}</Descriptions.Item>
-            <Descriptions.Item label="Thành phố">{selectedSupplier.city || '---'}</Descriptions.Item>
-            <Descriptions.Item label="Địa chỉ" span={2}>{selectedSupplier.address || '---'}</Descriptions.Item>
-            {selectedSupplier.logoUrl && (
-              <Descriptions.Item label="Logo URL" span={2}>
-                <a href={selectedSupplier.logoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600">
-                  <LinkOutlined className="mr-1" />
-                  {selectedSupplier.logoUrl}
-                </a>
-              </Descriptions.Item>
+      {/* Basic Info */}
+      <div>
+        <Divider orientation="horizontal">
+          <Space>
+            <InfoCircleOutlined className="text-blue-500" /> Thông tin cơ bản
+          </Space>
+        </Divider>
+        <Descriptions column={2} size="small" bordered>
+          <Descriptions.Item label="Mã số thuế">{selectedSupplier.taxCode || '---'}</Descriptions.Item>
+          <Descriptions.Item label="Thành phố">
+            {selectedSupplier.city ? (
+              <Tag icon={<EnvironmentOutlined />} color="cyan">
+                {selectedSupplier.city}
+              </Tag>
+            ) : (
+              '---'
             )}
-          </Descriptions>
+          </Descriptions.Item>
+          <Descriptions.Item label="Địa chỉ" span={2}>
+            {selectedSupplier.address || '---'}
+          </Descriptions.Item>
+        </Descriptions>
+      </div>
 
-          {/* Contact Info */}
-          <Divider orientation="horizontal" orientationMargin={0}>
-            <Space><UserOutlined /> Liên hệ</Space>
+      {/* Contact Info */}
+      <div>
+        <Divider orientation="horizontal">
+          <Space>
+            <UserOutlined className="text-green-500" /> Liên hệ
+          </Space>
+        </Divider>
+        <Descriptions column={2} size="small" bordered>
+          <Descriptions.Item label="Người liên hệ">{selectedSupplier.contactPerson || '---'}</Descriptions.Item>
+          <Descriptions.Item label="Điện thoại">
+            {selectedSupplier.phoneNumber ? (
+              <a href={`tel:${selectedSupplier.phoneNumber}`} className="text-blue-600">
+                <PhoneOutlined /> {selectedSupplier.phoneNumber}
+              </a>
+            ) : (
+              '---'
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="Email" span={2}>
+            {selectedSupplier.email ? (
+              <a href={`mailto:${selectedSupplier.email}`} className="text-blue-600">
+                <MailOutlined /> {selectedSupplier.email}
+              </a>
+            ) : (
+              '---'
+            )}
+          </Descriptions.Item>
+        </Descriptions>
+      </div>
+
+      {/* Bank Info */}
+      <div>
+        <Divider orientation="horizontal">
+          <Space>
+            <BankOutlined className="text-purple-500" /> Thông tin ngân hàng
+          </Space>
+        </Divider>
+        <Descriptions column={2} size="small" bordered>
+          <Descriptions.Item label="Ngân hàng">{selectedSupplier.bankName || '---'}</Descriptions.Item>
+          <Descriptions.Item label="Số tài khoản">
+            <span className="font-mono">{selectedSupplier.bankAccount || '---'}</span>
+          </Descriptions.Item>
+        </Descriptions>
+      </div>
+
+      {/* Notes */}
+      {selectedSupplier.notes && (
+        <div>
+          <Divider orientation="horizontal">
+            <Space>
+              <FileTextOutlined className="text-orange-500" /> Ghi chú
+            </Space>
           </Divider>
-          <Descriptions column={2} size="small" labelStyle={{ fontWeight: 500, color: '#666' }}>
-            <Descriptions.Item label="Người liên hệ">{selectedSupplier.contactPerson || '---'}</Descriptions.Item>
-            <Descriptions.Item label="Điện thoại">
-              {selectedSupplier.phoneNumber ? (
-                <a href={`tel:${selectedSupplier.phoneNumber}`} className="text-blue-600">
-                  <PhoneOutlined /> {selectedSupplier.phoneNumber}
-                </a>
-              ) : '---'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Email" span={2}>
-              {selectedSupplier.email ? (
-                <a href={`mailto:${selectedSupplier.email}`} className="text-blue-600">
-                  <MailOutlined /> {selectedSupplier.email}
-                </a>
-              ) : '---'}
-            </Descriptions.Item>
-          </Descriptions>
-
-          {/* Bank Info */}
-          <Divider orientation="horizontal" orientationMargin={0}>
-            <Space><BankOutlined /> Thông tin ngân hàng</Space>
-          </Divider>
-          <Descriptions column={2} size="small" labelStyle={{ fontWeight: 500, color: '#666' }}>
-            <Descriptions.Item label="Ngân hàng">{selectedSupplier.bankName || '---'}</Descriptions.Item>
-            <Descriptions.Item label="Số tài khoản">
-              <span className="font-mono">{selectedSupplier.bankAccount || '---'}</span>
-            </Descriptions.Item>
-          </Descriptions>
-
-          {/* Notes */}
-          {selectedSupplier.notes && (
-            <>
-              <Divider orientation="horizontal" orientationMargin={0}>
-                <Space><FileTextOutlined /> Ghi chú</Space>
-              </Divider>
-              <div className="bg-gray-50 p-3 rounded-lg text-gray-600">
-                {selectedSupplier.notes}
-              </div>
-            </>
-          )}
-
-          {/* Statistics */}
-          <Row gutter={16} className="mt-6">
-            <Col span={12}>
-              <Card size="small" className="text-center bg-blue-50 border-blue-200">
-                <Statistic
-                  title={<span className="text-blue-700">Sản phẩm cung cấp</span>}
-                  value={selectedSupplier.productCount}
-                  valueStyle={{ color: '#1890ff' }}
-                  prefix={<ShopOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card size="small" className="text-center bg-green-50 border-green-200">
-                <Statistic
-                  title={<span className="text-green-700">Đơn đặt hàng</span>}
-                  value={selectedSupplier.purchaseOrderCount}
-                  valueStyle={{ color: '#52c41a' }}
-                  prefix={<FileTextOutlined />}
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          {/* Timestamps */}
-          <Divider orientation="horizontal" orientationMargin={0}>
-            <Space><CalendarOutlined /> Thời gian</Space>
-          </Divider>
-          <Descriptions column={2} size="small" labelStyle={{ fontWeight: 500, color: '#666' }}>
-            <Descriptions.Item label="Ngày tạo">
-              {new Date(selectedSupplier.createdAt).toLocaleString('vi-VN')}
-            </Descriptions.Item>
-            <Descriptions.Item label="Cập nhật lần cuối">
-              {new Date(selectedSupplier.updatedAt).toLocaleString('vi-VN')}
-            </Descriptions.Item>
-          </Descriptions>
-        </>
-      ) : (
-        <Empty description="Không có dữ liệu" />
+          <div className="bg-gray-50 p-4 rounded-lg text-gray-700 border border-gray-200">
+            {selectedSupplier.notes}
+          </div>
+        </div>
       )}
+
+      {/* Statistics */}
+      <Row gutter={16}>
+        <Col span={12}>
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <Statistic
+              title={<span className="text-blue-700 font-semibold">Sản phẩm cung cấp</span>}
+              value={selectedSupplier.productCount}
+              valueStyle={{ color: '#1890ff', fontWeight: 'bold' }}
+              prefix={<ShopOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <Statistic
+              title={<span className="text-green-700 font-semibold">Đơn đặt hàng</span>}
+              value={selectedSupplier.purchaseOrderCount}
+              valueStyle={{ color: '#52c41a', fontWeight: 'bold' }}
+              prefix={<FileTextOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full p-6 bg-gray-50 min-h-screen">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 m-0 flex items-center gap-2">
-            <FaBuilding className="text-blue-600" />
-            Nhà cung cấp (Suppliers)
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Quản lý danh sách đối tác nhập hàng
-          </p>
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 m-0 flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FaBuilding className="text-blue-600 text-2xl" />
+              </div>
+              Nhà cung cấp
+            </h1>
+            <p className="text-gray-500 mt-2 ml-1">Quản lý danh sách đối tác nhập hàng</p>
+          </div>
+          <Space size="middle">
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+              Làm mới
+            </Button>
+            <Button icon={<FileExcelOutlined />} className="border-green-500 text-green-600 hover:bg-green-50">
+              Xuất Excel
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+              className="bg-blue-600 hover:bg-blue-700 shadow-md"
+            >
+              Thêm NCC mới
+            </Button>
+          </Space>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-            Làm mới
-          </Button>
-          <Button icon={<FileExcelOutlined />}>Xuất Excel</Button>
-          <Button type="primary" icon={<PlusOutlined />} className="bg-blue-600" onClick={handleAdd}>
-            Thêm NCC mới
-          </Button>
-        </Space>
       </div>
 
-      {/* FILTER */}
-      <Card className="mb-6 shadow-sm" bodyStyle={{ padding: '16px' }}>
+      {/* FILTERS */}
+      <Card className="mb-6 shadow-sm">
         <Row gutter={[16, 16]}>
-          <Col xs={24} lg={10}>
+          <Col xs={24} lg={16}>
             <Input
               prefix={<SearchOutlined className="text-gray-400" />}
               placeholder="Tìm theo Tên, Mã, SĐT hoặc Email..."
               allowClear
               value={searchText}
               onChange={(e) => handleSearch(e.target.value)}
+              className="rounded-lg"
             />
           </Col>
-          <Col xs={12} lg={4}>
+          <Col xs={12} lg={8}>
             <Select
               placeholder="Trạng thái"
               className="w-full"
@@ -769,9 +786,9 @@ const SupplierList: React.FC = () => {
           </Col>
         </Row>
         {searchText && (
-          <div className="mt-3 flex items-center gap-2">
-            <Text type="secondary" className="text-sm">
-              Đang tìm kiếm: "{searchText}"
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between border border-blue-100">
+            <Text className="text-sm">
+              Đang tìm kiếm: <strong>"{searchText}"</strong>
             </Text>
             <Button type="link" size="small" onClick={() => setSearchText('')}>
               Xóa bộ lọc
@@ -791,29 +808,43 @@ const SupplierList: React.FC = () => {
             ...pagination,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} nhà cung cấp`,
+            showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} của ${total} nhà cung cấp`,
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
           onChange={handleTableChange}
-          scroll={{ x: 900 }}
+          scroll={{ x: 1000 }}
           locale={{
-            emptyText: <Empty description="Chưa có nhà cung cấp nào" />,
+            emptyText: (
+              <Empty
+                description="Chưa có nhà cung cấp nào"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                imageStyle={{ height: 60 }}
+              />
+            ),
           }}
+          className="custom-table"
         />
       </Card>
 
       {/* CREATE/EDIT MODAL */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
-            {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-            {editingRecord ? 'Cập nhật Nhà cung cấp' : 'Thêm Nhà cung cấp mới'}
+          <div className="flex items-center gap-2 text-lg">
+            {editingRecord ? (
+              <>
+                <EditOutlined className="text-orange-500" /> Cập nhật Nhà cung cấp
+              </>
+            ) : (
+              <>
+                <PlusOutlined className="text-blue-500" /> Thêm Nhà cung cấp mới
+              </>
+            )}
           </div>
         }
         open={isModalOpen}
         onOk={() => form.submit()}
         onCancel={() => setIsModalOpen(false)}
-        width={750}
+        width={800}
         okText="Lưu thông tin"
         cancelText="Hủy"
         confirmLoading={submitting}
@@ -826,8 +857,8 @@ const SupplierList: React.FC = () => {
       {/* DETAIL MODAL */}
       <Modal
         title={
-          <div className="flex items-center gap-2">
-            <EyeOutlined /> Chi tiết Nhà cung cấp
+          <div className="flex items-center gap-2 text-lg">
+            <EyeOutlined className="text-blue-500" /> Chi tiết Nhà cung cấp
           </div>
         }
         open={detailModalOpen}
@@ -835,7 +866,7 @@ const SupplierList: React.FC = () => {
           setDetailModalOpen(false);
           setSelectedSupplier(null);
         }}
-        width={700}
+        width={800}
         footer={
           <Space>
             <Button onClick={() => setDetailModalOpen(false)}>Đóng</Button>
@@ -855,7 +886,13 @@ const SupplierList: React.FC = () => {
         }
         destroyOnClose
       >
-        {detailModalContent}
+        {loadingDetail ? (
+          <div className="flex justify-center items-center h-64">
+            <Spin size="large" />
+          </div>
+        ) : (
+          detailModalContent
+        )}
       </Modal>
     </div>
   );

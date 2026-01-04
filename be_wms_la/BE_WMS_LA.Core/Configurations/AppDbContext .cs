@@ -26,7 +26,6 @@ public class AppDbContext : DbContext
 
     // Supplier & Customer
     public DbSet<Supplier> Suppliers { get; set; } = null!;
-    public DbSet<SupplierProduct> SupplierProducts { get; set; } = null!;
     public DbSet<Customer> Customers { get; set; } = null!;
     public DbSet<CustomerContact> CustomerContacts { get; set; } = null!;
 
@@ -134,30 +133,14 @@ public class AppDbContext : DbContext
             .IsUnique();
 
         // =====================================================
-        // SupplierProduct Relationships
+        // Component → Supplier (Manufacturer) Relationship
         // =====================================================
 
-        modelBuilder.Entity<SupplierProduct>()
-            .HasOne(sp => sp.Supplier)
-            .WithMany(s => s.SupplierProducts)
-            .HasForeignKey(sp => sp.SupplierID)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<SupplierProduct>()
-            .HasOne(sp => sp.Component)
-            .WithMany(c => c.SupplierProducts)
-            .HasForeignKey(sp => sp.ComponentID)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<SupplierProduct>()
-            .HasOne(sp => sp.Variant)
-            .WithMany(v => v.SupplierProducts)
-            .HasForeignKey(sp => sp.VariantID)
+        modelBuilder.Entity<Component>()
+            .HasOne(c => c.Supplier)
+            .WithMany(s => s.Components)
+            .HasForeignKey(c => c.SupplierID)
             .OnDelete(DeleteBehavior.SetNull);
-
-        modelBuilder.Entity<SupplierProduct>()
-            .HasIndex(sp => new { sp.SupplierID, sp.ComponentID, sp.VariantID })
-            .IsUnique();
 
         // =====================================================
         // WarehouseStock Relationships

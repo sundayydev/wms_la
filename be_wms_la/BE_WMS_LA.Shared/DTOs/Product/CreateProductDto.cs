@@ -32,6 +32,11 @@ public class CreateProductDto
     /// </summary>
     public Guid? CategoryID { get; set; }
 
+    /// <summary>
+    /// Nhà sản xuất (Manufacturer/Supplier)
+    /// </summary>
+    public Guid? SupplierID { get; set; }
+
     #region Phân loại sản phẩm
 
     /// <summary>

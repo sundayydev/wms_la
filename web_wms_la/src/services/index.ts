@@ -59,9 +59,23 @@ export * from './warehouses.service';
 export { default as categoriesService } from './categories.service';
 export * from './categories.service';
 
+// Customers Service
+export { default as customersService } from './customers.service';
+export * from './customers.service';
+
+// Inventory Service
+export { default as inventoryService } from './inventory.service';
+export * from './inventory.service';
+
+// Purchase Orders Service
+export { default as purchaseOrdersService } from './purchaseOrders.service';
+export * from './purchaseOrders.service';
+
 // Types
 export type * from '../types/api.types';
 export type * from '../types/type.supplier';
 export type * from '../types/type.warehouse';
 export type * from '../types/type.category';
-
+export type * from '../types/type.customer';
+export type * from '../types/type.inventory';
+export type * from '../types/type.purchaseOrder';

@@ -120,6 +120,7 @@ public class ProductService
     {
         var component = await _context.Components
             .Include(c => c.Category)
+            .Include(c => c.Supplier)
             .Include(c => c.Variants.Where(v => v.DeletedAt == null))
             .Include(c => c.ProductInstances.Where(i => i.DeletedAt == null))
             .FirstOrDefaultAsync(c => c.ComponentID == id && c.DeletedAt == null);
@@ -140,6 +141,7 @@ public class ProductService
     {
         var component = await _context.Components
             .Include(c => c.Category)
+            .Include(c => c.Supplier)
             .Include(c => c.Variants.Where(v => v.DeletedAt == null))
             .Include(c => c.ProductInstances.Where(i => i.DeletedAt == null))
             .FirstOrDefaultAsync(c => c.SKU == sku && c.DeletedAt == null);
@@ -178,6 +180,17 @@ public class ProductService
             }
         }
 
+        // Kiểm tra SupplierID hợp lệ (nếu có)
+        if (dto.SupplierID.HasValue)
+        {
+            var supplierExists = await _context.Suppliers
+                .AnyAsync(s => s.SupplierID == dto.SupplierID.Value && s.DeletedAt == null);
+            if (!supplierExists)
+            {
+                return ApiResponse<ProductDetailDto>.ErrorResponse("Nhà cung cấp không tồn tại");
+            }
+        }
+
         var component = new Component
         {
             ComponentID = Guid.NewGuid(),
@@ -185,6 +198,7 @@ public class ProductService
             ComponentName = dto.ComponentName,
             ComponentNameVN = dto.ComponentNameVN,
             CategoryID = dto.CategoryID,
+            SupplierID = dto.SupplierID,
             ProductType = dto.ProductType,
             Brand = dto.Brand,
             Model = dto.Model,
@@ -246,10 +260,22 @@ public class ProductService
             }
         }
 
+        // Kiểm tra SupplierID hợp lệ (nếu cập nhật)
+        if (dto.SupplierID.HasValue)
+        {
+            var supplierExists = await _context.Suppliers
+                .AnyAsync(s => s.SupplierID == dto.SupplierID.Value && s.DeletedAt == null);
+            if (!supplierExists)
+            {
+                return ApiResponse<ProductDetailDto>.ErrorResponse("Nhà cung cấp không tồn tại");
+            }
+        }
+
         // Cập nhật các trường
         if (!string.IsNullOrEmpty(dto.ComponentName)) component.ComponentName = dto.ComponentName;
         if (dto.ComponentNameVN != null) component.ComponentNameVN = dto.ComponentNameVN;
         if (dto.CategoryID.HasValue) component.CategoryID = dto.CategoryID;
+        if (dto.SupplierID.HasValue) component.SupplierID = dto.SupplierID;
         if (dto.ProductType != null) component.ProductType = dto.ProductType;
         if (dto.Brand != null) component.Brand = dto.Brand;
         if (dto.Model != null) component.Model = dto.Model;
@@ -561,6 +587,8 @@ public class ProductService
             ComponentNameVN = component.ComponentNameVN,
             CategoryID = component.CategoryID,
             CategoryName = component.Category?.CategoryName,
+            SupplierID = component.SupplierID,
+            SupplierName = component.Supplier?.SupplierName,
             ProductType = component.ProductType,
             Brand = component.Brand,
             Model = component.Model,

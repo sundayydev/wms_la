@@ -218,6 +218,7 @@ export const router = createBrowserRouter([
           { path: 'orders', element: <PurchaseOrderList /> }, // /admin/purchasing/orders
           { path: 'create', element: <PurchaseOrderCreate /> }, // /admin/purchasing/create
           { path: 'receiving', element: <Receiving /> }, // /admin/purchasing/receiving
+
         ]
       },
 

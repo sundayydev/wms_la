@@ -82,9 +82,12 @@ public class Supplier
 
     #region Navigation Properties
 
+    /// <summary>
+    /// Danh sách sản phẩm do nhà sản xuất này sản xuất (1 Supplier → N Components)
+    /// </summary>
+    public virtual ICollection<Component> Components { get; set; } = new List<Component>();
     public virtual ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
-    public virtual ICollection<SupplierProduct> SupplierProducts { get; set; } = new List<SupplierProduct>();
 
     #endregion
 }
