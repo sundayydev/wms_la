@@ -415,3 +415,7 @@ tags
 # Project specific - add your own below
 # ============================================================================
 
+minio_data
+run-dev.bat
+run-dev.ps1
+run-dev.sh

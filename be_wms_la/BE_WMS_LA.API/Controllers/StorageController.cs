@@ -24,7 +24,9 @@ public class StorageController : ControllerBase
     private const long MaxImageSize = 10 * 1024 * 1024; // 10MB
     private const long MaxDocumentSize = 50 * 1024 * 1024; // 50MB
 
-    public StorageController(MinioStorageService storageService, ILogger<StorageController> logger)
+    public StorageController(
+        MinioStorageService storageService,
+        ILogger<StorageController> logger)
     {
         _storageService = storageService;
         _logger = logger;

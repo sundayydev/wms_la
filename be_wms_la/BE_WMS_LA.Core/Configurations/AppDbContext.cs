@@ -62,6 +62,9 @@ public class AppDbContext : DbContext
     public DbSet<ComponentVariant> ComponentVariants { get; set; } = null!;
     public DbSet<WarehouseStock> WarehouseStocks { get; set; } = null!;
 
+    // Knowledge Base
+    public DbSet<ProductKnowledgeBase> ProductKnowledgeBases { get; set; } = null!;
+
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -297,6 +300,34 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(dt => dt.UserID)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // =====================================================
+        // ProductKnowledgeBase Relationships
+        // =====================================================
+
+        modelBuilder.Entity<ProductKnowledgeBase>()
+            .HasOne<BE_WMS_LA.Domain.Models.Component>(pkb => pkb.Component)
+            .WithMany(c => c.KnowledgeBase)
+            .HasForeignKey(pkb => pkb.ComponentID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProductKnowledgeBase>()
+            .HasOne(kb => kb.UploadedByUser)
+            .WithMany()
+            .HasForeignKey(kb => kb.UploadedByUserID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProductKnowledgeBase>()
+            .HasOne(kb => kb.SharedByUser)
+            .WithMany()
+            .HasForeignKey(kb => kb.SharedByUserID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Index for ShareToken (used for public sharing)
+        modelBuilder.Entity<ProductKnowledgeBase>()
+            .HasIndex(kb => kb.ShareToken)
+            .IsUnique()
+            .HasFilter("\"ShareToken\" IS NOT NULL");
 
         // =====================================================
         // Unique Indexes

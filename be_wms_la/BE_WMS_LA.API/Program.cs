@@ -44,6 +44,7 @@ builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.ProductRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.CustomerRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.PurchaseOrderRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.InventoryRepository>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.KnowledgeBaseRepository>();
 
 // --- ĐĂNG KÝ SERVICES ---
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.AuthService>();
@@ -56,6 +57,7 @@ builder.Services.AddScoped<BE_WMS_LA.Core.Services.CategoryService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.CustomerService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.PurchaseOrderService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.InventoryService>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Services.KnowledgeBaseService>();
 
 // --- CẤU HÌNH MINIO ---
 builder.Services.Configure<MinioSettings>(options =>
@@ -277,12 +279,12 @@ using (var scope = app.Services.CreateScope())
     {
         var minioService = scope.ServiceProvider.GetRequiredService<BE_WMS_LA.Core.Services.MinioStorageService>();
         await minioService.InitializeBucketsAsync();
-        Console.WriteLine("✅ MinIO buckets initialized successfully");
+        Console.WriteLine("MinIO buckets initialized successfully");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"⚠️ MinIO initialization failed: {ex.Message}");
-        Console.WriteLine("   Make sure MinIO is running (docker-compose up -d)");
+        Console.WriteLine($"MinIO initialization failed: {ex.Message}");
+        Console.WriteLine("Make sure MinIO is running (docker-compose up -d)");
     }
 }
 

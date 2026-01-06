@@ -1497,6 +1497,123 @@ namespace BE_WMS_LA.Core.Migrations
                     b.ToTable("ProductInstances");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ProductKnowledgeBase", b =>
+                {
+                    b.Property<Guid>("KnowledgeID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccessLevel")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("AllowedRoles")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("BucketName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ComponentID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ContentURL")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DownloadCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ETag")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long?>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsShared")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MaxDownloads")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MimeType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ShareToken")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("SharedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SharedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("SharedExpiry")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SharedURL")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("ThumbnailURL")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UploadedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VersionID")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("KnowledgeID");
+
+                    b.HasIndex("ComponentID");
+
+                    b.HasIndex("ShareToken")
+                        .IsUnique()
+                        .HasFilter("\"ShareToken\" IS NOT NULL");
+
+                    b.HasIndex("SharedByUserID");
+
+                    b.HasIndex("UploadedByUserID");
+
+                    b.ToTable("ProductKnowledgeBase");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
                 {
                     b.Property<Guid>("PurchaseOrderID")
@@ -2587,6 +2704,30 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ProductKnowledgeBase", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                        .WithMany("KnowledgeBase")
+                        .HasForeignKey("ComponentID")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "SharedByUser")
+                        .WithMany()
+                        .HasForeignKey("SharedByUserID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Component");
+
+                    b.Navigation("SharedByUser");
+
+                    b.Navigation("UploadedByUser");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
                 {
                     b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
@@ -2891,6 +3032,8 @@ namespace BE_WMS_LA.Core.Migrations
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Component", b =>
                 {
+                    b.Navigation("KnowledgeBase");
+
                     b.Navigation("ProductInstances");
 
                     b.Navigation("Variants");
