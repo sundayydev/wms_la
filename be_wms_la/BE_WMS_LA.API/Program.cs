@@ -1,4 +1,5 @@
 using BE_WMS_LA.Core.Configurations;
+using BE_WMS_LA.Shared.Configurations;
 using System.IdentityModel.Tokens.Jwt;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,6 +44,7 @@ builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.ProductRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.CustomerRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.PurchaseOrderRepository>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.InventoryRepository>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.KnowledgeBaseRepository>();
 
 // --- ĐĂNG KÝ SERVICES ---
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.AuthService>();
@@ -55,6 +57,21 @@ builder.Services.AddScoped<BE_WMS_LA.Core.Services.CategoryService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.CustomerService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.PurchaseOrderService>();
 builder.Services.AddScoped<BE_WMS_LA.Core.Services.InventoryService>();
+builder.Services.AddScoped<BE_WMS_LA.Core.Services.KnowledgeBaseService>();
+
+// --- CẤU HÌNH MINIO ---
+builder.Services.Configure<MinioSettings>(options =>
+{
+    options.Endpoint = Environment.GetEnvironmentVariable("MINIO_ENDPOINT") ?? "localhost:9000";
+    options.AccessKey = Environment.GetEnvironmentVariable("MINIO_ACCESS_KEY") ?? "admin";
+    options.SecretKey = Environment.GetEnvironmentVariable("MINIO_SECRET_KEY") ?? "adminerpla";
+    options.UseSSL = bool.TryParse(Environment.GetEnvironmentVariable("MINIO_USE_SSL"), out var ssl) && ssl;
+    options.DefaultBucket = Environment.GetEnvironmentVariable("MINIO_DEFAULT_BUCKET") ?? "la-files";
+    options.ProductImagesBucket = Environment.GetEnvironmentVariable("MINIO_PRODUCTS_BUCKET") ?? "product-images";
+    options.DocumentsBucket = Environment.GetEnvironmentVariable("MINIO_DOCUMENTS_BUCKET") ?? "documents";
+    options.AvatarsBucket = Environment.GetEnvironmentVariable("MINIO_AVATARS_BUCKET") ?? "avatars";
+});
+builder.Services.AddScoped<BE_WMS_LA.Core.Services.MinioStorageService>();
 
 // --- CẤU HÌNH JWT SETTINGS ---
 // Thêm section JwtSettings vào IConfiguration để AuthService có thể đọc
@@ -159,18 +176,18 @@ builder.Services.AddOpenApi(options =>
         // 1. Thông tin API
         document.Info = new OpenApiInfo
         {
-            Title = "WMS LA API",
+            Title = "ERP LA API",
             Version = "1.0.0",
-            Description = "WMS LA API - Warehouse Management System",
-            Summary = "WMS LA API theo chuẩn Microsoft.OpenApi 3.1.1 - .NET 10",
+            Description = "ERP LA API -  Enterprise resource planning",
+            Summary = "ERP LA API theo chuẩn Microsoft.OpenApi 3.1.1 - .NET 10",
             Contact = new OpenApiContact
             {
-                Name = "WMS LA Team",
+                Name = "ERP LA Team",
                 Email = "sundayy.dev@gmail.com",
             },
             License = new OpenApiLicense
             {
-                Name = "WMS LA License",
+                Name = "ERP LA License",
                 Url = new Uri("https://wmsla.com"),
             },
             TermsOfService = new Uri("https://wmsla.com")
@@ -254,5 +271,21 @@ app.UseCors("AllowCredentials"); // Sử dụng policy hỗ trợ credentials (c
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// --- KHỞI TẠO MINIO BUCKETS ---
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var minioService = scope.ServiceProvider.GetRequiredService<BE_WMS_LA.Core.Services.MinioStorageService>();
+        await minioService.InitializeBucketsAsync();
+        Console.WriteLine("MinIO buckets initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"MinIO initialization failed: {ex.Message}");
+        Console.WriteLine("Make sure MinIO is running (docker-compose up -d)");
+    }
+}
 
 app.Run();

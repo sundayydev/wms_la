@@ -152,6 +152,96 @@ export const deleteComponent = async (id: string): Promise<void> => {
     await apiClient.delete(`${BASE_URL}/${id}`);
 };
 
+// ============ Compatible Products APIs ============
+
+// DTO cho sản phẩm tương thích
+export interface CompatibleProductDto {
+    componentID: string;
+    sku: string;
+    name: string;
+    imageURL?: string;
+    productType?: string;
+}
+
+// Lấy danh sách sản phẩm tương thích
+export const getCompatibleProducts = async (productId: string): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.get<any>(`${BASE_URL}/${productId}/compatible`);
+    if (response.data.success) {
+        return response.data.data || [];
+    }
+    throw new Error(response.data.message || 'Không thể lấy danh sách sản phẩm tương thích');
+};
+
+// Thêm một sản phẩm tương thích
+export const addCompatibleProduct = async (productId: string, compatibleId: string): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.post<any>(`${BASE_URL}/${productId}/compatible`, {
+        componentID: compatibleId
+    });
+    if (response.data.success) {
+        return response.data.data || [];
+    }
+    throw new Error(response.data.message || 'Không thể thêm sản phẩm tương thích');
+};
+
+// Thêm nhiều sản phẩm tương thích
+export const addCompatibleProducts = async (productId: string, compatibleIds: string[]): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.post<any>(`${BASE_URL}/${productId}/compatible/bulk`, {
+        componentIDs: compatibleIds
+    });
+    if (response.data.success) {
+        return response.data.data || [];
+    }
+    throw new Error(response.data.message || 'Không thể thêm các sản phẩm tương thích');
+};
+
+// Xóa một sản phẩm khỏi danh sách tương thích
+export const removeCompatibleProduct = async (productId: string, compatibleId: string): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.delete<any>(`${BASE_URL}/${productId}/compatible/${compatibleId}`);
+    if (response.data.success) {
+        return response.data.data || [];
+    }
+    throw new Error(response.data.message || 'Không thể xóa sản phẩm tương thích');
+};
+
+// Cập nhật toàn bộ danh sách sản phẩm tương thích
+export const updateCompatibleProducts = async (productId: string, compatibleIds: string[]): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.put<any>(`${BASE_URL}/${productId}/compatible`, {
+        componentIDs: compatibleIds
+    });
+    if (response.data.success) {
+        return response.data.data || [];
+    }
+    throw new Error(response.data.message || 'Không thể cập nhật danh sách sản phẩm tương thích');
+};
+
+
+// ============ Product Statistics API ============
+
+// DTO cho thống kê theo danh mục
+export interface CategoryStatDto {
+    category: string;
+    count: number;
+}
+
+// DTO cho thống kê sản phẩm
+export interface ProductStatisticsDto {
+    totalProducts: number;
+    totalVariants: number;
+    totalInstances: number;
+    inStock: number;
+    sold: number;
+    byCategory: CategoryStatDto[];
+}
+
+// Lấy thống kê sản phẩm
+export const getProductStatistics = async (): Promise<ProductStatisticsDto> => {
+    const response = await apiClient.get<any>(`${BASE_URL}/statistics`);
+    if (response.data.success) {
+        return response.data.data;
+    }
+    throw new Error(response.data.message || 'Không thể lấy thống kê sản phẩm');
+};
+
 // Lấy danh sách thương hiệu (distinct)
 // TODO: API endpoint /brands không tồn tại trong ProductsController backend
 // Cần thêm endpoint này ở backend nếu muốn sử dụng
@@ -182,3 +272,21 @@ export const deleteComponent = async (id: string): Promise<void> => {
 //     });
 //     return response.data;
 // };
+
+// Default export object containing all service functions
+const componentsService = {
+    getComponents,
+    getComponentsForSelect,
+    getComponentById,
+    createComponent,
+    updateComponent,
+    deleteComponent,
+    getCompatibleProducts,
+    addCompatibleProduct,
+    addCompatibleProducts,
+    removeCompatibleProduct,
+    updateCompatibleProducts,
+    getProductStatistics,
+};
+
+export default componentsService;

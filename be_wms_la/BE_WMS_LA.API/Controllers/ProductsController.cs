@@ -449,6 +449,151 @@ public class ProductsController : ControllerBase
 
     #endregion
 
+    #region Compatible Products
+
+    /// <summary>
+    /// Lấy danh sách sản phẩm tương thích
+    /// </summary>
+    /// <param name="id">ID sản phẩm</param>
+    [HttpGet("{id:guid}/compatible")]
+    [EndpointSummary("Danh sách sản phẩm tương thích")]
+    [EndpointDescription("Lấy danh sách các sản phẩm tương thích với sản phẩm này (VD: phụ kiện tương thích với thiết bị)")]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCompatibleProducts(Guid id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.ProductView))
+        {
+            return Forbid();
+        }
+
+        var result = await _productService.GetCompatibleProductsAsync(id);
+        if (!result.Success)
+        {
+            return NotFound(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Thêm một sản phẩm vào danh sách tương thích
+    /// </summary>
+    /// <param name="id">ID sản phẩm gốc</param>
+    /// <param name="request">Thông tin sản phẩm cần thêm</param>
+    [HttpPost("{id:guid}/compatible")]
+    [EndpointSummary("Thêm sản phẩm tương thích")]
+    [EndpointDescription("Thêm một sản phẩm vào danh sách tương thích")]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddCompatibleProduct(Guid id, [FromBody] AddCompatibleProductRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        {
+            return Forbid();
+        }
+
+        _logger.LogInformation("User {UserId} thêm sản phẩm tương thích {CompatibleId} vào {ProductId}",
+            userId, request.ComponentID, id);
+
+        var result = await _productService.AddCompatibleProductAsync(id, request.ComponentID);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Thêm nhiều sản phẩm vào danh sách tương thích
+    /// </summary>
+    /// <param name="id">ID sản phẩm gốc</param>
+    /// <param name="request">Danh sách sản phẩm cần thêm</param>
+    [HttpPost("{id:guid}/compatible/bulk")]
+    [EndpointSummary("Thêm nhiều sản phẩm tương thích")]
+    [EndpointDescription("Thêm nhiều sản phẩm vào danh sách tương thích cùng lúc")]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddCompatibleProducts(Guid id, [FromBody] AddCompatibleProductsRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        {
+            return Forbid();
+        }
+
+        _logger.LogInformation("User {UserId} thêm {Count} sản phẩm tương thích vào {ProductId}",
+            userId, request.ComponentIDs.Count, id);
+
+        var result = await _productService.AddCompatibleProductsAsync(id, request.ComponentIDs);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xóa một sản phẩm khỏi danh sách tương thích
+    /// </summary>
+    /// <param name="id">ID sản phẩm gốc</param>
+    /// <param name="compatibleId">ID sản phẩm cần xóa</param>
+    [HttpDelete("{id:guid}/compatible/{compatibleId:guid}")]
+    [EndpointSummary("Xóa sản phẩm tương thích")]
+    [EndpointDescription("Xóa một sản phẩm khỏi danh sách tương thích")]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RemoveCompatibleProduct(Guid id, Guid compatibleId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        {
+            return Forbid();
+        }
+
+        _logger.LogInformation("User {UserId} xóa sản phẩm tương thích {CompatibleId} khỏi {ProductId}",
+            userId, compatibleId, id);
+
+        var result = await _productService.RemoveCompatibleProductAsync(id, compatibleId);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cập nhật toàn bộ danh sách sản phẩm tương thích
+    /// </summary>
+    /// <param name="id">ID sản phẩm gốc</param>
+    /// <param name="request">Danh sách sản phẩm tương thích mới (thay thế hoàn toàn)</param>
+    [HttpPut("{id:guid}/compatible")]
+    [EndpointSummary("Cập nhật danh sách tương thích")]
+    [EndpointDescription("Thay thế toàn bộ danh sách sản phẩm tương thích bằng danh sách mới")]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateCompatibleProducts(Guid id, [FromBody] UpdateCompatibleProductsRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        {
+            return Forbid();
+        }
+
+        _logger.LogInformation("User {UserId} cập nhật danh sách tương thích của {ProductId} với {Count} sản phẩm",
+            userId, id, request.ComponentIDs.Count);
+
+        var result = await _productService.UpdateCompatibleProductsAsync(id, request.ComponentIDs);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private Guid? GetCurrentUserId()

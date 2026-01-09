@@ -20,6 +20,11 @@ import {
   message,
   Statistic,
   Alert,
+  Modal,
+  Select,
+  Popconfirm,
+  Avatar,
+  List,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -42,9 +47,19 @@ import {
   PrinterOutlined,
   DownloadOutlined,
   InboxOutlined,
+  PlusOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { getComponentById } from '../../services/components.service';
+import {
+  getComponentById,
+  getComponentsForSelect,
+  getCompatibleProducts,
+  addCompatibleProducts,
+  removeCompatibleProduct,
+  type CompatibleProductDto
+} from '../../services/components.service';
+import { useGoBack } from '../../hooks/useGoBack';
 import { PRODUCT_TYPE_CONFIG, STATUS_CONFIG, type Component, type SpecificationGroup, type SpecificationItem } from '../../types/type.component';
 import Barcode from 'react-barcode';
 
@@ -59,6 +74,85 @@ const ProductDetail: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Component | null>(null);
+
+  // Compatible products state
+  const [compatibleProducts, setCompatibleProducts] = useState<CompatibleProductDto[]>([]);
+  const [compatibleLoading, setCompatibleLoading] = useState(false);
+  const [compatibleModalVisible, setCompatibleModalVisible] = useState(false);
+  const [allProducts, setAllProducts] = useState<Component[]>([]);
+  const [allProductsLoading, setAllProductsLoading] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [addingCompatible, setAddingCompatible] = useState(false);
+
+  // Load compatible products
+  const loadCompatibleProducts = async () => {
+    if (!id) return;
+    setCompatibleLoading(true);
+    try {
+      const data = await getCompatibleProducts(id);
+      setCompatibleProducts(data);
+    } catch (error: any) {
+      console.error('Failed to load compatible products:', error);
+      // Silent fail - just show empty list
+    } finally {
+      setCompatibleLoading(false);
+    }
+  };
+
+  // Load all products for selection
+  const loadAllProducts = async () => {
+    setAllProductsLoading(true);
+    try {
+      const data = await getComponentsForSelect();
+      setAllProducts(data);
+    } catch (error: any) {
+      console.error('Failed to load products for selection:', error);
+      message.error('Không thể tải danh sách sản phẩm');
+    } finally {
+      setAllProductsLoading(false);
+    }
+  };
+
+  // Open compatible modal
+  const openCompatibleModal = () => {
+    setSelectedProductIds([]);
+    loadAllProducts();
+    setCompatibleModalVisible(true);
+  };
+
+  // Handle add compatible products
+  const handleAddCompatibleProducts = async () => {
+    if (!id || selectedProductIds.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một sản phẩm');
+      return;
+    }
+
+    setAddingCompatible(true);
+    try {
+      const updatedList = await addCompatibleProducts(id, selectedProductIds);
+      setCompatibleProducts(updatedList);
+      setCompatibleModalVisible(false);
+      setSelectedProductIds([]);
+      message.success(`Đã thêm ${selectedProductIds.length} sản phẩm vào danh sách tương thích`);
+    } catch (error: any) {
+      message.error(error.message || 'Không thể thêm sản phẩm tương thích');
+    } finally {
+      setAddingCompatible(false);
+    }
+  };
+
+  // Handle remove compatible product
+  const handleRemoveCompatibleProduct = async (compatibleId: string) => {
+    if (!id) return;
+
+    try {
+      const updatedList = await removeCompatibleProduct(id, compatibleId);
+      setCompatibleProducts(updatedList);
+      message.success('Đã xóa sản phẩm khỏi danh sách tương thích');
+    } catch (error: any) {
+      message.error(error.message || 'Không thể xóa sản phẩm tương thích');
+    }
+  };
 
   // Load product data
   useEffect(() => {
@@ -83,6 +177,7 @@ const ProductDetail: React.FC = () => {
     };
 
     loadProduct();
+    loadCompatibleProducts();
   }, [id, navigate]);
 
   // Parse specifications
@@ -134,6 +229,8 @@ const ProductDetail: React.FC = () => {
     message.success(`Đã copy ${label}`);
   };
 
+  const goBack = useGoBack();
+
   // ============================================================
   // RENDER SECTIONS
   // ============================================================
@@ -160,7 +257,7 @@ const ProductDetail: React.FC = () => {
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/admin/inventory/products')}
+                onClick={goBack as any}
               />
               <Image
                 src={product.imageUrl || undefined}
@@ -760,6 +857,192 @@ const ProductDetail: React.FC = () => {
     );
   };
 
+  // Compatible Products Card
+  const renderCompatibleProducts = () => {
+    // Get IDs of products that are already in compatible list
+    const existingCompatibleIds = new Set(compatibleProducts.map(p => p.componentID));
+
+    // Filter products for select dropdown (exclude current product and already added ones)
+    const availableProducts = allProducts.filter(
+      p => p.componentId !== id && !existingCompatibleIds.has(p.componentId)
+    );
+
+    return (
+      <>
+        <Card
+          title={
+            <span className="flex items-center gap-2">
+              <ApiOutlined style={{ color: '#10b981' }} />
+              Sản phẩm tương thích ({compatibleProducts.length})
+            </span>
+          }
+          extra={
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={openCompatibleModal}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Thêm sản phẩm
+            </Button>
+          }
+          className="shadow-sm mb-6"
+          loading={compatibleLoading}
+        >
+          {compatibleProducts.length > 0 ? (
+            <List
+              itemLayout="horizontal"
+              dataSource={compatibleProducts}
+              renderItem={(item) => (
+                <List.Item
+                  actions={[
+                    <Popconfirm
+                      key="delete"
+                      title="Xác nhận xóa"
+                      description="Bạn có chắc muốn xóa sản phẩm này khỏi danh sách tương thích?"
+                      onConfirm={() => handleRemoveCompatibleProduct(item.componentID)}
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button type="text" danger icon={<DeleteOutlined />} size="small">
+                        Xóa
+                      </Button>
+                    </Popconfirm>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar
+                        src={item.imageURL}
+                        icon={!item.imageURL && <AppstoreOutlined />}
+                        shape="square"
+                        size={48}
+                        style={{ backgroundColor: '#f0f0f0' }}
+                      />
+                    }
+                    title={
+                      <Link
+                        to={`/admin/inventory/products/${item.componentID}`}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        {item.name}
+                      </Link>
+                    }
+                    description={
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Tag className="font-mono">{item.sku}</Tag>
+                        {item.productType && (
+                          <Tag color={PRODUCT_TYPE_CONFIG[item.productType as keyof typeof PRODUCT_TYPE_CONFIG]?.color || 'gray'}>
+                            {PRODUCT_TYPE_CONFIG[item.productType as keyof typeof PRODUCT_TYPE_CONFIG]?.label || item.productType}
+                          </Tag>
+                        )}
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="Chưa có sản phẩm tương thích nào"
+            >
+              <Button type="primary" onClick={openCompatibleModal} icon={<PlusOutlined />}>
+                Thêm sản phẩm tương thích
+              </Button>
+            </Empty>
+          )}
+        </Card>
+
+        {/* Modal for adding compatible products */}
+        <Modal
+          title={
+            <span className="flex items-center gap-2">
+              <ApiOutlined style={{ color: '#10b981' }} />
+              Thêm sản phẩm tương thích
+            </span>
+          }
+          open={compatibleModalVisible}
+          onCancel={() => setCompatibleModalVisible(false)}
+          onOk={handleAddCompatibleProducts}
+          okText={`Thêm (${selectedProductIds.length})`}
+          cancelText="Hủy"
+          confirmLoading={addingCompatible}
+          okButtonProps={{ disabled: selectedProductIds.length === 0 }}
+          width={700}
+          destroyOnClose
+        >
+          <div className="mb-4">
+            <Text type="secondary">
+              Chọn các sản phẩm tương thích với <strong>{product?.componentName}</strong>.
+              Ví dụ: Pin sạc tương thích với các máy PDA, Phụ kiện tương thích với thiết bị chính...
+            </Text>
+          </div>
+
+          <Select
+            mode="multiple"
+            placeholder="Tìm và chọn sản phẩm..."
+            value={selectedProductIds}
+            onChange={setSelectedProductIds}
+            loading={allProductsLoading}
+            style={{ width: '100%' }}
+            optionFilterProp="label"
+            showSearch
+            allowClear
+            maxTagCount={5}
+            options={availableProducts.map(p => ({
+              value: p.componentId,
+              label: (
+                <div className="flex items-center gap-2 py-1">
+                  <Avatar
+                    src={p.imageUrl}
+                    icon={!p.imageUrl && <AppstoreOutlined />}
+                    size="small"
+                    shape="square"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{p.componentName}</div>
+                    <div className="text-xs text-gray-500">{p.sku}</div>
+                  </div>
+                  <Tag color={PRODUCT_TYPE_CONFIG[p.productType as keyof typeof PRODUCT_TYPE_CONFIG]?.color || 'gray'} className="text-xs">
+                    {PRODUCT_TYPE_CONFIG[p.productType as keyof typeof PRODUCT_TYPE_CONFIG]?.label || p.productType}
+                  </Tag>
+                </div>
+              ),
+              searchLabel: `${p.sku} ${p.componentName} ${p.brand || ''} ${p.model || ''}`,
+            }))}
+            filterOption={(input, option) => {
+              const searchLabel = (option as any)?.searchLabel?.toLowerCase() || '';
+              return searchLabel.includes(input.toLowerCase());
+            }}
+          />
+
+          {selectedProductIds.length > 0 && (
+            <div className="mt-4">
+              <Text strong className="text-sm">Đã chọn {selectedProductIds.length} sản phẩm:</Text>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedProductIds.map((pid) => {
+                  const prod = availableProducts.find(p => p.componentId === pid);
+                  return prod ? (
+                    <Tag
+                      key={pid}
+                      closable
+                      onClose={() => setSelectedProductIds(ids => ids.filter(i => i !== pid))}
+                      className="flex items-center gap-1"
+                    >
+                      {prod.sku} - {prod.componentName}
+                    </Tag>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          )}
+        </Modal>
+      </>
+    );
+  };
+
   // ============================================================
   // MAIN RENDER
   // ============================================================
@@ -804,6 +1087,7 @@ const ProductDetail: React.FC = () => {
           <Col xs={24} lg={8}>
             {renderInventory()}
             {renderTagsAndDocs()}
+            {renderCompatibleProducts()}
           </Col>
         </Row>
 

@@ -74,4 +74,17 @@ public class UserRepository
         _context.Users.Remove(user);
         await _context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Lấy danh sách permission names của user
+    /// </summary>
+    /// <param name="userId">ID của user</param>
+    /// <returns>Danh sách tên permission</returns>
+    public async Task<List<string>> GetUserPermissionsAsync(Guid userId)
+    {
+        return await _context.UserPermissions
+            .Where(up => up.UserID == userId)
+            .Select(up => up.Permission!.PermissionName)
+            .ToListAsync();
+    }
 }

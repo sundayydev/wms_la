@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using BE_WMS_LA.Core.Configurations;
 using BE_WMS_LA.Core.Repositories;
 using BE_WMS_LA.Domain.Models;
 using BE_WMS_LA.Shared.Common;
@@ -26,7 +25,6 @@ public class AuthService
     private readonly IConfiguration _configuration;
     private readonly IConnectionMultiplexer? _redis;
     private readonly IDatabase? _redisDb;
-    private readonly AppDbContext _context;
 
     // Cấu hình lock account
     private const int MaxFailedAttempts = 10;
@@ -38,13 +36,12 @@ public class AuthService
     public AuthService(
         UserRepository userRepository,
         IConfiguration configuration,
-        IConnectionMultiplexer? redis = null, AppDbContext context = null)
+        IConnectionMultiplexer? redis = null)
     {
         _userRepository = userRepository;
         _configuration = configuration;
         _redis = redis;
         _redisDb = redis?.GetDatabase();
-        _context = context;
     }
 
     #region Public Methods
@@ -122,7 +119,7 @@ public class AuthService
         // 7. Tạo token
         var expirationMinutes = GetAccessTokenExpirationMinutes();
         var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
-        var accessToken = GenerateAccessToken(user, expiresAt);
+        var accessToken = await GenerateAccessTokenAsync(user, expiresAt);
         var refreshToken = GenerateRefreshToken();
 
         // 8. Lưu refresh token vào Redis
@@ -179,6 +176,10 @@ public class AuthService
     /// <summary>
     /// Làm mới Access Token (chỉ cần Refresh Token)
     /// </summary>
+    /// <remarks>
+    /// WARNING: Phương thức này sử dụng Redis Keys() scan - có thể gây performance issue
+    /// với số lượng lớn users. Xem xét sử dụng reverse mapping hoặc cấu trúc khác.
+    /// </remarks>
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken)
     {
         // 0. Kiểm tra Redis có sẵn không
@@ -188,6 +189,8 @@ public class AuthService
         }
 
         // 1. Tìm user từ refresh token trong Redis
+        // WARNING: Keys() là blocking operation, không nên dùng trong production với lượng lớn keys
+        // TODO: Cân nhắc lưu thêm reverse mapping "refresh_token_lookup:{token_hash} -> userId"
         var db = _redis.GetDatabase();
         var keys = _redis.GetServer(_redis!.GetEndPoints().First()).Keys(pattern: "refresh_token:*");
 
@@ -212,26 +215,23 @@ public class AuthService
             return AuthResult.Error("Refresh token không hợp lệ hoặc đã hết hạn");
         }
 
-        // 2. Validate refresh token
-        if (!await ValidateRefreshTokenAsync(userId, refreshToken))
-        {
-            return AuthResult.Error("Refresh token không hợp lệ hoặc đã hết hạn");
-        }
+        // NOTE: Không cần gọi ValidateRefreshTokenAsync() ở đây vì đã xác nhận token khớp ở bước trên
 
-        // 3. Tìm user
+        // 2. Tìm user
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null || !user.IsActive || user.DeletedAt.HasValue)
         {
             return AuthResult.Error("Người dùng không tồn tại hoặc đã bị vô hiệu hóa");
         }
 
-        // 4. Tạo token mới
+        // 3. Tạo token mới
         var expirationMinutes = GetAccessTokenExpirationMinutes();
         var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
-        var newAccessToken = GenerateAccessToken(user, expiresAt);
+        var newAccessToken = await GenerateAccessTokenAsync(user, expiresAt);
         var newRefreshToken = GenerateRefreshToken();
 
-        // 5. Lưu refresh token mới vào Redis (token rotation)
+        // 4. Token rotation: Xóa token cũ rồi lưu token mới
+        await RevokeRefreshTokenAsync(userId);
         await SaveRefreshTokenAsync(userId, newRefreshToken);
 
         return AuthResult.SuccessResult(
@@ -255,7 +255,9 @@ public class AuthService
         }
 
         // 2. Lấy thông tin user từ token
-        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
+        // NOTE: Sử dụng JwtRegisteredClaimNames.Sub để khớp với claim được tạo trong GenerateAccessTokenAsync
+        var userIdClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)
+                          ?? principal.FindFirst(ClaimTypes.NameIdentifier);
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
             return AuthResult.Error("Token không hợp lệ");
@@ -277,10 +279,11 @@ public class AuthService
         // 5. Tạo token mới
         var expirationMinutes = GetAccessTokenExpirationMinutes();
         var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
-        var newAccessToken = GenerateAccessToken(user, expiresAt);
+        var newAccessToken = await GenerateAccessTokenAsync(user, expiresAt);
         var newRefreshToken = GenerateRefreshToken();
 
-        // 6. Lưu refresh token mới vào Redis (token rotation)
+        // 6. Token rotation: Xóa token cũ rồi lưu token mới
+        await RevokeRefreshTokenAsync(userId);
         await SaveRefreshTokenAsync(userId, newRefreshToken);
 
         return AuthResult.SuccessResult(
@@ -364,7 +367,7 @@ public class AuthService
     /// <summary>
     /// Tạo Access Token (JWT)
     /// </summary>
-    private string GenerateAccessToken(User user, DateTime expiresAt)
+    private async Task<string> GenerateAccessTokenAsync(User user, DateTime expiresAt)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
@@ -395,7 +398,8 @@ public class AuthService
             claims.Add(new Claim("WarehouseId", user.WarehouseID.Value.ToString()));
         }
 
-        var permissions = _context.UserPermissions.Where(up => up.UserID == user.UserID).Select(up => up.Permission!.PermissionName).ToList();
+        // Lấy permissions từ Repository thay vì trực tiếp từ DbContext
+        var permissions = await _userRepository.GetUserPermissionsAsync(user.UserID);
         foreach (var permission in permissions)
         {
             claims.Add(new Claim("Permission", permission));

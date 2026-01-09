@@ -259,5 +259,10 @@ public class Component
     /// </summary>
     public virtual ICollection<ComponentVariant> Variants { get; set; } = new List<ComponentVariant>();
 
+    /// <summary>
+    /// Kho tri thức sản phẩm (Tài liệu, Video, Driver, Firmware)
+    /// </summary>
+    public virtual ICollection<ProductKnowledgeBase> KnowledgeBase { get; set; } = new List<ProductKnowledgeBase>();
+
     #endregion
 }

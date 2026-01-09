@@ -29,7 +29,9 @@ import SalesOrderCreate from '../pages/Sales/SalesOrderCreate';
 import OutboundCreate from '../pages/Warehouses/OutboundCreate';
 import InboundCreate from '../pages/Warehouses/InboundCreate';
 import AuditLogsPage from '../pages/System/AuditLogsPage';
-import KnowledgeBase from '../pages/Catalog/KnowledgeBase';
+import KnowledgeBase from '../pages/Catalog/KnowledgeBase/KnowledgeBase';
+import KnowledgeBaseUpload from '../pages/Catalog/KnowledgeBase/KnowledgeBaseUpload';
+import KnowledgeBaseDetail from '../pages/Catalog/KnowledgeBase/KnowledgeBaseDetail';
 import SpareParts from '../pages/Catalog/SpareParts';
 import ProductBundles from '../pages/Catalog/ProductBundles';
 import CommonIssues from '../pages/Catalog/CommonIssues';
@@ -173,6 +175,8 @@ export const router = createBrowserRouter([
         path: 'catalog',
         children: [
           { path: 'knowledge-base', element: <KnowledgeBase /> }, // /admin/catalog/knowledge-base
+          { path: 'knowledge-base/upload', element: <KnowledgeBaseUpload /> }, // /admin/catalog/knowledge-base/upload
+          { path: 'knowledge-base/:id', element: <KnowledgeBaseDetail /> }, // /admin/catalog/knowledge-base/:id
           { path: 'spare-parts', element: <SpareParts /> }, // /admin/catalog/spare-parts
           { path: 'bundles', element: <ProductBundles /> }, // /admin/catalog/bundles
           { path: '', element: <Navigate to="knowledge-base" /> },
