@@ -159,7 +159,6 @@ namespace BE_WMS_LA.Core.Migrations
                     Tags = table.Column<string>(type: "jsonb", nullable: false),
                     Documents = table.Column<string>(type: "jsonb", nullable: false),
                     Competitors = table.Column<string>(type: "jsonb", nullable: false),
-                    CompatibleWith = table.Column<string>(type: "jsonb", nullable: false),
                     Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     ShortDescription = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     FullDescription = table.Column<string>(type: "text", nullable: true),
@@ -182,6 +181,31 @@ namespace BE_WMS_LA.Core.Migrations
                         principalTable: "Suppliers",
                         principalColumn: "SupplierID",
                         onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ComponentCompatibilities",
+                columns: table => new
+                {
+                    SourceComponentID = table.Column<Guid>(type: "uuid", nullable: false),
+                    TargetComponentID = table.Column<Guid>(type: "uuid", nullable: false),
+                    Note = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ComponentCompatibilities", x => new { x.SourceComponentID, x.TargetComponentID });
+                    table.ForeignKey(
+                        name: "FK_ComponentCompatibilities_Components_SourceComponentID",
+                        column: x => x.SourceComponentID,
+                        principalTable: "Components",
+                        principalColumn: "ComponentID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ComponentCompatibilities_Components_TargetComponentID",
+                        column: x => x.TargetComponentID,
+                        principalTable: "Components",
+                        principalColumn: "ComponentID",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1043,6 +1067,11 @@ namespace BE_WMS_LA.Core.Migrations
                 column: "WarehouseID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ComponentCompatibilities_TargetComponentID",
+                table: "ComponentCompatibilities",
+                column: "TargetComponentID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Components_CategoryID",
                 table: "Components",
                 column: "CategoryID");
@@ -1682,6 +1711,9 @@ namespace BE_WMS_LA.Core.Migrations
 
             migrationBuilder.DropTable(
                 name: "AuditLogs");
+
+            migrationBuilder.DropTable(
+                name: "ComponentCompatibilities");
 
             migrationBuilder.DropTable(
                 name: "CustomerContacts");

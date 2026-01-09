@@ -233,10 +233,6 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Property<Guid?>("CategoryID")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CompatibleWith")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
                     b.Property<string>("Competitors")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -356,6 +352,27 @@ namespace BE_WMS_LA.Core.Migrations
                     b.HasIndex("SupplierID");
 
                     b.ToTable("Components");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ComponentCompatibility", b =>
+                {
+                    b.Property<Guid>("SourceComponentID")
+                        .HasColumnType("uuid")
+                        .HasColumnOrder(0);
+
+                    b.Property<Guid>("TargetComponentID")
+                        .HasColumnType("uuid")
+                        .HasColumnOrder(1);
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("SourceComponentID", "TargetComponentID");
+
+                    b.HasIndex("TargetComponentID");
+
+                    b.ToTable("ComponentCompatibilities");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.ComponentVariant", b =>
@@ -2597,6 +2614,25 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Navigation("Supplier");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ComponentCompatibility", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "SourceComponent")
+                        .WithMany("SupportedDevices")
+                        .HasForeignKey("SourceComponentID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "TargetComponent")
+                        .WithMany("CompatibleAccessories")
+                        .HasForeignKey("TargetComponentID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SourceComponent");
+
+                    b.Navigation("TargetComponent");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.ComponentVariant", b =>
                 {
                     b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
@@ -3064,9 +3100,13 @@ namespace BE_WMS_LA.Core.Migrations
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Component", b =>
                 {
+                    b.Navigation("CompatibleAccessories");
+
                     b.Navigation("KnowledgeBase");
 
                     b.Navigation("ProductInstances");
+
+                    b.Navigation("SupportedDevices");
 
                     b.Navigation("Variants");
                 });

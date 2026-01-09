@@ -35,6 +35,8 @@ import KnowledgeBaseDetail from '../pages/Catalog/KnowledgeBase/KnowledgeBaseDet
 import SpareParts from '../pages/Catalog/SpareParts';
 import ProductBundles from '../pages/Catalog/ProductBundles';
 import CommonIssues from '../pages/Catalog/CommonIssues';
+import InspectionTemplateList from '@/pages/Inspection/InspectionTemplateList';
+import InspectionCreate from '@/pages/Inspection/InspectionCreate';
 
 // ============================================================================
 // 1. TIỆN ÍCH HỖ TRỢ (UTILS)
@@ -205,6 +207,16 @@ export const router = createBrowserRouter([
           { path: '', element: <Navigate to="list" /> },
         ],
       },
+      // Module: Inspection (Kiểm tra)
+      {
+        path: 'inspection',
+        children: [
+          { path: 'templates', element: <InspectionTemplateList /> },
+          { path: 'create', element: <InspectionCreate /> },
+          { path: '', element: <Navigate to="templates" /> },
+        ],
+      },
+      // Module: Finance (Kinh doanh)
       {
         path: 'finance',
         children: [

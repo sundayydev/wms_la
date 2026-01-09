@@ -569,36 +569,48 @@ const KnowledgeBase: React.FC = () => {
     {
       title: 'Tiêu đề',
       key: 'title',
-      width: 350,
-      render: (_, record) => (
-        <div className="flex items-start gap-3">
-          <Avatar
-            shape="square"
-            size={48}
-            icon={CONTENT_TYPE_CONFIG[record.contentType as ContentType]?.icon}
-            className="bg-gray-100 shrink-0"
-            style={{ backgroundColor: CONTENT_TYPE_CONFIG[record.contentType as ContentType]?.color + '20' }}
-          />
-          <div className="min-w-0">
-            <div
-              className="font-medium text-gray-800 line-clamp-1 cursor-pointer hover:text-blue-600"
-              onClick={() => navigate(`/admin/catalog/knowledge-base/${record.knowledgeID}`)}
-            >
-              {record.title}
+      width: 380,
+      render: (_, record) => {
+        const contentType = getContentType(record.contentType);
+        const typeConfig = CONTENT_TYPE_CONFIG[contentType];
+
+        return (
+          <div className="flex items-start gap-3">
+            <Avatar
+              shape="square"
+              size={48}
+              src={contentType === 'VIDEO' && record.thumbnailObjectKey ? record.thumbnailObjectKey : undefined}
+              icon={!record.thumbnailObjectKey && typeConfig?.icon}
+              className="bg-gray-100 shrink-0"
+              style={{ backgroundColor: typeConfig?.color + '20' }}
+            />
+            <div className="min-w-0 flex-1">
+              <div
+                className="font-medium text-gray-800 line-clamp-1 cursor-pointer hover:text-blue-600"
+                onClick={() => navigate(`/admin/catalog/knowledge-base/${record.knowledgeID}`)}
+              >
+                {record.title}
+              </div>
+              {record.description && (
+                <div className="text-xs text-gray-500 line-clamp-1 mt-1">
+                  {record.description}
+                </div>
+              )}
+              {/* Hiển thị file info hoặc video URL */}
+              {contentType === 'VIDEO' && record.externalVideoURL ? (
+                <div className="text-xs text-blue-500 mt-1 flex items-center gap-1">
+                  <LinkOutlined />
+                  <span className="truncate">{new URL(record.externalVideoURL).hostname}</span>
+                </div>
+              ) : record.originalFileName ? (
+                <div className="text-xs text-gray-400 mt-1">
+                  {record.originalFileName} • {formatFileSize(record.fileSize)}
+                </div>
+              ) : null}
             </div>
-            {record.description && (
-              <div className="text-xs text-gray-500 line-clamp-1 mt-1">
-                {record.description}
-              </div>
-            )}
-            {record.originalFileName && (
-              <div className="text-xs text-gray-400 mt-1">
-                {record.originalFileName} • {formatFileSize(record.fileSize)}
-              </div>
-            )}
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: 'Loại',
@@ -775,8 +787,23 @@ const KnowledgeBase: React.FC = () => {
         hoverable
         className="h-full shadow-sm hover:shadow-lg transition-all duration-300"
         cover={
-          <div className="relative h-36 bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden" style={{ backgroundColor: typeConfig.color + '10' }}>
-            <div className="text-5xl" style={{ color: typeConfig.color }}>{typeConfig.icon}</div>
+          <div className="relative h-36 overflow-hidden">
+            {contentType === 'VIDEO' && item.thumbnailObjectKey ? (
+              <img
+                src={item.thumbnailObjectKey}
+                alt={item.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center bg-linear-to-br from-gray-100 to-gray-200"
+                style={{ backgroundColor: typeConfig.color + '10' }}
+              >
+                <div className="text-5xl" style={{ color: typeConfig.color }}>
+                  {typeConfig.icon}
+                </div>
+              </div>
+            )}
 
             {/* Type badge */}
             <Tag color={typeConfig.color} className="absolute top-2 left-2" icon={typeConfig.icon}>
