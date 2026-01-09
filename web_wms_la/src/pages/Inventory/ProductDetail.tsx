@@ -59,6 +59,7 @@ import {
   removeCompatibleProduct,
   type CompatibleProductDto
 } from '../../services/components.service';
+import { useGoBack } from '../../hooks/useGoBack';
 import { PRODUCT_TYPE_CONFIG, STATUS_CONFIG, type Component, type SpecificationGroup, type SpecificationItem } from '../../types/type.component';
 import Barcode from 'react-barcode';
 
@@ -228,6 +229,8 @@ const ProductDetail: React.FC = () => {
     message.success(`Đã copy ${label}`);
   };
 
+  const goBack = useGoBack();
+
   // ============================================================
   // RENDER SECTIONS
   // ============================================================
@@ -254,7 +257,7 @@ const ProductDetail: React.FC = () => {
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/admin/inventory/products')}
+                onClick={goBack as any}
               />
               <Image
                 src={product.imageUrl || undefined}

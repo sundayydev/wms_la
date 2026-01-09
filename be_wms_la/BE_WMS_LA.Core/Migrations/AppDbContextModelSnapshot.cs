@@ -608,6 +608,57 @@ namespace BE_WMS_LA.Core.Migrations
                     b.ToTable("DeviceTokens");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.DocumentShare", b =>
+                {
+                    b.Property<Guid>("ShareID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CurrentDownloads")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("KnowledgeID")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("MaxDownloads")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ShareToken")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("TargetEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("TargetUserID")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ShareID");
+
+                    b.HasIndex("KnowledgeID");
+
+                    b.HasIndex("ShareToken")
+                        .IsUnique();
+
+                    b.HasIndex("TargetUserID");
+
+                    b.ToTable("DocumentShare");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.InventoryTransaction", b =>
                 {
                     b.Property<Guid>("TransactionID")
@@ -1503,59 +1554,39 @@ namespace BE_WMS_LA.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AccessLevel")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("AllowedRoles")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
                     b.Property<string>("BucketName")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<Guid?>("ComponentID")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ContentURL")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<int>("ContentType")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("CreatedByUserID")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<int>("DownloadCount")
-                        .HasColumnType("integer");
+                    b.Property<string>("ExternalVideoURL")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
-                    b.Property<string>("ETag")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<long?>("FileSize")
+                    b.Property<long>("FileSize")
                         .HasColumnType("bigint");
-
-                    b.Property<bool>("IsShared")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("MaxDownloads")
-                        .HasColumnType("integer");
 
                     b.Property<string>("MimeType")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("ObjectKey")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -1563,24 +1594,17 @@ namespace BE_WMS_LA.Core.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<string>("ShareToken")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<string>("PreviewObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
-                    b.Property<DateTime?>("SharedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<int>("ProcessStatus")
+                        .HasColumnType("integer");
 
-                    b.Property<Guid?>("SharedByUserID")
-                        .HasColumnType("uuid");
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
 
-                    b.Property<DateTime?>("SharedExpiry")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SharedURL")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("ThumbnailURL")
+                    b.Property<string>("ThumbnailObjectKey")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -1589,27 +1613,19 @@ namespace BE_WMS_LA.Core.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("UploadedByUserID")
+                    b.Property<Guid?>("UpdatedByUserID")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("VersionID")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.HasKey("KnowledgeID");
 
                     b.HasIndex("ComponentID");
 
-                    b.HasIndex("ShareToken")
-                        .IsUnique()
-                        .HasFilter("\"ShareToken\" IS NOT NULL");
+                    b.HasIndex("CreatedByUserID");
 
-                    b.HasIndex("SharedByUserID");
-
-                    b.HasIndex("UploadedByUserID");
+                    b.HasIndex("UpdatedByUserID");
 
                     b.ToTable("ProductKnowledgeBase");
                 });
@@ -2614,6 +2630,24 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.DocumentShare", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.ProductKnowledgeBase", "KnowledgeBase")
+                        .WithMany("Shares")
+                        .HasForeignKey("KnowledgeID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "TargetUser")
+                        .WithMany()
+                        .HasForeignKey("TargetUserID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("KnowledgeBase");
+
+                    b.Navigation("TargetUser");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.InventoryTransaction", b =>
                 {
                     b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
@@ -2706,26 +2740,24 @@ namespace BE_WMS_LA.Core.Migrations
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.ProductKnowledgeBase", b =>
                 {
-                    b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
+                    b.HasOne("BE_WMS_LA.Domain.Models.Component", null)
                         .WithMany("KnowledgeBase")
-                        .HasForeignKey("ComponentID")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasForeignKey("ComponentID");
 
-                    b.HasOne("BE_WMS_LA.Domain.Models.User", "SharedByUser")
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "CreatedByUser")
                         .WithMany()
-                        .HasForeignKey("SharedByUserID")
+                        .HasForeignKey("CreatedByUserID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserID")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("BE_WMS_LA.Domain.Models.User", "UploadedByUser")
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserID")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.Navigation("CreatedByUser");
 
-                    b.Navigation("Component");
-
-                    b.Navigation("SharedByUser");
-
-                    b.Navigation("UploadedByUser");
+                    b.Navigation("UpdatedByUser");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
@@ -3058,6 +3090,11 @@ namespace BE_WMS_LA.Core.Migrations
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Permission", b =>
                 {
                     b.Navigation("UserPermissions");
+                });
+
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.ProductKnowledgeBase", b =>
+                {
+                    b.Navigation("Shares");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>

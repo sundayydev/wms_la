@@ -1,213 +1,78 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using BE_WMS_LA.Shared.Common;
 
 namespace BE_WMS_LA.Domain.Models;
 
-/// <summary>
-/// Kho tri thức sản phẩm - Lưu trữ tài liệu, video hướng dẫn, driver, firmware
-/// </summary>
 [Table("ProductKnowledgeBase")]
 public class ProductKnowledgeBase
 {
-    /// <summary>
-    /// Khóa chính UUID
-    /// </summary>
     [Key]
     public Guid KnowledgeID { get; set; } = Guid.NewGuid();
 
-    /// <summary>
-    /// FK: Link tới sản phẩm nào (NULL = tài liệu chung)
-    /// </summary>
-    public Guid? ComponentID { get; set; }
+    public Guid? ComponentID { get; set; } // Link tới sản phẩm (nếu có)
 
-    #region Thông tin cơ bản
-
-    /// <summary>
-    /// Tiêu đề tài liệu (VD: Hướng dẫn cài đặt Wifi, Cách thay pin)
-    /// </summary>
-    [Required]
-    [StringLength(200)]
+    #region Thông tin hiển thị
+    [Required, StringLength(200)]
     public string Title { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Mô tả chi tiết về tài liệu
-    /// </summary>
     public string? Description { get; set; }
 
+    // Loại nội dung: DOCUMENT, VIDEO...
+    public KnowledgeType ContentType { get; set; } = KnowledgeType.DOCUMENT;
+
+    // Phạm vi truy cập gốc: PUBLIC (khách xem được), INTERNAL (chỉ nhân viên)
+    public AccessScope Scope { get; set; } = AccessScope.INTERNAL;
     #endregion
 
-    #region Loại tài liệu
+    #region MinIO & File Gốc
+    [StringLength(100)]
+    public string BucketName { get; set; } = "knowledge-base";
 
-    /// <summary>
-    /// Loại nội dung: 'DOCUMENT' (PDF, Doc), 'VIDEO' (Youtube, Vimeo), 'DRIVER', 'FIRMWARE'
-    /// </summary>
-    [Required]
-    [StringLength(50)]
-    public string ContentType { get; set; } = "DOCUMENT";
-
-    /// <summary>
-    /// Đường dẫn file hoặc link video (Youtube, Vimeo, ...)
-    /// </summary>
-    [Required]
     [StringLength(500)]
-    public string ContentURL { get; set; } = string.Empty;
+    public string ObjectKey { get; set; } = string.Empty; // Đường dẫn file gốc (docx, xlsx, mp4...)
 
-    /// <summary>
-    /// Ảnh thumbnail cho video
-    /// </summary>
-    [StringLength(500)]
-    public string? ThumbnailURL { get; set; }
-
-    #endregion
-
-    #region MinIO Storage
-
-    /// <summary>
-    /// Tên bucket trong MinIO (VD: knowledge-base, documents, firmware)
-    /// </summary>
-    [StringLength(100)]
-    public string? BucketName { get; set; }
-
-    /// <summary>
-    /// Object Key - Đường dẫn file trong bucket MinIO
-    /// VD: products/{ComponentID}/documents/{filename}
-    /// </summary>
-    [StringLength(500)]
-    public string? ObjectKey { get; set; }
-
-    /// <summary>
-    /// ETag từ MinIO - Dùng để verify integrity và caching
-    /// </summary>
-    [StringLength(100)]
-    public string? ETag { get; set; }
-
-    /// <summary>
-    /// Version ID từ MinIO (nếu bật versioning)
-    /// </summary>
-    [StringLength(100)]
-    public string? VersionID { get; set; }
-
-    /// <summary>
-    /// Kích thước file (bytes)
-    /// </summary>
-    public long? FileSize { get; set; }
-
-    /// <summary>
-    /// MIME Type của file (VD: application/pdf, video/mp4, application/octet-stream)
-    /// </summary>
-    [StringLength(100)]
-    public string? MimeType { get; set; }
-
-    /// <summary>
-    /// Tên file gốc khi upload (VD: Hướng dẫn sử dụng M63.pdf)
-    /// </summary>
     [StringLength(255)]
     public string? OriginalFileName { get; set; }
 
-    #endregion
+    public long FileSize { get; set; }
 
-    #region Sharing Features
-
-    /// <summary>
-    /// Token duy nhất để chia sẻ file (dùng cho presigned URL hoặc public link)
-    /// </summary>
     [StringLength(100)]
-    public string? ShareToken { get; set; }
-
-    /// <summary>
-    /// URL chia sẻ đã được generate (presigned URL từ MinIO)
-    /// Có thể null nếu chưa được share hoặc đã hết hạn
-    /// </summary>
-    [StringLength(1000)]
-    public string? SharedURL { get; set; }
-
-    /// <summary>
-    /// Thời điểm hết hạn của link chia sẻ
-    /// </summary>
-    public DateTime? SharedExpiry { get; set; }
-
-    /// <summary>
-    /// TRUE = File đang được chia sẻ public, FALSE = Cần xác thực
-    /// </summary>
-    public bool IsShared { get; set; } = false;
-
-    /// <summary>
-    /// Số lần download tối đa cho phép (NULL = không giới hạn)
-    /// </summary>
-    public int? MaxDownloads { get; set; }
-
-    /// <summary>
-    /// Số lần đã download
-    /// </summary>
-    public int DownloadCount { get; set; } = 0;
-
-    /// <summary>
-    /// FK: Người chia sẻ file
-    /// </summary>
-    public Guid? SharedByUserID { get; set; }
-
-    /// <summary>
-    /// Thời điểm chia sẻ
-    /// </summary>
-    public DateTime? SharedAt { get; set; }
-
+    public string? MimeType { get; set; }
     #endregion
 
-    #region Phân quyền truy cập
+    #region Preview & Media Info (Quan trọng cho React/Flutter)
 
-    /// <summary>
-    /// Mức độ truy cập: 'PUBLIC' (Ai cũng xem được), 'INTERNAL' (Nội bộ), 'RESTRICTED' (Theo role cụ thể)
-    /// </summary>
-    [StringLength(50)]
-    public string AccessLevel { get; set; } = "PUBLIC";
+    // Trạng thái xử lý (VD: Đang convert docx sang pdf để preview)
+    public FileStatus ProcessStatus { get; set; } = FileStatus.READY;
 
-    /// <summary>
-    /// Danh sách Role được phép xem (Nếu AccessLevel = RESTRICTED)
-    /// VD: ["TECHNICIAN", "ADMIN"] -> Chỉ kỹ thuật và admin thấy tài liệu sửa mainboard
-    /// </summary>
-    [Column(TypeName = "jsonb")]
-    public string AllowedRoles { get; set; } = "[]";
+    // Đường dẫn file PDF được convert từ Docx/Excel để xem preview trên web/app
+    [StringLength(500)]
+    public string? PreviewObjectKey { get; set; }
 
+    // Ảnh thumbnail (nếu là video hoặc trang đầu của tài liệu)
+    [StringLength(500)]
+    public string? ThumbnailObjectKey { get; set; }
+
+    // Nếu là Youtube/Vimeo thì lưu link ở đây, bỏ qua ObjectKey
+    [StringLength(500)]
+    public string? ExternalVideoURL { get; set; }
     #endregion
 
-    #region Metadata
-
-    /// <summary>
-    /// FK: Người upload tài liệu
-    /// </summary>
-    public Guid? UploadedByUserID { get; set; }
-
-    /// <summary>
-    /// Thời gian tạo
-    /// </summary>
+    #region Audit (Người tạo/sửa)
+    public Guid CreatedByUserID { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// Thời gian cập nhật
-    /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public Guid? UpdatedByUserID { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
+    [ForeignKey(nameof(CreatedByUserID))]
+    public virtual User? CreatedByUser { get; set; }
+
+    [ForeignKey(nameof(UpdatedByUserID))]
+    public virtual User? UpdatedByUser { get; set; }
     #endregion
 
-    #region Navigation Properties
-
-    /// <summary>
-    /// Sản phẩm liên quan
-    /// </summary>
-    [ForeignKey(nameof(ComponentID))]
-    public virtual Component? Component { get; set; }
-
-    /// <summary>
-    /// Người upload
-    /// </summary>
-    [ForeignKey(nameof(UploadedByUserID))]
-    public virtual User? UploadedByUser { get; set; }
-
-    /// <summary>
-    /// Người chia sẻ file
-    /// </summary>
-    [ForeignKey(nameof(SharedByUserID))]
-    public virtual User? SharedByUser { get; set; }
-
-    #endregion
+    // Navigation tới bảng Share
+    public virtual ICollection<DocumentShare> Shares { get; set; } = new List<DocumentShare>();
 }

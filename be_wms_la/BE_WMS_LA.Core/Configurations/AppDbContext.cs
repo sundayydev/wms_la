@@ -64,6 +64,7 @@ public class AppDbContext : DbContext
 
     // Knowledge Base
     public DbSet<ProductKnowledgeBase> ProductKnowledgeBases { get; set; } = null!;
+    public DbSet<DocumentShare> DocumentShares { get; set; } = null!;
 
     #endregion
 
@@ -306,28 +307,37 @@ public class AppDbContext : DbContext
         // =====================================================
 
         modelBuilder.Entity<ProductKnowledgeBase>()
-            .HasOne<BE_WMS_LA.Domain.Models.Component>(pkb => pkb.Component)
-            .WithMany(c => c.KnowledgeBase)
-            .HasForeignKey(pkb => pkb.ComponentID)
+            .HasOne(kb => kb.CreatedByUser)
+            .WithMany()
+            .HasForeignKey(kb => kb.CreatedByUserID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProductKnowledgeBase>()
+            .HasOne(kb => kb.UpdatedByUser)
+            .WithMany()
+            .HasForeignKey(kb => kb.UpdatedByUserID)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // =====================================================
+        // DocumentShare Relationships
+        // =====================================================
+
+        modelBuilder.Entity<DocumentShare>()
+            .HasOne(ds => ds.KnowledgeBase)
+            .WithMany(kb => kb.Shares)
+            .HasForeignKey(ds => ds.KnowledgeID)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<ProductKnowledgeBase>()
-            .HasOne(kb => kb.UploadedByUser)
+        modelBuilder.Entity<DocumentShare>()
+            .HasOne(ds => ds.TargetUser)
             .WithMany()
-            .HasForeignKey(kb => kb.UploadedByUserID)
+            .HasForeignKey(ds => ds.TargetUserID)
             .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<ProductKnowledgeBase>()
-            .HasOne(kb => kb.SharedByUser)
-            .WithMany()
-            .HasForeignKey(kb => kb.SharedByUserID)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        // Index for ShareToken (used for public sharing)
-        modelBuilder.Entity<ProductKnowledgeBase>()
-            .HasIndex(kb => kb.ShareToken)
-            .IsUnique()
-            .HasFilter("\"ShareToken\" IS NOT NULL");
+        // Index for ShareToken (used for public sharing links)
+        modelBuilder.Entity<DocumentShare>()
+            .HasIndex(ds => ds.ShareToken)
+            .IsUnique();
 
         // =====================================================
         // Unique Indexes

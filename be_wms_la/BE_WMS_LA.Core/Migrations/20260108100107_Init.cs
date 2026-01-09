@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BE_WMS_LA.Core.Migrations
 {
     /// <inheritdoc />
-    public partial class InitDB : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -304,6 +304,27 @@ namespace BE_WMS_LA.Core.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DocumentShare",
+                columns: table => new
+                {
+                    ShareID = table.Column<Guid>(type: "uuid", nullable: false),
+                    KnowledgeID = table.Column<Guid>(type: "uuid", nullable: false),
+                    ShareToken = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    TargetUserID = table.Column<Guid>(type: "uuid", nullable: true),
+                    TargetEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    ExpiryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    MaxDownloads = table.Column<int>(type: "integer", nullable: true),
+                    CurrentDownloads = table.Column<int>(type: "integer", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedByUserID = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DocumentShare", x => x.ShareID);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "InventoryTransactions",
                 columns: table => new
                 {
@@ -439,6 +460,40 @@ namespace BE_WMS_LA.Core.Migrations
                         principalTable: "Components",
                         principalColumn: "ComponentID",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ProductKnowledgeBase",
+                columns: table => new
+                {
+                    KnowledgeID = table.Column<Guid>(type: "uuid", nullable: false),
+                    ComponentID = table.Column<Guid>(type: "uuid", nullable: true),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    ContentType = table.Column<int>(type: "integer", nullable: false),
+                    Scope = table.Column<int>(type: "integer", nullable: false),
+                    BucketName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    ObjectKey = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    OriginalFileName = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    FileSize = table.Column<long>(type: "bigint", nullable: false),
+                    MimeType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    ProcessStatus = table.Column<int>(type: "integer", nullable: false),
+                    PreviewObjectKey = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    ThumbnailObjectKey = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    ExternalVideoURL = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    CreatedByUserID = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedByUserID = table.Column<Guid>(type: "uuid", nullable: true),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProductKnowledgeBase", x => x.KnowledgeID);
+                    table.ForeignKey(
+                        name: "FK_ProductKnowledgeBase_Components_ComponentID",
+                        column: x => x.ComponentID,
+                        principalTable: "Components",
+                        principalColumn: "ComponentID");
                 });
 
             migrationBuilder.CreateTable(
@@ -1037,6 +1092,22 @@ namespace BE_WMS_LA.Core.Migrations
                 column: "UserID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DocumentShare_KnowledgeID",
+                table: "DocumentShare",
+                column: "KnowledgeID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DocumentShare_ShareToken",
+                table: "DocumentShare",
+                column: "ShareToken",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DocumentShare_TargetUserID",
+                table: "DocumentShare",
+                column: "TargetUserID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_InventoryTransactions_ComponentID",
                 table: "InventoryTransactions",
                 column: "ComponentID");
@@ -1115,6 +1186,21 @@ namespace BE_WMS_LA.Core.Migrations
                 name: "IX_ProductInstances_WarehouseID",
                 table: "ProductInstances",
                 column: "WarehouseID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductKnowledgeBase_ComponentID",
+                table: "ProductKnowledgeBase",
+                column: "ComponentID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductKnowledgeBase_CreatedByUserID",
+                table: "ProductKnowledgeBase",
+                column: "CreatedByUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductKnowledgeBase_UpdatedByUserID",
+                table: "ProductKnowledgeBase",
+                column: "UpdatedByUserID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchaseOrderDetails_ComponentID",
@@ -1376,6 +1462,22 @@ namespace BE_WMS_LA.Core.Migrations
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
+                name: "FK_DocumentShare_ProductKnowledgeBase_KnowledgeID",
+                table: "DocumentShare",
+                column: "KnowledgeID",
+                principalTable: "ProductKnowledgeBase",
+                principalColumn: "KnowledgeID",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_DocumentShare_User_TargetUserID",
+                table: "DocumentShare",
+                column: "TargetUserID",
+                principalTable: "User",
+                principalColumn: "UserID",
+                onDelete: ReferentialAction.SetNull);
+
+            migrationBuilder.AddForeignKey(
                 name: "FK_InventoryTransactions_ProductInstances_InstanceID",
                 table: "InventoryTransactions",
                 column: "InstanceID",
@@ -1418,6 +1520,22 @@ namespace BE_WMS_LA.Core.Migrations
                 column: "WarehouseID",
                 principalTable: "Warehouses",
                 principalColumn: "WarehouseID",
+                onDelete: ReferentialAction.SetNull);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ProductKnowledgeBase_User_CreatedByUserID",
+                table: "ProductKnowledgeBase",
+                column: "CreatedByUserID",
+                principalTable: "User",
+                principalColumn: "UserID",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ProductKnowledgeBase_User_UpdatedByUserID",
+                table: "ProductKnowledgeBase",
+                column: "UpdatedByUserID",
+                principalTable: "User",
+                principalColumn: "UserID",
                 onDelete: ReferentialAction.SetNull);
 
             migrationBuilder.AddForeignKey(
@@ -1572,6 +1690,9 @@ namespace BE_WMS_LA.Core.Migrations
                 name: "DeviceTokens");
 
             migrationBuilder.DropTable(
+                name: "DocumentShare");
+
+            migrationBuilder.DropTable(
                 name: "InventoryTransactions");
 
             migrationBuilder.DropTable(
@@ -1600,6 +1721,9 @@ namespace BE_WMS_LA.Core.Migrations
 
             migrationBuilder.DropTable(
                 name: "WarehouseStock");
+
+            migrationBuilder.DropTable(
+                name: "ProductKnowledgeBase");
 
             migrationBuilder.DropTable(
                 name: "PurchaseOrders");

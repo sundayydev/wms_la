@@ -42,6 +42,7 @@ import productsService, {
   type ProductListDto,
   type CategoryDto,
 } from '../../services/products.service';
+import { getProductStatistics, type ProductStatisticsDto } from '../../services/components.service';
 
 const { Text } = Typography;
 
@@ -58,6 +59,8 @@ const ProductList: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [selectedSerialized, setSelectedSerialized] = useState<boolean | undefined>();
+  const [productStats, setProductStats] = useState<ProductStatisticsDto | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // Pagination
@@ -111,6 +114,22 @@ const ProductList: React.FC = () => {
     loadCategories();
   }, []);
 
+  // Load product statistics on mount
+  useEffect(() => {
+    const loadStatistics = async () => {
+      setStatsLoading(true);
+      try {
+        const stats = await getProductStatistics();
+        setProductStats(stats);
+      } catch (error) {
+        console.error('Failed to load product statistics:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    loadStatistics();
+  }, []);
+
   // Fetch products when filters change
   useEffect(() => {
     fetchProducts();
@@ -126,15 +145,28 @@ const ProductList: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // Computed: Statistics
+  // Computed: Statistics (fallback to local calculation if API stats not available)
   const stats = useMemo(() => {
+    if (productStats) {
+      return {
+        totalProducts: productStats.totalProducts,
+        totalVariants: productStats.totalVariants,
+        totalInstances: productStats.totalInstances,
+        inStock: productStats.inStock,
+        sold: productStats.sold,
+        byCategory: productStats.byCategory,
+      };
+    }
+    // Fallback to local calculation
     return {
-      total: pagination.total,
-      serialized: data.filter(item => item.isSerialized).length,
-      totalStock: data.reduce((sum, item) => sum + (item.totalStock || 0), 0),
-      withVariants: data.filter(item => item.variantCount > 0).length,
+      totalProducts: pagination.total,
+      totalVariants: data.filter(item => item.variantCount > 0).reduce((sum, item) => sum + item.variantCount, 0),
+      totalInstances: 0,
+      inStock: data.reduce((sum, item) => sum + (item.totalStock || 0), 0),
+      sold: 0,
+      byCategory: [] as { category: string; count: number }[],
     };
-  }, [data, pagination.total]);
+  }, [productStats, data, pagination.total]);
 
   // Handlers
   const formatCurrency = (value?: number | null) => {
@@ -387,39 +419,41 @@ const ProductList: React.FC = () => {
       {/* STATS CARDS */}
       <Row gutter={[16, 16]} className="mb-6">
         <Col xs={12} sm={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }} loading={statsLoading}>
             <Statistic
               title={<span className="text-gray-500">Tổng sản phẩm</span>}
-              value={stats.total}
+              value={stats.totalProducts}
               prefix={<AppstoreOutlined className="text-blue-500" />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }} loading={statsLoading}>
             <Statistic
-              title={<span className="text-gray-500">Tổng tồn kho</span>}
-              value={stats.totalStock}
+              title={<span className="text-gray-500">Tổng biến thể</span>}
+              value={stats.totalVariants}
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<AppstoreAddOutlined className="text-orange-500" />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }} loading={statsLoading}>
+            <Statistic
+              title={<span className="text-gray-500">Còn trong kho</span>}
+              value={stats.inStock}
               valueStyle={{ color: '#52c41a' }}
               prefix={<InboxOutlined className="text-green-500" />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
+          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }} loading={statsLoading}>
             <Statistic
-              title={<span className="text-gray-500">Có biến thể</span>}
-              value={stats.withVariants}
-              prefix={<AppstoreAddOutlined className="text-orange-500" />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="shadow-sm hover:shadow-md transition-shadow" bodyStyle={{ padding: '16px' }}>
-            <Statistic
-              title={<span className="text-gray-500">Quản lý Serial</span>}
-              value={stats.serialized}
-              prefix={<BarcodeOutlined className="text-purple-500" />}
+              title={<span className="text-gray-500">Đã bán</span>}
+              value={stats.sold}
+              valueStyle={{ color: '#faad14' }}
+              prefix={<DollarOutlined className="text-yellow-500" />}
             />
           </Card>
         </Col>

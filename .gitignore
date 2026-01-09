@@ -419,3 +419,4 @@ minio_data
 run-dev.bat
 run-dev.ps1
 run-dev.sh
+.code-workspace

@@ -189,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         // ============================================================
         // 3. DANH MỤC SẢN PHẨM (PRODUCT CATALOG)
-        // Tables: ProductKnowledgeBase, ProductBundles, ProductSpareParts, 
+        // Tables: ProductKnowledgeBase, ProductSpareParts, 
         //         ProductCommonIssues, CommonIssueSolutions
         // ============================================================
         {
@@ -201,11 +201,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     key: '/admin/catalog/knowledge-base',
                     icon: <BookOutlined />,
                     label: <Link to="/admin/catalog/knowledge-base">Kho tri thức</Link>,
-                },
-                {
-                    key: '/admin/catalog/bundles',
-                    icon: <FaBoxes />,
-                    label: <Link to="/admin/catalog/bundles">Đóng gói sản phẩm</Link>,
                 },
                 {
                     key: '/admin/catalog/spare-parts',
@@ -545,7 +540,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 placement="left"
                 onClose={() => setOpenDrawer(false)}
                 open={openDrawer}
-                width={260}
+                size="large"
                 styles={{ body: { padding: 0 } }}
             >
                 <MainMenu />
