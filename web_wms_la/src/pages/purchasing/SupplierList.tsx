@@ -24,6 +24,7 @@ import {
   Avatar,
   Dropdown,
   Spin,
+  Upload,
 } from 'antd';
 import {
   PlusOutlined,
@@ -45,11 +46,11 @@ import {
   EnvironmentOutlined,
   IdcardOutlined,
   NumberOutlined,
-  CalendarOutlined,
   MoreOutlined,
   FileExcelOutlined,
   LinkOutlined,
   StarOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { FilterValue } from 'antd/es/table/interface';
@@ -63,6 +64,8 @@ import {
   deleteSupplier,
   toggleSupplierStatus,
   checkSupplierCodeExists,
+  exportSuppliersToExcel,
+  importSuppliersFromExcel,
 } from '../../services/suppliers.service';
 import type {
   SupplierListDto,
@@ -262,6 +265,97 @@ const SupplierList: React.FC = () => {
     message.success('Đã làm mới dữ liệu');
   };
 
+  const handleExportExcel = async () => {
+    try {
+      message.loading({ content: 'Đang xuất file Excel...', key: 'export' });
+
+      const params = {
+        search: searchText || undefined,
+        isActive: statusFilter,
+      };
+
+      const blob = await exportSuppliersToExcel(params);
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DanhSachNhaCungCap_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      message.success({ content: 'Đã xuất Excel thành công!', key: 'export' });
+    } catch (error: any) {
+      console.error('Error exporting Excel:', error);
+      message.error({ content: 'Lỗi khi xuất Excel', key: 'export' });
+    }
+  };
+
+  const handleImportExcel = async (file: File) => {
+    try {
+      message.loading({ content: 'Đang import file Excel...', key: 'import' });
+
+      const response = await importSuppliersFromExcel(file);
+
+      if (response.success && response.data) {
+        const result = response.data;
+
+        // Show detailed result
+        Modal.success({
+          title: 'Import thành công!',
+          width: 600,
+          content: (
+            <div className="space-y-3">
+              <p className="text-base">{result.message}</p>
+              <div className="bg-gray-50 p-4 rounded space-y-2">
+                <div className="flex justify-between">
+                  <span>Tổng số dòng xử lý:</span>
+                  <span className="font-semibold">{result.totalProcessed}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>Tạo mới:</span>
+                  <span className="font-semibold">{result.createdCount}</span>
+                </div>
+                <div className="flex justify-between text-blue-600">
+                  <span>Cập nhật:</span>
+                  <span className="font-semibold">{result.updatedCount}</span>
+                </div>
+                <div className="flex justify-between text-orange-600">
+                  <span>Bỏ qua:</span>
+                  <span className="font-semibold">{result.skippedCount}</span>
+                </div>
+              </div>
+
+              {result.errors && result.errors.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-semibold text-red-600">Lỗi:</p>
+                  <div className="bg-red-50 p-3 rounded max-h-40 overflow-y-auto">
+                    {result.errors.map((error, index) => (
+                      <div key={index} className="text-sm text-red-700">• {error}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ),
+        });
+
+        // Refresh data
+        fetchSuppliers();
+        message.destroy('import');
+      } else {
+        message.error({ content: response.message || 'Import thất bại', key: 'import' });
+      }
+    } catch (error: any) {
+      console.error('Error importing Excel:', error);
+      message.error({ content: error.response?.data?.message || 'Lỗi khi import Excel', key: 'import' });
+    }
+  };
+
   const onFinish = async (values: CreateSupplierDto | UpdateSupplierDto) => {
     if (codeError) {
       message.error('Vui lòng kiểm tra lại mã nhà cung cấp');
@@ -352,7 +446,8 @@ const SupplierList: React.FC = () => {
             size={48}
             src={record.logoUrl}
             icon={!record.logoUrl && <ShopOutlined />}
-            className="bg-gradient-to-br border border-blue-500 shrink-0"
+            className="border border-blue-300 shrink-0 rounded-md"
+            style={{ objectFit: 'cover' }}
           />
           <div className="min-w-0 flex-1">
             <a
@@ -365,6 +460,11 @@ const SupplierList: React.FC = () => {
               <Tag className="m-0" icon={<IdcardOutlined />}>
                 {record.supplierCode}
               </Tag>
+              {record.brandName && (
+                <Tag className="m-0" icon={<StarOutlined />} color="gold">
+                  {record.brandName}
+                </Tag>
+              )}
               {record.city && (
                 <Tag className="m-0" icon={<EnvironmentOutlined />} color="cyan">
                   {record.city}
@@ -494,6 +594,18 @@ const SupplierList: React.FC = () => {
                 </Row>
 
                 <Row gutter={16}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="brandName"
+                      label="Tên thương hiệu (Marketing Name)"
+                      tooltip="Ví dụ: SAMSUNG, PANASONIC, LG..."
+                    >
+                      <Input placeholder="Nhập tên thương hiệu..." prefix={<StarOutlined />} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item name="taxCode" label="Mã số thuế">
                       <Input placeholder="Nhập MST" prefix={<FileTextOutlined />} />
@@ -591,9 +703,9 @@ const SupplierList: React.FC = () => {
 
   // === DETAIL MODAL CONTENT ===
   const detailModalContent = selectedSupplier && (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
-      <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+      <div className="flex items-center gap-4 p-5 bg-linear-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 mb-6">
         <Avatar
           size={72}
           src={selectedSupplier.logoUrl}
@@ -604,10 +716,15 @@ const SupplierList: React.FC = () => {
           <Title level={4} className="mb-0">
             {selectedSupplier.supplierName}
           </Title>
-          <Space className="mt-2">
+          <Space className="mt-2" wrap>
             <Tag color="blue" icon={<IdcardOutlined />}>
               {selectedSupplier.supplierCode}
             </Tag>
+            {selectedSupplier.brandName && (
+              <Tag color="gold" icon={<StarOutlined />}>
+                {selectedSupplier.brandName}
+              </Tag>
+            )}
             <Badge
               status={selectedSupplier.isActive ? 'success' : 'default'}
               text={selectedSupplier.isActive ? 'Đang hoạt động' : 'Ngừng giao dịch'}
@@ -616,125 +733,163 @@ const SupplierList: React.FC = () => {
         </div>
       </div>
 
-      {/* Basic Info */}
-      <div>
-        <Divider orientation="horizontal">
-          <Space>
-            <InfoCircleOutlined className="text-blue-500" /> Thông tin cơ bản
-          </Space>
-        </Divider>
-        <Descriptions column={2} size="small" bordered>
-          <Descriptions.Item label="Mã số thuế">{selectedSupplier.taxCode || '---'}</Descriptions.Item>
-          <Descriptions.Item label="Thành phố">
-            {selectedSupplier.city ? (
-              <Tag icon={<EnvironmentOutlined />} color="cyan">
-                {selectedSupplier.city}
-              </Tag>
-            ) : (
-              '---'
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="Địa chỉ" span={2}>
-            {selectedSupplier.address || '---'}
-          </Descriptions.Item>
-        </Descriptions>
-      </div>
+      {/* Tabs */}
+      <Tabs
+        defaultActiveKey="1"
+        items={[
+          {
+            key: '1',
+            label: (
+              <span className="flex items-center gap-2">
+                <InfoCircleOutlined /> Thông tin chung
+              </span>
+            ),
+            children: (
+              <>
+                <Descriptions column={2} size="small" bordered className="mb-4">
+                  <Descriptions.Item label="Tên thương hiệu">
+                    {selectedSupplier.brandName ? (
+                      <Tag icon={<StarOutlined />} color="gold">
+                        {selectedSupplier.brandName}
+                      </Tag>
+                    ) : (
+                      '---'
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Mã số thuế">{selectedSupplier.taxCode || '---'}</Descriptions.Item>
+                  <Descriptions.Item label="Thành phố">
+                    {selectedSupplier.city ? (
+                      <Tag icon={<EnvironmentOutlined />} color="cyan">
+                        {selectedSupplier.city}
+                      </Tag>
+                    ) : (
+                      '---'
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="URL Logo">
+                    {selectedSupplier.logoUrl ? (
+                      <a href={selectedSupplier.logoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600">
+                        <LinkOutlined /> Xem logo
+                      </a>
+                    ) : (
+                      '---'
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Địa chỉ" span={2}>
+                    {selectedSupplier.address || '---'}
+                  </Descriptions.Item>
+                </Descriptions>
 
-      {/* Contact Info */}
-      <div>
-        <Divider orientation="horizontal">
-          <Space>
-            <UserOutlined className="text-green-500" /> Liên hệ
-          </Space>
-        </Divider>
-        <Descriptions column={2} size="small" bordered>
-          <Descriptions.Item label="Người liên hệ">{selectedSupplier.contactPerson || '---'}</Descriptions.Item>
-          <Descriptions.Item label="Điện thoại">
-            {selectedSupplier.phoneNumber ? (
-              <a href={`tel:${selectedSupplier.phoneNumber}`} className="text-blue-600">
-                <PhoneOutlined /> {selectedSupplier.phoneNumber}
-              </a>
-            ) : (
-              '---'
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="Email" span={2}>
-            {selectedSupplier.email ? (
-              <a href={`mailto:${selectedSupplier.email}`} className="text-blue-600">
-                <MailOutlined /> {selectedSupplier.email}
-              </a>
-            ) : (
-              '---'
-            )}
-          </Descriptions.Item>
-        </Descriptions>
-      </div>
+                {/* Statistics */}
+                <Divider orientation="horizontal">
+                  <Space>
+                    <FileTextOutlined className="text-blue-500" /> Thống kê
+                  </Space>
+                </Divider>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                      <Statistic
+                        title={<span className="text-blue-700 font-semibold">Sản phẩm cung cấp</span>}
+                        value={selectedSupplier.productCount}
+                        valueStyle={{ color: '#1890ff', fontWeight: 'bold' }}
+                        prefix={<ShopOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                      <Statistic
+                        title={<span className="text-green-700 font-semibold">Đơn đặt hàng</span>}
+                        value={selectedSupplier.purchaseOrderCount}
+                        valueStyle={{ color: '#52c41a', fontWeight: 'bold' }}
+                        prefix={<FileTextOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+              </>
+            ),
+          },
+          {
+            key: '2',
+            label: (
+              <span className="flex items-center gap-2">
+                <UserOutlined /> Liên hệ & Tài chính
+              </span>
+            ),
+            children: (
+              <>
+                {/* Contact Info */}
+                <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-100">
+                  <span className="font-semibold text-green-700 block mb-3 flex items-center gap-2">
+                    <UserOutlined /> Thông tin liên hệ
+                  </span>
+                  <Descriptions column={2} size="small" bordered>
+                    <Descriptions.Item label="Người liên hệ">{selectedSupplier.contactPerson || '---'}</Descriptions.Item>
+                    <Descriptions.Item label="Điện thoại">
+                      {selectedSupplier.phoneNumber ? (
+                        <a href={`tel:${selectedSupplier.phoneNumber}`} className="text-blue-600">
+                          <PhoneOutlined /> {selectedSupplier.phoneNumber}
+                        </a>
+                      ) : (
+                        '---'
+                      )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Email" span={2}>
+                      {selectedSupplier.email ? (
+                        <a href={`mailto:${selectedSupplier.email}`} className="text-blue-600">
+                          <MailOutlined /> {selectedSupplier.email}
+                        </a>
+                      ) : (
+                        '---'
+                      )}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </div>
 
-      {/* Bank Info */}
-      <div>
-        <Divider orientation="horizontal">
-          <Space>
-            <BankOutlined className="text-purple-500" /> Thông tin ngân hàng
-          </Space>
-        </Divider>
-        <Descriptions column={2} size="small" bordered>
-          <Descriptions.Item label="Ngân hàng">{selectedSupplier.bankName || '---'}</Descriptions.Item>
-          <Descriptions.Item label="Số tài khoản">
-            <span className="font-mono">{selectedSupplier.bankAccount || '---'}</span>
-          </Descriptions.Item>
-        </Descriptions>
-      </div>
+                {/* Bank Info */}
+                <div className="bg-purple-50 p-4 rounded-lg mb-4 border border-purple-100">
+                  <span className="font-semibold text-purple-700 block mb-3 flex items-center gap-2">
+                    <BankOutlined /> Thông tin ngân hàng
+                  </span>
+                  <Descriptions column={2} size="small" bordered>
+                    <Descriptions.Item label="Ngân hàng">{selectedSupplier.bankName || '---'}</Descriptions.Item>
+                    <Descriptions.Item label="Số tài khoản">
+                      <span className="font-mono">{selectedSupplier.bankAccount || '---'}</span>
+                    </Descriptions.Item>
+                  </Descriptions>
+                </div>
 
-      {/* Notes */}
-      {selectedSupplier.notes && (
-        <div>
-          <Divider orientation="horizontal">
-            <Space>
-              <FileTextOutlined className="text-orange-500" /> Ghi chú
-            </Space>
-          </Divider>
-          <div className="bg-gray-50 p-4 rounded-lg text-gray-700 border border-gray-200">
-            {selectedSupplier.notes}
-          </div>
-        </div>
-      )}
-
-      {/* Statistics */}
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-            <Statistic
-              title={<span className="text-blue-700 font-semibold">Sản phẩm cung cấp</span>}
-              value={selectedSupplier.productCount}
-              valueStyle={{ color: '#1890ff', fontWeight: 'bold' }}
-              prefix={<ShopOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <Statistic
-              title={<span className="text-green-700 font-semibold">Đơn đặt hàng</span>}
-              value={selectedSupplier.purchaseOrderCount}
-              valueStyle={{ color: '#52c41a', fontWeight: 'bold' }}
-              prefix={<FileTextOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
+                {/* Notes */}
+                {selectedSupplier.notes && (
+                  <div>
+                    <Divider orientation="horizontal">
+                      <Space>
+                        <FileTextOutlined className="text-orange-500" /> Ghi chú
+                      </Space>
+                    </Divider>
+                    <div className="bg-gray-50 p-4 rounded-lg text-gray-700 border border-gray-200">
+                      {selectedSupplier.notes}
+                    </div>
+                  </div>
+                )}
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 
   return (
-    <div className="w-full p-6 bg-gray-50 min-h-screen">
+    <div className="w-full min-h-screen">
       {/* HEADER */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 m-0 flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FaBuilding className="text-blue-600 text-2xl" />
-              </div>
+            <h1 className="text-2xl font-bold text-gray-800 m-0 flex items-center gap-3">
+              <FaBuilding className="text-blue-600" />
               Nhà cung cấp
             </h1>
             <p className="text-gray-500 mt-2 ml-1">Quản lý danh sách đối tác nhập hàng</p>
@@ -743,9 +898,28 @@ const SupplierList: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
               Làm mới
             </Button>
-            <Button icon={<FileExcelOutlined />} className="border-green-500 text-green-600 hover:bg-green-50">
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={handleExportExcel}
+              className="border-green-500 text-green-600 hover:bg-green-50"
+            >
               Xuất Excel
             </Button>
+            <Upload
+              accept=".xlsx,.xls"
+              showUploadList={false}
+              beforeUpload={(file) => {
+                handleImportExcel(file);
+                return false; // Prevent auto upload
+              }}
+            >
+              <Button
+                icon={<UploadOutlined />}
+                className="border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                Nhập Excel
+              </Button>
+            </Upload>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -764,7 +938,7 @@ const SupplierList: React.FC = () => {
           <Col xs={24} lg={16}>
             <Input
               prefix={<SearchOutlined className="text-gray-400" />}
-              placeholder="Tìm theo Tên, Mã, SĐT hoặc Email..."
+              placeholder="Tìm theo Tên, Mã, Thương hiệu, SĐT hoặc Email..."
               allowClear
               value={searchText}
               onChange={(e) => handleSearch(e.target.value)}

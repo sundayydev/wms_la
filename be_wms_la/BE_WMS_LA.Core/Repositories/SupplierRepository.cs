@@ -37,6 +37,7 @@ public class SupplierRepository
             query = query.Where(s =>
                 s.SupplierCode.ToLower().Contains(search) ||
                 s.SupplierName.ToLower().Contains(search) ||
+                (s.BrandName != null && s.BrandName.ToLower().Contains(search)) ||
                 (s.ContactPerson != null && s.ContactPerson.ToLower().Contains(search)) ||
                 (s.PhoneNumber != null && s.PhoneNumber.Contains(search)) ||
                 (s.Email != null && s.Email.ToLower().Contains(search)));

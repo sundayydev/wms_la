@@ -12,7 +12,6 @@ import {
     MdOutlineQrCodeScanner,
     MdOutlinePrint,
     MdOutlineAssignment,
-    MdOutlineLocalShipping
 } from "react-icons/md";
 import {
     FaWarehouse,
@@ -22,22 +21,17 @@ import {
     FaFileInvoiceDollar,
     FaClipboardCheck,
     FaBookOpen,
-    FaBoxes
+    FaBuilding
 } from "react-icons/fa";
 import {
     BsBoxSeam,
     BsUpcScan,
     BsClipboard2Check,
-    BsCart4,
-    BsGear,
-    BsPrinter
 } from "react-icons/bs";
 import {
     RiExchangeDollarLine,
     RiHistoryFill,
     RiFileListLine,
-    RiCustomerService2Line,
-    RiExchangeLine
 } from "react-icons/ri";
 import {
     HiOutlineDocumentReport,
@@ -47,29 +41,22 @@ import {
 import {
     AiOutlineBarcode,
     AiOutlineTool,
-    AiOutlineSafety,
-    AiOutlineAppstore
 } from "react-icons/ai";
 import {
-    BiPackage,
     BiTransfer,
-    BiCategoryAlt
+    BiCategoryAlt,
+    BiPackage
 } from "react-icons/bi";
 import {
-    SwapOutlined,
-    TagsOutlined,
     TeamOutlined,
-    FileTextOutlined,
     SettingOutlined,
     SafetyCertificateOutlined,
     BellOutlined,
     ShopOutlined,
-    UserOutlined,
     SolutionOutlined,
     DatabaseOutlined,
     FileDoneOutlined,
     ToolOutlined,
-    CheckCircleOutlined,
     ExclamationCircleOutlined,
     FileSearchOutlined,
     QrcodeOutlined,
@@ -80,7 +67,6 @@ import {
     ContainerOutlined,
     ReconciliationOutlined,
     NodeIndexOutlined,
-    PartitionOutlined
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -241,7 +227,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 },
                 {
                     key: '/admin/purchasing/suppliers',
-                    icon: <ShopOutlined />,
+                    icon: <FaBuilding />,
                     label: <Link to="/admin/purchasing/suppliers">Nhà cung cấp</Link>,
                 },
             ],

@@ -242,57 +242,7 @@ public class AuthService
             message: "Làm mới token thành công");
     }
 
-    /// <summary>
-    /// Làm mới Access Token (với Access Token cũ)
-    /// </summary>
-    public async Task<AuthResult> RefreshTokenAsync(string refreshToken, string accessToken)
-    {
-        // 1. Validate access token (có thể đã hết hạn)
-        var principal = GetPrincipalFromExpiredToken(accessToken);
-        if (principal == null)
-        {
-            return AuthResult.Error("Token không hợp lệ");
-        }
 
-        // 2. Lấy thông tin user từ token
-        // NOTE: Sử dụng JwtRegisteredClaimNames.Sub để khớp với claim được tạo trong GenerateAccessTokenAsync
-        var userIdClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)
-                          ?? principal.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-        {
-            return AuthResult.Error("Token không hợp lệ");
-        }
-
-        // 3. Validate refresh token từ Redis
-        if (!await ValidateRefreshTokenAsync(userId, refreshToken))
-        {
-            return AuthResult.Error("Refresh token không hợp lệ hoặc đã hết hạn");
-        }
-
-        // 4. Tìm user
-        var user = await _userRepository.GetByIdAsync(userId);
-        if (user == null || !user.IsActive || user.DeletedAt.HasValue)
-        {
-            return AuthResult.Error("Người dùng không tồn tại hoặc đã bị vô hiệu hóa");
-        }
-
-        // 5. Tạo token mới
-        var expirationMinutes = GetAccessTokenExpirationMinutes();
-        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
-        var newAccessToken = await GenerateAccessTokenAsync(user, expiresAt);
-        var newRefreshToken = GenerateRefreshToken();
-
-        // 6. Token rotation: Xóa token cũ rồi lưu token mới
-        await RevokeRefreshTokenAsync(userId);
-        await SaveRefreshTokenAsync(userId, newRefreshToken);
-
-        return AuthResult.SuccessResult(
-            accessToken: newAccessToken,
-            refreshToken: newRefreshToken,
-            expiresAt: new DateTimeOffset(expiresAt).ToUnixTimeSeconds(),
-            expiresInMinutes: expirationMinutes,
-            message: "Làm mới token thành công");
-    }
 
     /// <summary>
     /// Đăng xuất - Xóa refresh token
@@ -427,41 +377,7 @@ public class AuthService
         return Convert.ToBase64String(randomNumber);
     }
 
-    /// <summary>
-    /// Lấy principal từ token đã hết hạn
-    /// </summary>
-    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-    {
-        var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
 
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = false,
-            ValidateIssuer = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            ValidateLifetime = false // Cho phép token hết hạn
-        };
-
-        try
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
-
-            if (securityToken is not JwtSecurityToken jwtSecurityToken ||
-                !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-            {
-                return null;
-            }
-
-            return principal;
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
     /// <summary>
     /// Lấy thời gian hết hạn của Access Token (phút)

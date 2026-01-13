@@ -22,6 +22,13 @@ public class CreateSupplierDto
     public string SupplierName { get; set; } = string.Empty;
 
     /// <summary>
+    /// Tên thương hiệu (Marketing Name)
+    /// Ví dụ: "SAMSUNG", "PANASONIC"
+    /// </summary>
+    [StringLength(100, ErrorMessage = "Tên thương hiệu tối đa 100 ký tự")]
+    public string? BrandName { get; set; }
+
+    /// <summary>
     /// Người liên hệ
     /// </summary>
     [StringLength(100, ErrorMessage = "Tên người liên hệ tối đa 100 ký tự")]

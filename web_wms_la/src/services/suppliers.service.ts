@@ -11,6 +11,7 @@ import type {
     SupplierDeleteResponse,
     SupplierStatisticsResponse,
     SupplierCheckCodeResponse,
+    ImportSupplierResponse,
 } from '../types/type.supplier';
 import type { ApiResponse } from '../types/api.types';
 
@@ -118,6 +119,33 @@ export const checkSupplierCodeExists = async (
     return response.data;
 };
 
+/**
+ * Export danh sách nhà cung cấp ra Excel
+ */
+export const exportSuppliersToExcel = async (params?: SupplierFilterParams): Promise<Blob> => {
+    const response = await apiClient.get(`${BASE_URL}/export-excel`, {
+        params,
+        responseType: 'blob', // Important: Tell axios to expect binary data
+    });
+    return response.data;
+};
+
+/**
+ * Import nhà cung cấp từ file Excel  
+ * @param file File Excel (.xlsx)
+ */
+export const importSuppliersFromExcel = async (file: File): Promise<ImportSupplierResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post<ImportSupplierResponse>(`${BASE_URL}/import-excel`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
 // Default export
 const suppliersService = {
     getSuppliers,
@@ -130,6 +158,8 @@ const suppliersService = {
     toggleSupplierStatus,
     getSupplierStatistics,
     checkSupplierCodeExists,
+    exportSuppliersToExcel,
+    importSuppliersFromExcel,
 };
 
 export default suppliersService;

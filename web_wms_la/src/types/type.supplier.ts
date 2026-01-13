@@ -11,6 +11,7 @@ export interface SupplierListDto {
     supplierID: string;
     supplierCode: string;
     supplierName: string;
+    brandName?: string;
     contactPerson?: string;
     phoneNumber?: string;
     email?: string;
@@ -27,6 +28,7 @@ export interface SupplierDetailDto {
     supplierID: string;
     supplierCode: string;
     supplierName: string;
+    brandName?: string;
     contactPerson?: string;
     phoneNumber?: string;
     email?: string;
@@ -50,6 +52,7 @@ export interface SupplierDetailDto {
 export interface CreateSupplierDto {
     supplierCode: string;
     supplierName: string;
+    brandName?: string;
     contactPerson?: string;
     phoneNumber?: string;
     email?: string;
@@ -68,6 +71,7 @@ export interface CreateSupplierDto {
  */
 export interface UpdateSupplierDto {
     supplierName?: string;
+    brandName?: string;
     contactPerson?: string;
     phoneNumber?: string;
     email?: string;
@@ -102,6 +106,19 @@ export interface SupplierStatistics {
     suppliersByCity: Record<string, number>;
 }
 
+/**
+ * Kết quả import suppliers từ Excel
+ */
+export interface ImportSupplierResult {
+    success: boolean;
+    message: string;
+    totalProcessed: number;
+    createdCount: number;
+    updatedCount: number;
+    skippedCount: number;
+    errors: string[];
+}
+
 // Response Types
 export type SupplierListResponse = PaginatedResponse<SupplierListDto>;
 export type SupplierDetailResponse = ApiResponse<SupplierDetailDto>;
@@ -110,3 +127,4 @@ export type SupplierUpdateResponse = ApiResponse<SupplierDetailDto>;
 export type SupplierDeleteResponse = ApiResponse<boolean>;
 export type SupplierStatisticsResponse = ApiResponse<SupplierStatistics>;
 export type SupplierCheckCodeResponse = ApiResponse<boolean>;
+export type ImportSupplierResponse = ApiResponse<ImportSupplierResult>;
