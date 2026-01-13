@@ -437,18 +437,7 @@ public class AuthController : ControllerBase
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 
-    /// <summary>
-    /// Lấy Access Token từ Authorization header
-    /// </summary>
-    private string? GetAccessTokenFromHeader()
-    {
-        var authHeader = Request.Headers.Authorization.FirstOrDefault();
-        if (authHeader != null && authHeader.StartsWith("Bearer "))
-        {
-            return authHeader["Bearer ".Length..].Trim();
-        }
-        return null;
-    }
+
 
     #endregion
 }

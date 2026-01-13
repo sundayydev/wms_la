@@ -29,6 +29,7 @@ import {
   CheckCircleOutlined,
   InboxOutlined,
 } from '@ant-design/icons';
+import { IoWarningOutline } from "react-icons/io5";
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaRegFilePdf } from 'react-icons/fa';
@@ -64,7 +65,7 @@ const CONTENT_TYPE_CONFIG: Record<ContentType, {
     color: '#1890ff',
     bgColor: 'bg-blue-50',
     icon: <FaRegFilePdf style={{ fontSize: 28 }} />,
-    iconSmall: <FaRegFilePdf />,
+    iconSmall: <FaRegFilePdf className='text-[20px] flex justify-center' />,
     description: 'PDF, Word, Excel...',
     acceptedFiles: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt',
     maxSize: '50MB',
@@ -74,7 +75,7 @@ const CONTENT_TYPE_CONFIG: Record<ContentType, {
     color: '#f5222d',
     bgColor: 'bg-red-50',
     icon: <FiVideo style={{ fontSize: 28 }} />,
-    iconSmall: <FiVideo />,
+    iconSmall: <FiVideo className='text-[20px] flex justify-center' />,
     description: 'Link YouTube, Vimeo...',
     acceptedFiles: '',
     maxSize: 'N/A',
@@ -84,7 +85,7 @@ const CONTENT_TYPE_CONFIG: Record<ContentType, {
     color: '#52c41a',
     bgColor: 'bg-green-50',
     icon: <FiTool style={{ fontSize: 28 }} />,
-    iconSmall: <FiTool />,
+    iconSmall: <FiTool className='text-[20px] flex justify-center' />,
     description: 'Driver phần cứng...',
     acceptedFiles: '.exe,.msi,.zip,.rar,.7z,.tar,.gz',
     maxSize: '200MB',
@@ -94,7 +95,7 @@ const CONTENT_TYPE_CONFIG: Record<ContentType, {
     color: '#722ed1',
     bgColor: 'bg-purple-50',
     icon: <FiDownload style={{ fontSize: 28 }} />,
-    iconSmall: <FiDownload />,
+    iconSmall: <FiDownload className='text-[20px] flex justify-center' />,
     description: 'Firmware cập nhật...',
     acceptedFiles: '.bin,.hex,.fw,.zip,.rar',
     maxSize: '500MB',
@@ -112,14 +113,14 @@ const ACCESS_SCOPE_CONFIG: Record<AccessScope, {
     label: 'Công khai',
     color: '#52c41a',
     icon: <FiGlobe style={{ fontSize: 24 }} />,
-    iconSmall: <FiGlobe />,
+    iconSmall: <FiGlobe className='text-[20px] flex justify-center' />,
     description: 'Ai cũng có thể xem và tải xuống',
   },
   INTERNAL: {
     label: 'Nội bộ',
     color: '#fa8c16',
     icon: <FiUsers style={{ fontSize: 24 }} />,
-    iconSmall: <FiUsers />,
+    iconSmall: <FiUsers className='text-[20px] flex justify-center' />,
     description: 'Chỉ nhân viên nội bộ mới xem được',
   },
 };
@@ -271,14 +272,14 @@ const KnowledgeBaseUpload: React.FC = () => {
   const scopeConfig = ACCESS_SCOPE_CONFIG[accessScope];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="minh-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm sticky top-0 z-10">
-        <div className="py-4 px-6 max-w-7xl mx-auto">
+      <div className="bg-white border-b shadow-sm">
+        <div className="py-4 px-4 mx-auto">
           <Breadcrumb
             className="mb-3"
             items={[
-              { title: <Link to="/catalog/knowledge-base">Kho tri thức</Link> },
+              { title: <Link to="/admin/catalog/knowledge-base">Kho tri thức</Link> },
               { title: 'Upload tài liệu' },
             ]}
           />
@@ -314,7 +315,7 @@ const KnowledgeBaseUpload: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-6">
+      <div className="mx-auto px-6 mt-6">
         {/* Stats Summary */}
         <Row gutter={[16, 16]} className="mb-6">
           <Col xs={12} sm={6}>
@@ -322,7 +323,15 @@ const KnowledgeBaseUpload: React.FC = () => {
               <Statistic
                 title="Loại nội dung"
                 value={typeConfig.label}
-                valueStyle={{ color: typeConfig.color, fontSize: 16, fontWeight: 600 }}
+                valueStyle={{
+                  color: typeConfig.color,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
                 prefix={typeConfig.iconSmall}
               />
             </Card>
@@ -332,7 +341,15 @@ const KnowledgeBaseUpload: React.FC = () => {
               <Statistic
                 title="Quyền truy cập"
                 value={scopeConfig.label}
-                valueStyle={{ color: scopeConfig.color, fontSize: 16, fontWeight: 600 }}
+                valueStyle={{
+                  color: scopeConfig.color,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
                 prefix={scopeConfig.iconSmall}
               />
             </Card>
@@ -578,7 +595,7 @@ const KnowledgeBaseUpload: React.FC = () => {
                             placeholder="Chọn sản phẩm"
                             allowClear
                             showSearch
-                            options={components.map(c => ({ value: c.componentId, label: c.sku }))}
+                            options={components.map(c => ({ value: c.componentId, label: c.componentName }))}
                           />
                         </Form.Item>
                       </Col>
@@ -674,28 +691,53 @@ const KnowledgeBaseUpload: React.FC = () => {
               {/* 3. Helper Section (Sidebar) */}
               <Col xs={24} lg={8}>
                 <Card
-                  title={<span><FolderOpenOutlined className="text-gray-400 mr-2" />Lưu ý</span>}
-                  className="shadow-sm h-full"
+                  title={
+                    <span className="flex items-center text-amber-700 font-semibold">
+                      <IoWarningOutline className="mr-2" size={24} />
+                      Lưu ý quan trọng
+                    </span>
+                  }
+                  className="shadow-sm h-full border border-amber-200 bg-amber-50"
                 >
-                  <div className="space-y-3 text-gray-500">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs shrink-0">1</span>
-                      <span className="text-sm">Chọn đúng <b className="text-gray-600">Loại nội dung</b> để hệ thống phân loại chính xác.</span>
+                      <span className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                        1
+                      </span>
+                      <span className="text-sm text-gray-700 leading-relaxed">
+                        Chọn đúng <b className="text-amber-700">Loại nội dung</b> để hệ thống phân loại chính xác.
+                      </span>
                     </div>
+
                     <div className="flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs shrink-0">2</span>
-                      <span className="text-sm">Với <b className="text-gray-600">Video</b>, ưu tiên link Youtube để xem trực tiếp.</span>
+                      <span className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                        2
+                      </span>
+                      <span className="text-sm text-gray-700 leading-relaxed">
+                        Với <b className="text-amber-700">Video</b>, nên ưu tiên link Youtube để xem trực tiếp, tránh upload file nặng.
+                      </span>
                     </div>
+
                     <div className="flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs shrink-0">3</span>
-                      <span className="text-sm">Đặt tên file ngắn gọn, không dấu trước khi upload.</span>
+                      <span className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                        3
+                      </span>
+                      <span className="text-sm text-gray-700 leading-relaxed">
+                        Đặt tên file <b className="text-amber-700">ngắn gọn, không dấu</b> trước khi upload để tránh lỗi hệ thống.
+                      </span>
                     </div>
+
                     <div className="flex items-center gap-3">
-                      <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs shrink-0">4</span>
-                      <span className="text-sm">Quyền <b className="text-gray-600">Nội bộ</b> sẽ ẩn tài liệu khỏi khách hàng.</span>
+                      <span className="w-6 h-6 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                        4
+                      </span>
+                      <span className="text-sm text-gray-700 leading-relaxed">
+                        Tài liệu có quyền <b className="text-amber-700">Nội bộ</b> sẽ không hiển thị cho khách hàng bên ngoài.
+                      </span>
                     </div>
                   </div>
                 </Card>
+
               </Col>
             </Row>
           </>

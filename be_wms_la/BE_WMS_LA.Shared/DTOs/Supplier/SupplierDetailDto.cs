@@ -18,6 +18,12 @@ public class SupplierDetailDto
     public string SupplierName { get; set; } = string.Empty;
 
     /// <summary>
+    /// Tên thương hiệu (Marketing Name)
+    /// Ví dụ: "SAMSUNG", "PANASONIC"
+    /// </summary>
+    public string? BrandName { get; set; }
+
+    /// <summary>
     /// Người liên hệ
     /// </summary>
     public string? ContactPerson { get; set; }

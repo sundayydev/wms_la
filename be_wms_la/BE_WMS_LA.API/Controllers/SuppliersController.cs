@@ -323,6 +323,96 @@ public class SuppliersController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Export danh sách nhà cung cấp ra Excel
+    /// </summary>
+    /// <param name="search">Tìm kiếm</param>
+    /// <param name="isActive">Lọc theo trạng thái</param>
+    /// <param name="city">Lọc theo thành phố</param>
+    [HttpGet("export-excel")]
+    [EndpointSummary("Export nhà cung cấp ra Excel")]
+    [EndpointDescription("Export danh sách nhà cung cấp ra file Excel với các bộ lọc tùy chọn")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ExportToExcel(
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isActive = null,
+        [FromQuery] string? city = null)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.SupplierView))
+        {
+            return Forbid();
+        }
+
+        _logger.LogInformation("User {UserId} đang export danh sách nhà cung cấp ra Excel", userId);
+
+        var excelData = await _supplierService.ExportToExcelAsync(search, isActive, city);
+
+        var fileName = $"DanhSachNhaCungCap_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+        return File(
+            excelData,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName);
+    }
+
+    /// <summary>
+    /// Import nhà cung cấp từ file Excel
+    /// </summary>
+    /// <param name="file">File Excel (.xlsx)</param>
+    [HttpPost("import-excel")]
+    [EndpointSummary("Import nhà cung cấp từ Excel")]
+    [EndpointDescription("Upload file Excel để import nhà cung cấp. Nếu mã NCC đã tồn tại sẽ cập nhật, nếu chưa sẽ tạo mới.")]
+    [ProducesResponseType<ApiResponse<ImportSupplierResult>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ImportFromExcel(IFormFile file)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null || !await HasPermission(SystemPermissions.SupplierCreate))
+        {
+            return Forbid();
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<ImportSupplierResult>.ErrorResponse("Vui lòng chọn file Excel"));
+        }
+
+        // Validate file extension
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (extension != ".xlsx" && extension != ".xls")
+        {
+            return BadRequest(ApiResponse<ImportSupplierResult>.ErrorResponse("Chỉ hỗ trợ file Excel (.xlsx, .xls)"));
+        }
+
+        _logger.LogInformation("User {UserId} đang import nhà cung cấp từ file: {FileName}", userId, file.FileName);
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var result = await _supplierService.ImportFromExcelAsync(stream);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            _logger.LogInformation("Import thành công: {Created} tạo mới, {Updated} cập nhật, {Skipped} bỏ qua",
+                result.Data?.CreatedCount, result.Data?.UpdatedCount, result.Data?.SkippedCount);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi import Excel");
+            return BadRequest(ApiResponse<ImportSupplierResult>.ErrorResponse($"Lỗi khi import: {ex.Message}"));
+        }
+    }
+
     #endregion
 
     #region Helper Methods

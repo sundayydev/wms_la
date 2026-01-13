@@ -3,6 +3,7 @@ using BE_WMS_LA.Core.Services;
 using BE_WMS_LA.Domain.Constants;
 using BE_WMS_LA.Shared.Common;
 using BE_WMS_LA.Shared.DTOs.Common;
+using BE_WMS_LA.Shared.DTOs.ComponentCompatibility;
 using BE_WMS_LA.Shared.DTOs.Product;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,15 +20,18 @@ namespace BE_WMS_LA.API.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly ProductService _productService;
+    private readonly ComponentCompatibilityService _compatibilityService;
     private readonly PermissionService _permissionService;
     private readonly ILogger<ProductsController> _logger;
 
     public ProductsController(
         ProductService productService,
+        ComponentCompatibilityService compatibilityService,
         PermissionService permissionService,
         ILogger<ProductsController> logger)
     {
         _productService = productService;
+        _compatibilityService = compatibilityService;
         _permissionService = permissionService;
         _logger = logger;
     }
@@ -449,18 +453,18 @@ public class ProductsController : ControllerBase
 
     #endregion
 
-    #region Compatible Products
+    #region Component Compatibility
 
     /// <summary>
-    /// Lấy danh sách sản phẩm tương thích
+    /// Lấy danh sách các thiết bị tương thích với một Component
     /// </summary>
-    /// <param name="id">ID sản phẩm</param>
-    [HttpGet("{id:guid}/compatible")]
-    [EndpointSummary("Danh sách sản phẩm tương thích")]
-    [EndpointDescription("Lấy danh sách các sản phẩm tương thích với sản phẩm này (VD: phụ kiện tương thích với thiết bị)")]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
+    /// <param name="componentId">ID của Component (ví dụ: Pin)</param>
+    [HttpGet("{componentId:guid}/compatible-targets")]
+    [EndpointSummary("Danh sách thiết bị tương thích")]
+    [EndpointDescription("Lấy danh sách các thiết bị tương thích với Component này (VD: Pin này dùng được cho máy nào?)")]
+    [ProducesResponseType<ApiResponse<List<ComponentCompatibilityDto>>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetCompatibleProducts(Guid id)
+    public async Task<IActionResult> GetCompatibleTargets(Guid componentId)
     {
         var userId = GetCurrentUserId();
         if (userId == null || !await HasPermission(SystemPermissions.ProductView))
@@ -468,128 +472,226 @@ public class ProductsController : ControllerBase
             return Forbid();
         }
 
-        var result = await _productService.GetCompatibleProductsAsync(id);
-        if (!result.Success)
+        try
         {
-            return NotFound(result);
+            var result = await _compatibilityService.GetCompatibleTargetsAsync(componentId);
+            return Ok(ApiResponse<List<ComponentCompatibilityDto>>.SuccessResponse(
+                result,
+                "Lấy danh sách thiết bị tương thích thành công"));
         }
-        return Ok(result);
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse(
+                "Không tìm thấy Component",
+                new List<string> { ex.Message }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy danh sách thiết bị tương thích cho Component {ComponentId}", componentId);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse(
+                "Đã xảy ra lỗi khi lấy danh sách thiết bị tương thích",
+                new List<string> { ex.Message }));
+        }
     }
 
     /// <summary>
-    /// Thêm một sản phẩm vào danh sách tương thích
+    /// Lấy danh sách các phụ kiện tương thích với một thiết bị
     /// </summary>
-    /// <param name="id">ID sản phẩm gốc</param>
-    /// <param name="request">Thông tin sản phẩm cần thêm</param>
-    [HttpPost("{id:guid}/compatible")]
-    [EndpointSummary("Thêm sản phẩm tương thích")]
-    [EndpointDescription("Thêm một sản phẩm vào danh sách tương thích")]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AddCompatibleProduct(Guid id, [FromBody] AddCompatibleProductRequest request)
+    /// <param name="componentId">ID của Component (ví dụ: Máy PDA)</param>
+    [HttpGet("{componentId:guid}/compatible-accessories")]
+    [EndpointSummary("Danh sách phụ kiện tương thích")]
+    [EndpointDescription("Lấy danh sách các phụ kiện tương thích với thiết bị này (VD: Máy PDA này dùng được pin/phụ kiện nào?)")]
+    [ProducesResponseType<ApiResponse<List<ComponentCompatibilityDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCompatibleAccessories(Guid componentId)
     {
         var userId = GetCurrentUserId();
-        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        if (userId == null || !await HasPermission(SystemPermissions.ProductView))
         {
             return Forbid();
         }
 
-        _logger.LogInformation("User {UserId} thêm sản phẩm tương thích {CompatibleId} vào {ProductId}",
-            userId, request.ComponentID, id);
-
-        var result = await _productService.AddCompatibleProductAsync(id, request.ComponentID);
-        if (!result.Success)
+        try
         {
-            return BadRequest(result);
+            var result = await _compatibilityService.GetCompatibleAccessoriesAsync(componentId);
+            return Ok(ApiResponse<List<ComponentCompatibilityDto>>.SuccessResponse(
+                result,
+                "Lấy danh sách phụ kiện tương thích thành công"));
         }
-        return Ok(result);
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse(
+                "Không tìm thấy Component",
+                new List<string> { ex.Message }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi lấy danh sách phụ kiện tương thích cho Component {ComponentId}", componentId);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse(
+                "Đã xảy ra lỗi khi lấy danh sách phụ kiện tương thích",
+                new List<string> { ex.Message }));
+        }
     }
 
     /// <summary>
-    /// Thêm nhiều sản phẩm vào danh sách tương thích
+    /// Tạo compatibility giữa 2 Components
     /// </summary>
-    /// <param name="id">ID sản phẩm gốc</param>
-    /// <param name="request">Danh sách sản phẩm cần thêm</param>
-    [HttpPost("{id:guid}/compatible/bulk")]
-    [EndpointSummary("Thêm nhiều sản phẩm tương thích")]
-    [EndpointDescription("Thêm nhiều sản phẩm vào danh sách tương thích cùng lúc")]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AddCompatibleProducts(Guid id, [FromBody] AddCompatibleProductsRequest request)
+    /// <param name="dto">Thông tin Compatibility</param>
+    [HttpPost("compatibility")]
+    [EndpointSummary("Tạo Compatibility")]
+    [EndpointDescription("Tạo mối quan hệ tương thích giữa 2 Components")]
+    [ProducesResponseType<ApiResponse<ComponentCompatibilityDto>>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateCompatibility([FromBody] CreateComponentCompatibilityDto dto)
     {
         var userId = GetCurrentUserId();
-        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        if (userId == null || !await HasPermission(SystemPermissions.ProductCreate))
         {
             return Forbid();
         }
 
-        _logger.LogInformation("User {UserId} thêm {Count} sản phẩm tương thích vào {ProductId}",
-            userId, request.ComponentIDs.Count, id);
-
-        var result = await _productService.AddCompatibleProductsAsync(id, request.ComponentIDs);
-        if (!result.Success)
+        if (!ModelState.IsValid)
         {
-            return BadRequest(result);
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(ApiResponse<object>.ErrorResponse("Dữ liệu không hợp lệ", errors));
         }
-        return Ok(result);
+
+        try
+        {
+            var result = await _compatibilityService.CreateAsync(dto);
+            _logger.LogInformation("User {UserId} đã tạo compatibility giữa {SourceId} và {TargetId}",
+                userId, dto.SourceComponentID, dto.TargetComponentID);
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = result.SourceComponentID },
+                ApiResponse<ComponentCompatibilityDto>.SuccessResponse(
+                    result,
+                    "Tạo Compatibility thành công"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse(
+                "Không tìm thấy Component",
+                new List<string> { ex.Message }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse(
+                "Thao tác không hợp lệ",
+                new List<string> { ex.Message }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi tạo compatibility");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse(
+                "Đã xảy ra lỗi khi tạo Compatibility",
+                new List<string> { ex.Message }));
+        }
     }
 
     /// <summary>
-    /// Xóa một sản phẩm khỏi danh sách tương thích
+    /// Tạo nhiều compatibilities cùng lúc (batch)
     /// </summary>
-    /// <param name="id">ID sản phẩm gốc</param>
-    /// <param name="compatibleId">ID sản phẩm cần xóa</param>
-    [HttpDelete("{id:guid}/compatible/{compatibleId:guid}")]
-    [EndpointSummary("Xóa sản phẩm tương thích")]
-    [EndpointDescription("Xóa một sản phẩm khỏi danh sách tương thích")]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> RemoveCompatibleProduct(Guid id, Guid compatibleId)
+    /// <param name="dto">Thông tin batch create</param>
+    [HttpPost("compatibility/batch")]
+    [EndpointSummary("Tạo Compatibility hàng loạt")]
+    [EndpointDescription("Tạo nhiều mối quan hệ tương thích cùng lúc")]
+    [ProducesResponseType<ApiResponse<List<ComponentCompatibilityDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateCompatibilityBatch([FromBody] CompatibilityBatchCreateDto dto)
     {
         var userId = GetCurrentUserId();
-        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        if (userId == null || !await HasPermission(SystemPermissions.ProductCreate))
         {
             return Forbid();
         }
 
-        _logger.LogInformation("User {UserId} xóa sản phẩm tương thích {CompatibleId} khỏi {ProductId}",
-            userId, compatibleId, id);
-
-        var result = await _productService.RemoveCompatibleProductAsync(id, compatibleId);
-        if (!result.Success)
+        if (!ModelState.IsValid)
         {
-            return BadRequest(result);
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(ApiResponse<object>.ErrorResponse("Dữ liệu không hợp lệ", errors));
         }
-        return Ok(result);
+
+        try
+        {
+            var result = await _compatibilityService.CreateBatchAsync(dto);
+            _logger.LogInformation("User {UserId} đã tạo {Count} compatibility từ {SourceId}",
+                userId, result.Count, dto.SourceComponentID);
+
+            return Ok(ApiResponse<List<ComponentCompatibilityDto>>.SuccessResponse(
+                result,
+                $"Tạo {result.Count} Compatibility thành công"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse(
+                "Không tìm thấy Component",
+                new List<string> { ex.Message }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse(
+                "Thao tác không hợp lệ",
+                new List<string> { ex.Message }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi tạo batch compatibility");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse(
+                "Đã xảy ra lỗi khi tạo batch Compatibility",
+                new List<string> { ex.Message }));
+        }
     }
 
     /// <summary>
-    /// Cập nhật toàn bộ danh sách sản phẩm tương thích
+    /// Xóa một compatibility
     /// </summary>
-    /// <param name="id">ID sản phẩm gốc</param>
-    /// <param name="request">Danh sách sản phẩm tương thích mới (thay thế hoàn toàn)</param>
-    [HttpPut("{id:guid}/compatible")]
-    [EndpointSummary("Cập nhật danh sách tương thích")]
-    [EndpointDescription("Thay thế toàn bộ danh sách sản phẩm tương thích bằng danh sách mới")]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ApiResponse<List<CompatibleProductDto>>>(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> UpdateCompatibleProducts(Guid id, [FromBody] UpdateCompatibleProductsRequest request)
+    /// <param name="sourceId">ID của Source Component</param>
+    /// <param name="targetId">ID của Target Component</param>
+    [HttpDelete("compatibility/{sourceId:guid}/{targetId:guid}")]
+    [EndpointSummary("Xóa Compatibility")]
+    [EndpointDescription("Xóa mối quan hệ tương thích giữa 2 Components")]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteCompatibility(Guid sourceId, Guid targetId)
     {
         var userId = GetCurrentUserId();
-        if (userId == null || !await HasPermission(SystemPermissions.ProductEdit))
+        if (userId == null || !await HasPermission(SystemPermissions.ProductDelete))
         {
             return Forbid();
         }
 
-        _logger.LogInformation("User {UserId} cập nhật danh sách tương thích của {ProductId} với {Count} sản phẩm",
-            userId, id, request.ComponentIDs.Count);
-
-        var result = await _productService.UpdateCompatibleProductsAsync(id, request.ComponentIDs);
-        if (!result.Success)
+        try
         {
-            return BadRequest(result);
+            var success = await _compatibilityService.DeleteAsync(sourceId, targetId);
+            if (!success)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse(
+                    "Không tìm thấy Compatibility",
+                    new List<string> { $"Không tìm thấy Compatibility giữa SourceID: {sourceId} và TargetID: {targetId}" }));
+            }
+
+            _logger.LogInformation("User {UserId} đã xóa compatibility giữa {SourceId} và {TargetId}",
+                userId, sourceId, targetId);
+
+            return Ok(ApiResponse<object>.SuccessResponse(
+                null,
+                "Xóa Compatibility thành công"));
         }
-        return Ok(result);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi xóa compatibility");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse(
+                "Đã xảy ra lỗi khi xóa Compatibility",
+                new List<string> { ex.Message }));
+        }
     }
 
     #endregion

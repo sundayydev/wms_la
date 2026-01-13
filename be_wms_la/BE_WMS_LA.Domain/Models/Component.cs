@@ -197,13 +197,6 @@ public class Component
     [Column(TypeName = "jsonb")]
     public string Competitors { get; set; } = "[]";
 
-    /// <summary>
-    /// Sản phẩm tương thích (cho phụ kiện)
-    /// VD: [{"ComponentID": "xxx", "SKU": "MOBY-M63-V2", "Name": "PDA M63"}]
-    /// </summary>
-    [Column(TypeName = "jsonb")]
-    public string CompatibleWith { get; set; } = "[]";
-
     #endregion
 
     #region Trạng thái & SEO
@@ -263,6 +256,18 @@ public class Component
     /// Kho tri thức sản phẩm (Tài liệu, Video, Driver, Firmware)
     /// </summary>
     public virtual ICollection<ProductKnowledgeBase> KnowledgeBase { get; set; } = new List<ProductKnowledgeBase>();
+
+    /// <summary>
+    /// Danh sách các thiết bị mà linh kiện này hỗ trợ.
+    /// (Ví dụ: Nếu đây là Pin, list này là các máy PDA lắp được pin này)
+    /// </summary>
+    public virtual ICollection<ComponentCompatibility> SupportedDevices { get; set; } = new List<ComponentCompatibility>();
+
+    /// <summary>
+    /// Danh sách các linh kiện tương thích với thiết bị này.
+    /// (Ví dụ: Nếu đây là máy PDA, list này là các loại Pin, Bao da dùng được cho nó)
+    /// </summary>
+    public virtual ICollection<ComponentCompatibility> CompatibleAccessories { get; set; } = new List<ComponentCompatibility>();
 
     #endregion
 }

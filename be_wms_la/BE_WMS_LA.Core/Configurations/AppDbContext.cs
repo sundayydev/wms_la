@@ -66,6 +66,9 @@ public class AppDbContext : DbContext
     public DbSet<ProductKnowledgeBase> ProductKnowledgeBases { get; set; } = null!;
     public DbSet<DocumentShare> DocumentShares { get; set; } = null!;
 
+    // Component Compatibility
+    public DbSet<ComponentCompatibility> ComponentCompatibilities { get; set; } = null!;
+
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -338,6 +341,25 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<DocumentShare>()
             .HasIndex(ds => ds.ShareToken)
             .IsUnique();
+
+        // Cấu hình bảng ComponentCompatibility
+        modelBuilder.Entity<ComponentCompatibility>(entity =>
+        {
+            // Set khóa chính là cặp (SourceID, TargetID) để tránh trùng lặp
+            entity.HasKey(e => new { e.SourceComponentID, e.TargetComponentID });
+
+            // Cấu hình mối quan hệ chiều đi (Phụ kiện -> Thiết bị)
+            entity.HasOne(e => e.SourceComponent)
+                .WithMany(c => c.SupportedDevices)
+                .HasForeignKey(e => e.SourceComponentID)
+                .OnDelete(DeleteBehavior.Restrict); // Dùng Restrict để an toàn, tránh xóa nhầm dây chuyền
+
+            // Cấu hình mối quan hệ chiều về (Thiết bị -> Phụ kiện)
+            entity.HasOne(e => e.TargetComponent)
+                .WithMany(c => c.CompatibleAccessories)
+                .HasForeignKey(e => e.TargetComponentID)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         // =====================================================
         // Unique Indexes
