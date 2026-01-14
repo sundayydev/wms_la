@@ -154,64 +154,179 @@ export const deleteComponent = async (id: string): Promise<void> => {
 
 // ============ Compatible Products APIs ============
 
-// DTO cho sản phẩm tương thích
+// DTO từ backend (ComponentCompatibilityDto)
+export interface ComponentCompatibilityBackendDto {
+    sourceComponentID: string;
+    sourceComponentName: string;
+    sourceComponentSKU: string;
+    sourceComponentImageURL?: string;
+    sourceComponentProductType?: string;
+    targetComponentID: string;
+    targetComponentName: string;
+    targetComponentSKU: string;
+    targetComponentImageURL?: string;
+    targetComponentProductType?: string;
+    note?: string;
+}
+
+// DTO cho sản phẩm tương thích (frontend simplified)
 export interface CompatibleProductDto {
-    componentID: string;
+    componentID: string; // This will be populated based on context
     sku: string;
     name: string;
     imageURL?: string;
     productType?: string;
+    notes?: string;
+    createdAt?: string;
 }
 
-// Lấy danh sách sản phẩm tương thích
+/**
+ * Transform backend ComponentCompatibilityDto thành frontend CompatibleProductDto
+ * @param backendDto - DTO từ backend
+ * @param currentProductId - ID của sản phẩm hiện tại đang xem
+ * @returns CompatibleProductDto - DTO đã transform để hiển thị
+ */
+const transformCompatibilityDto = (
+    backendDto: ComponentCompatibilityBackendDto,
+    currentProductId: string
+): CompatibleProductDto => {
+    // Nếu currentProductId là Source, thì hiển thị thông tin Target (và ngược lại)
+    const isSource = backendDto.sourceComponentID === currentProductId;
+
+    return {
+        componentID: isSource ? backendDto.targetComponentID : backendDto.sourceComponentID,
+        sku: isSource ? backendDto.targetComponentSKU : backendDto.sourceComponentSKU,
+        name: isSource ? backendDto.targetComponentName : backendDto.sourceComponentName,
+        imageURL: isSource ? backendDto.targetComponentImageURL : backendDto.sourceComponentImageURL,
+        productType: isSource ? backendDto.targetComponentProductType : backendDto.sourceComponentProductType,
+        notes: backendDto.note
+    };
+};
+
+/**
+ * Lấy danh sách phụ kiện tương thích với một thiết bị
+ * Ví dụ: Máy PDA này dùng được pin/phụ kiện nào?
+ * API: GET /Products/{componentId}/compatible-accessories
+ */
+export const getCompatibleAccessories = async (componentId: string): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.get<any>(`${BASE_URL}/${componentId}/compatible-accessories`);
+    if (response.data.success) {
+        const backendData: ComponentCompatibilityBackendDto[] = response.data.data || [];
+        return backendData.map(dto => transformCompatibilityDto(dto, componentId));
+    }
+    throw new Error(response.data.message || 'Không thể lấy danh sách phụ kiện tương thích');
+};
+
+/**
+ * Lấy danh sách thiết bị tương thích với một Component  
+ * Ví dụ: Pin này dùng được cho máy nào?
+ * API: GET /Products/{componentId}/compatible-targets
+ */
+export const getCompatibleTargets = async (componentId: string): Promise<CompatibleProductDto[]> => {
+    const response = await apiClient.get<any>(`${BASE_URL}/${componentId}/compatible-targets`);
+    if (response.data.success) {
+        const backendData: ComponentCompatibilityBackendDto[] = response.data.data || [];
+        return backendData.map(dto => transformCompatibilityDto(dto, componentId));
+    }
+    throw new Error(response.data.message || 'Không thể lấy danh sách thiết bị tương thích');
+};
+
+/**
+ * Lấy danh sách sản phẩm tương thích (wrapper function)
+ * Tự động gọi cả accessories và targets, kết hợp kết quả
+ */
 export const getCompatibleProducts = async (productId: string): Promise<CompatibleProductDto[]> => {
-    const response = await apiClient.get<any>(`${BASE_URL}/${productId}/compatible`);
-    if (response.data.success) {
-        return response.data.data || [];
+    try {
+        const [accessories, targets] = await Promise.all([
+            getCompatibleAccessories(productId).catch(() => []),
+            getCompatibleTargets(productId).catch(() => [])
+        ]);
+
+        // Combine and deduplicate
+        const combined = [...accessories, ...targets];
+        const seen = new Set<string>();
+        return combined.filter(item => {
+            if (seen.has(item.componentID)) return false;
+            seen.add(item.componentID);
+            return true;
+        });
+    } catch (error) {
+        console.error('Error fetching compatible products:', error);
+        return [];
     }
-    throw new Error(response.data.message || 'Không thể lấy danh sách sản phẩm tương thích');
 };
 
-// Thêm một sản phẩm tương thích
-export const addCompatibleProduct = async (productId: string, compatibleId: string): Promise<CompatibleProductDto[]> => {
-    const response = await apiClient.post<any>(`${BASE_URL}/${productId}/compatible`, {
-        componentID: compatibleId
+/**
+ * Tạo mối quan hệ tương thích giữa 2 Components
+ * API: POST /Products/compatibility
+ */
+export const createCompatibility = async (
+    sourceComponentID: string,
+    targetComponentID: string,
+    notes?: string
+): Promise<CompatibleProductDto> => {
+    const response = await apiClient.post<any>(`${BASE_URL}/compatibility`, {
+        sourceComponentID,
+        targetComponentID,
+        notes
     });
     if (response.data.success) {
-        return response.data.data || [];
+        return response.data.data;
     }
-    throw new Error(response.data.message || 'Không thể thêm sản phẩm tương thích');
+    throw new Error(response.data.message || 'Không thể tạo compatibility');
 };
 
-// Thêm nhiều sản phẩm tương thích
-export const addCompatibleProducts = async (productId: string, compatibleIds: string[]): Promise<CompatibleProductDto[]> => {
-    const response = await apiClient.post<any>(`${BASE_URL}/${productId}/compatible/bulk`, {
-        componentIDs: compatibleIds
-    });
-    if (response.data.success) {
-        return response.data.data || [];
-    }
-    throw new Error(response.data.message || 'Không thể thêm các sản phẩm tương thích');
+/**
+ * Thêm một sản phẩm vào danh sách tương thích
+ * (wrapper sử dụng createCompatibility)
+ */
+export const addCompatibleProduct = async (
+    productId: string,
+    compatibleId: string,
+    notes?: string
+): Promise<void> => {
+    await createCompatibility(productId, compatibleId, notes);
 };
 
-// Xóa một sản phẩm khỏi danh sách tương thích
-export const removeCompatibleProduct = async (productId: string, compatibleId: string): Promise<CompatibleProductDto[]> => {
-    const response = await apiClient.delete<any>(`${BASE_URL}/${productId}/compatible/${compatibleId}`);
-    if (response.data.success) {
-        return response.data.data || [];
-    }
-    throw new Error(response.data.message || 'Không thể xóa sản phẩm tương thích');
+/**
+ * Thêm nhiều sản phẩm vào danh sách tương thích
+ * (wrapper gọi createCompatibility nhiều lần)
+ */
+export const addCompatibleProducts = async (
+    productId: string,
+    compatibleIds: string[],
+    notes?: string
+): Promise<void> => {
+    await Promise.all(
+        compatibleIds.map(compatibleId =>
+            createCompatibility(productId, compatibleId, notes)
+        )
+    );
 };
 
-// Cập nhật toàn bộ danh sách sản phẩm tương thích
-export const updateCompatibleProducts = async (productId: string, compatibleIds: string[]): Promise<CompatibleProductDto[]> => {
-    const response = await apiClient.put<any>(`${BASE_URL}/${productId}/compatible`, {
-        componentIDs: compatibleIds
-    });
-    if (response.data.success) {
-        return response.data.data || [];
+/**
+ * Xóa một compatibility
+ * API: DELETE /Products/compatibility/{sourceId}/{targetId}
+ */
+export const deleteCompatibility = async (
+    sourceId: string,
+    targetId: string
+): Promise<void> => {
+    const response = await apiClient.delete<any>(`${BASE_URL}/compatibility/${sourceId}/${targetId}`);
+    if (!response.data.success) {
+        throw new Error(response.data.message || 'Không thể xóa compatibility');
     }
-    throw new Error(response.data.message || 'Không thể cập nhật danh sách sản phẩm tương thích');
+};
+
+/**
+ * Xóa một sản phẩm khỏi danh sách tương thích
+ * (wrapper sử dụng deleteCompatibility)
+ */
+export const removeCompatibleProduct = async (
+    productId: string,
+    compatibleId: string
+): Promise<void> => {
+    await deleteCompatibility(productId, compatibleId);
 };
 
 
@@ -282,10 +397,13 @@ const componentsService = {
     updateComponent,
     deleteComponent,
     getCompatibleProducts,
+    getCompatibleAccessories,
+    getCompatibleTargets,
+    createCompatibility,
     addCompatibleProduct,
     addCompatibleProducts,
+    deleteCompatibility,
     removeCompatibleProduct,
-    updateCompatibleProducts,
     getProductStatistics,
 };
 

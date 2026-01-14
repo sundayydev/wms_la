@@ -10,6 +10,7 @@ import {
   Select,
   message,
   Avatar,
+  Image,
   Typography,
   Dropdown,
   Statistic,
@@ -34,6 +35,7 @@ import {
   AppstoreAddOutlined,
   DollarOutlined,
   InboxOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
@@ -251,13 +253,37 @@ const ProductList: React.FC = () => {
       fixed: 'left',
       render: (_, record) => (
         <div className="flex gap-3">
-          <Avatar
-            shape="square"
-            size={64}
-            src={record.imageURL}
-            icon={<AppstoreOutlined />}
-            className="bg-linear-to-br from-gray-100 to-gray-200 border border-gray-200 shrink-0 shadow-sm"
-          />
+          {record.imageURL ? (
+            <Image
+              src={record.imageURL}
+              alt={record.componentName}
+              width={64}
+              height={64}
+              style={{
+                objectFit: 'cover',
+                borderRadius: 4,
+                border: '1px solid #e5e7eb',
+                cursor: 'pointer'
+              }}
+              className="shrink-0 shadow-sm"
+              preview={{
+                mask: (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <PictureOutlined style={{ fontSize: 18 }} />
+                    <span style={{ fontSize: 11 }}>Xem ảnh</span>
+                  </div>
+                ),
+              }}
+              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgesANyIGdIYAAAAJcEhZcwAADsQAAA7EAZUrDhsAAA=="
+            />
+          ) : (
+            <Avatar
+              shape="square"
+              size={64}
+              icon={<AppstoreOutlined />}
+              className="bg-linear-to-br from-gray-100 to-gray-200 border border-gray-200 shrink-0 shadow-sm"
+            />
+          )}
           <div className="flex flex-col justify-center min-w-0">
             <Text
               strong

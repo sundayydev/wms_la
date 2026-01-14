@@ -39,6 +39,7 @@ import {
   LinkOutlined,
   DeleteOutlined,
   QuestionCircleOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import type { ProductType } from '../../types/type.component';
@@ -98,6 +99,8 @@ const ProductCreate: React.FC = () => {
   const [previewImage, setPreviewImage] = useState<string>('');
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierListDto[]>([]);
+  const [specsMode, setSpecsMode] = useState<'ui' | 'json'>('ui');
+  const [specsJsonValue, setSpecsJsonValue] = useState<string>('');
 
   // Load categories and suppliers on mount
   useEffect(() => {
@@ -683,130 +686,130 @@ const ProductCreate: React.FC = () => {
               </div>
             )}
 
-            {groupFields.map(({ key: groupKey, name: groupName, ...groupRestField }) => (
-              <Card
-                key={groupKey}
-                size="small"
-                style={{ marginBottom: 16, backgroundColor: '#f9fafb' }}
-                title={
-                  <Form.Item
-                    {...groupRestField}
-                    name={[groupName, 'groupName']}
-                    rules={[{ required: true, message: 'Nhập tên nhóm' }]}
-                    className="mb-0"
-                    style={{ flex: 1 }}
-                  >
-                    <Input
-                      placeholder="Tên nhóm (VD: PERFORMANCE PARAMETER)"
-                      style={{ fontWeight: 600, textTransform: 'uppercase' }}
-                    />
-                  </Form.Item>
-                }
-                extra={
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => removeGroup(groupName)}
-                    size="small"
-                  >
-                    Xóa nhóm
-                  </Button>
-                }
-              >
-                <Form.List name={[groupName, 'items']}>
-                  {(itemFields, { add: addItem, remove: removeItem }) => (
-                    <>
-                      {/* Header */}
-                      {itemFields.length > 0 && (
-                        <Row gutter={8} style={{ marginBottom: 8, paddingLeft: 4 }}>
-                          <Col xs={9}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Thông số (k)</Text>
-                          </Col>
-                          <Col xs={10}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Giá trị (v)</Text>
-                          </Col>
-                          <Col xs={3}>
-                            <Tooltip title="Hiển thị khi báo giá (q)">
-                              <Text type="secondary" style={{ fontSize: 12 }}>Báo giá</Text>
-                            </Tooltip>
-                          </Col>
-                          <Col xs={2}></Col>
-                        </Row>
-                      )}
+                  {groupFields.map(({ key: groupKey, name: groupName, ...groupRestField }) => (
+                    <Card
+                      key={groupKey}
+                      size="small"
+                      style={{ marginBottom: 16, backgroundColor: '#f9fafb' }}
+                      title={
+                        <Form.Item
+                          {...groupRestField}
+                          name={[groupName, 'groupName']}
+                          rules={[{ required: true, message: 'Nhập tên nhóm' }]}
+                          className="mb-0"
+                          style={{ flex: 1 }}
+                        >
+                          <Input
+                            placeholder="Tên nhóm (VD: PERFORMANCE PARAMETER)"
+                            style={{ fontWeight: 600, textTransform: 'uppercase' }}
+                          />
+                        </Form.Item>
+                      }
+                      extra={
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeGroup(groupName)}
+                          size="small"
+                        >
+                          Xóa nhóm
+                        </Button>
+                      }
+                    >
+                      <Form.List name={[groupName, 'items']}>
+                        {(itemFields, { add: addItem, remove: removeItem }) => (
+                          <>
+                            {/* Header */}
+                            {itemFields.length > 0 && (
+                              <Row gutter={8} style={{ marginBottom: 8, paddingLeft: 4 }}>
+                                <Col xs={9}>
+                                  <Text type="secondary" style={{ fontSize: 12 }}>Thông số (k)</Text>
+                                </Col>
+                                <Col xs={10}>
+                                  <Text type="secondary" style={{ fontSize: 12 }}>Giá trị (v)</Text>
+                                </Col>
+                                <Col xs={3}>
+                                  <Tooltip title="Hiển thị khi báo giá (q)">
+                                    <Text type="secondary" style={{ fontSize: 12 }}>Báo giá</Text>
+                                  </Tooltip>
+                                </Col>
+                                <Col xs={2}></Col>
+                              </Row>
+                            )}
 
-                      {itemFields.map(({ key: itemKey, name: itemName, ...itemRestField }) => (
-                        <Row key={itemKey} gutter={8} align="middle" style={{ marginBottom: 8 }}>
-                          <Col xs={9}>
-                            <Form.Item
-                              {...itemRestField}
-                              name={[itemName, 'k']}
-                              rules={[{ required: true, message: 'Nhập tên' }]}
-                              className="mb-0"
-                            >
-                              <Input placeholder="VD: CPU, RAM" size="small" />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={10}>
-                            <Form.Item
-                              {...itemRestField}
-                              name={[itemName, 'v']}
-                              rules={[{ required: true, message: 'Nhập giá trị' }]}
-                              className="mb-0"
-                            >
-                              <Input placeholder="VD: Octa-core 2.0GHz" size="small" />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={3} style={{ textAlign: 'center' }}>
-                            <Form.Item
-                              {...itemRestField}
-                              name={[itemName, 'q']}
-                              valuePropName="checked"
-                              className="mb-0"
-                            >
-                              <Switch size="small" />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={2}>
+                            {itemFields.map(({ key: itemKey, name: itemName, ...itemRestField }) => (
+                              <Row key={itemKey} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                                <Col xs={9}>
+                                  <Form.Item
+                                    {...itemRestField}
+                                    name={[itemName, 'k']}
+                                    rules={[{ required: true, message: 'Nhập tên' }]}
+                                    className="mb-0"
+                                  >
+                                    <Input placeholder="VD: CPU, RAM" size="small" />
+                                  </Form.Item>
+                                </Col>
+                                <Col xs={10}>
+                                  <Form.Item
+                                    {...itemRestField}
+                                    name={[itemName, 'v']}
+                                    rules={[{ required: true, message: 'Nhập giá trị' }]}
+                                    className="mb-0"
+                                  >
+                                    <Input placeholder="VD: Octa-core 2.0GHz" size="small" />
+                                  </Form.Item>
+                                </Col>
+                                <Col xs={3} style={{ textAlign: 'center' }}>
+                                  <Form.Item
+                                    {...itemRestField}
+                                    name={[itemName, 'q']}
+                                    valuePropName="checked"
+                                    className="mb-0"
+                                  >
+                                    <Switch size="small" />
+                                  </Form.Item>
+                                </Col>
+                                <Col xs={2}>
+                                  <Button
+                                    type="text"
+                                    danger
+                                    size="small"
+                                    icon={<MinusCircleOutlined />}
+                                    onClick={() => removeItem(itemName)}
+                                  />
+                                </Col>
+                              </Row>
+                            ))}
+
                             <Button
-                              type="text"
-                              danger
+                              type="dashed"
+                              onClick={() => addItem({ k: '', v: '', q: false })}
+                              block
+                              icon={<PlusOutlined />}
                               size="small"
-                              icon={<MinusCircleOutlined />}
-                              onClick={() => removeItem(itemName)}
-                            />
-                          </Col>
-                        </Row>
-                      ))}
+                              style={{ marginTop: 4 }}
+                            >
+                              Thêm thông số
+                            </Button>
+                          </>
+                        )}
+                      </Form.List>
+                    </Card>
+                  ))}
 
-                      <Button
-                        type="dashed"
-                        onClick={() => addItem({ k: '', v: '', q: false })}
-                        block
-                        icon={<PlusOutlined />}
-                        size="small"
-                        style={{ marginTop: 4 }}
-                      >
-                        Thêm thông số
-                      </Button>
-                    </>
-                  )}
-                </Form.List>
-              </Card>
-            ))}
-
-            <Button
-              type="dashed"
-              onClick={() => addGroup({ groupName: '', items: [] })}
-              block
-              icon={<PlusOutlined />}
-              style={{ marginTop: 8 }}
-            >
-              Thêm nhóm thông số kỹ thuật
-            </Button>
-          </>
-        )}
-      </Form.List>
+                  <Button
+                    type="dashed"
+                    onClick={() => addGroup({ groupName: '', items: [] })}
+                    block
+                    icon={<PlusOutlined />}
+                    style={{ marginTop: 8 }}
+                  >
+                    Thêm nhóm thông số kỹ thuật
+                  </Button>
+                </>
+              )}
+            </Form.List>
 
       <Collapse
         ghost

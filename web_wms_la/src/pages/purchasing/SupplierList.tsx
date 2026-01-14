@@ -1032,7 +1032,7 @@ const SupplierList: React.FC = () => {
       <Modal
         title={
           <div className="flex items-center gap-2 text-lg">
-            <EyeOutlined className="text-blue-500" /> Chi tiết Nhà cung cấp
+            Chi tiết Nhà cung cấp
           </div>
         }
         open={detailModalOpen}

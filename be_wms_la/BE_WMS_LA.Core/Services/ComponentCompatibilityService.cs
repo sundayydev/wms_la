@@ -263,9 +263,13 @@ public class ComponentCompatibilityService
             SourceComponentID = compatibility.SourceComponentID,
             SourceComponentName = compatibility.SourceComponent.ComponentName,
             SourceComponentSKU = compatibility.SourceComponent.SKU,
+            SourceComponentImageURL = compatibility.SourceComponent.ImageURL,
+            SourceComponentProductType = compatibility.SourceComponent.ProductType,
             TargetComponentID = compatibility.TargetComponentID,
             TargetComponentName = compatibility.TargetComponent.ComponentName,
             TargetComponentSKU = compatibility.TargetComponent.SKU,
+            TargetComponentImageURL = compatibility.TargetComponent.ImageURL,
+            TargetComponentProductType = compatibility.TargetComponent.ProductType,
             Note = compatibility.Note
         };
     }
