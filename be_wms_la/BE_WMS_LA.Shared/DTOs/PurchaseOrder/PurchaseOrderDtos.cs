@@ -20,8 +20,15 @@ public class PurchaseOrderListDto
     public string Status { get; set; } = "PENDING";
     public decimal TotalAmount { get; set; }
     public decimal FinalAmount { get; set; }
+
+    // Item counts
     public int ItemCount { get; set; }
     public int ReceivedItemCount { get; set; }
+
+    // Quantity totals
+    public int TotalQuantity { get; set; }
+    public int ReceivedQuantity { get; set; }
+
     public string? CreatedByName { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -85,6 +92,11 @@ public class PurchaseOrderDetailItemDto
     public decimal TotalPrice { get; set; }
     public int ReceivedQuantity { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// TRUE = Quản lý theo Serial/IMEI (từng chiếc), FALSE = Quản lý theo số lượng
+    /// </summary>
+    public bool IsSerialized { get; set; }
 }
 
 #endregion
@@ -183,22 +195,6 @@ public class UpdatePurchaseOrderStatusDto
     public string Status { get; set; } = string.Empty;
 
     public DateOnly? ActualDeliveryDate { get; set; }
-    public string? Notes { get; set; }
-}
-
-/// <summary>
-/// DTO xác nhận nhận hàng
-/// </summary>
-public class ReceiveItemDto
-{
-    public Guid PurchaseOrderDetailID { get; set; }
-    public int ReceivedQuantity { get; set; }
-
-    /// <summary>
-    /// Danh sách serial (cho sản phẩm quản lý theo serial)
-    /// </summary>
-    public List<string>? SerialNumbers { get; set; }
-
     public string? Notes { get; set; }
 }
 

@@ -1,5 +1,7 @@
 using BE_WMS_LA.Core.Configurations;
 using BE_WMS_LA.Shared.Configurations;
+using BE_WMS_LA.Core.Repositories;
+using BE_WMS_LA.Core.Services;
 using System.IdentityModel.Tokens.Jwt;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -36,30 +38,31 @@ if (!string.IsNullOrEmpty(redisConnectionString))
 
 
 // --- ĐĂNG KÝ REPOSITORIES ---
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.UserRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.WarehouseRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.CategoryRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.SupplierRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.ProductRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.ComponentCompatibilityRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.CustomerRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.PurchaseOrderRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.InventoryRepository>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Repositories.KnowledgeBaseRepository>();
+builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<WarehouseRepository>();
+builder.Services.AddScoped<CategoryRepository>();
+builder.Services.AddScoped<SupplierRepository>();
+builder.Services.AddScoped<ProductRepository>();
+builder.Services.AddScoped<ComponentCompatibilityRepository>();
+builder.Services.AddScoped<CustomerRepository>();
+builder.Services.AddScoped<PurchaseOrderRepository>();
+builder.Services.AddScoped<InventoryRepository>();
+builder.Services.AddScoped<KnowledgeBaseRepository>();
+builder.Services.AddScoped<InventoryTransactionRepository>();
 
 // --- ĐĂNG KÝ SERVICES ---
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.AuthService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.UserService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.PermissionService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.SupplierService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.ProductService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.ComponentCompatibilityService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.WarehouseService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.CategoryService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.CustomerService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.PurchaseOrderService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.InventoryService>();
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.KnowledgeBaseService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<SupplierService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<ComponentCompatibilityService>();
+builder.Services.AddScoped<WarehouseService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<PurchaseOrderService>();
+builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<KnowledgeBaseService>();
 
 // --- CẤU HÌNH MINIO ---
 builder.Services.Configure<MinioSettings>(options =>
@@ -73,7 +76,7 @@ builder.Services.Configure<MinioSettings>(options =>
     options.DocumentsBucket = Environment.GetEnvironmentVariable("MINIO_DOCUMENTS_BUCKET") ?? "documents";
     options.AvatarsBucket = Environment.GetEnvironmentVariable("MINIO_AVATARS_BUCKET") ?? "avatars";
 });
-builder.Services.AddScoped<BE_WMS_LA.Core.Services.MinioStorageService>();
+builder.Services.AddScoped<MinioStorageService>();
 
 // --- CẤU HÌNH JWT SETTINGS ---
 // Thêm section JwtSettings vào IConfiguration để AuthService có thể đọc

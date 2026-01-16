@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Table,
   Card,
@@ -27,6 +27,8 @@ import {
   Empty,
   Popconfirm,
   Tabs,
+  Collapse,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -55,12 +57,29 @@ import {
   BoxPlotOutlined,
   StopOutlined,
   SendOutlined,
+  InfoCircleOutlined,
+  BarcodeOutlined,
+  ShopOutlined,
+  PhoneOutlined,
+  AppstoreOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaFileInvoice, FaBoxOpen, FaUserTie } from 'react-icons/fa';
+import purchaseOrdersService from '../../services/purchaseOrders.service';
+import suppliersService from '../../services/suppliers.service';
+import warehousesService from '../../services/warehouses.service';
+import type {
+  PurchaseOrderListDto,
+  PurchaseOrderDetailDto,
+  PurchaseOrderStatus,
+  PurchaseOrderStatisticsDto,
+  ReceivedItemsResponseDto,
+} from '../../types/type.purchaseOrder';
+import Barcode from 'react-barcode';
 
 const { RangePicker } = DatePicker;
 const { Text, Title, Paragraph } = Typography;
@@ -68,48 +87,6 @@ const { Text, Title, Paragraph } = Typography;
 // ============================================================================
 // TYPES
 // ============================================================================
-
-type POStatus = 'PENDING' | 'CONFIRMED' | 'PARTIAL' | 'DELIVERED' | 'CANCELLED';
-
-interface POItem {
-  itemId: string;
-  componentId: string;
-  sku: string;
-  componentName: string;
-  brand?: string;
-  quantity: number;
-  receivedQuantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  imageUrl?: string;
-}
-
-interface PurchaseOrder {
-  purchaseOrderId: string;
-  orderCode: string;
-  supplierId: string;
-  supplierCode: string;
-  supplierName: string;
-  supplierContact?: string;
-  supplierPhone?: string;
-  warehouseId: string;
-  warehouseName: string;
-  warehouseCode: string;
-  orderDate: string;
-  expectedDeliveryDate: string;
-  actualDeliveryDate?: string;
-  status: POStatus;
-  items: POItem[];
-  totalAmount: number;
-  discountAmount: number;
-  finalAmount: number;
-  receivedAmount: number;
-  createdByUserId: string;
-  createdByName: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface POHistory {
   id: string;
@@ -119,171 +96,29 @@ interface POHistory {
   description: string;
 }
 
+interface SupplierOption {
+  value: string;
+  label: string;
+  code?: string;
+}
+
+interface WarehouseOption {
+  value: string;
+  label: string;
+  code?: string;
+}
+
 // ============================================================================
 // STATUS CONFIG
 // ============================================================================
 
-const PO_STATUS_CONFIG: Record<POStatus, { label: string; color: string; icon: React.ReactNode; bgColor: string }> = {
-  PENDING: { label: 'Chờ duyệt', color: 'warning', icon: <ClockCircleOutlined />, bgColor: 'bg-yellow-50' },
+const PO_STATUS_CONFIG: Record<PurchaseOrderStatus, { label: string; color: string; icon: React.ReactNode; bgColor: string }> = {
+  PENDING: { label: 'Chờ duyệt', color: 'warning', icon: <SyncOutlined spin />, bgColor: 'bg-yellow-50' },
   CONFIRMED: { label: 'Đã xác nhận', color: 'processing', icon: <TruckOutlined />, bgColor: 'bg-blue-50' },
   PARTIAL: { label: 'Nhận một phần', color: 'cyan', icon: <BoxPlotOutlined />, bgColor: 'bg-cyan-50' },
   DELIVERED: { label: 'Đã nhận đủ', color: 'success', icon: <CheckCircleOutlined />, bgColor: 'bg-green-50' },
   CANCELLED: { label: 'Đã hủy', color: 'error', icon: <CloseCircleOutlined />, bgColor: 'bg-red-50' },
 };
-
-// ============================================================================
-// MOCK DATA
-// ============================================================================
-
-const mockPurchaseOrders: PurchaseOrder[] = [
-  {
-    purchaseOrderId: 'po-001',
-    orderCode: 'PO-2024-001',
-    supplierId: 'sup-1',
-    supplierCode: 'NCC-SAMSUNG',
-    supplierName: 'Samsung Vina Electronics',
-    supplierContact: 'Nguyễn Văn A',
-    supplierPhone: '02839157600',
-    warehouseId: 'wh-1',
-    warehouseName: 'Kho Tổng HCM',
-    warehouseCode: 'HCM-01',
-    orderDate: '2024-12-20T10:30:00',
-    expectedDeliveryDate: '2024-12-25',
-    actualDeliveryDate: '2024-12-24',
-    status: 'DELIVERED',
-    items: [
-      { itemId: 'item-1', componentId: '1', sku: 'MOBY-M63-V2', componentName: 'Máy kiểm kho PDA Mobydata M63 V2', brand: 'Mobydata', quantity: 50, receivedQuantity: 50, unitPrice: 5500000, totalPrice: 275000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=pda1' },
-      { itemId: 'item-2', componentId: '2', sku: 'DOCK-M63-4', componentName: 'Đế sạc 4 slot Mobydata M63', brand: 'Mobydata', quantity: 10, receivedQuantity: 10, unitPrice: 2500000, totalPrice: 25000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=dock1' },
-    ],
-    totalAmount: 300000000,
-    discountAmount: 15000000,
-    finalAmount: 285000000,
-    receivedAmount: 285000000,
-    createdByUserId: 'user-1',
-    createdByName: 'Nguyễn Văn A',
-    notes: 'Đơn hàng ưu tiên - Giao trước Tết',
-    createdAt: '2024-12-20T10:30:00',
-    updatedAt: '2024-12-24T14:00:00',
-  },
-  {
-    purchaseOrderId: 'po-002',
-    orderCode: 'PO-2024-002',
-    supplierId: 'sup-2',
-    supplierCode: 'NCC-ZEBRA',
-    supplierName: 'Zebra Corporation Vietnam',
-    supplierContact: 'Trần Thị B',
-    supplierPhone: '028912345678',
-    warehouseId: 'wh-1',
-    warehouseName: 'Kho Tổng HCM',
-    warehouseCode: 'HCM-01',
-    orderDate: '2024-12-22T09:00:00',
-    expectedDeliveryDate: '2024-12-30',
-    status: 'PARTIAL',
-    items: [
-      { itemId: 'item-3', componentId: '3', sku: 'ZEBRA-TC21', componentName: 'Zebra TC21 Android Mobile Computer', brand: 'Zebra', quantity: 20, receivedQuantity: 12, unitPrice: 12000000, totalPrice: 240000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=zebra1' },
-      { itemId: 'item-4', componentId: '4', sku: 'ZEB-ZD421-DT', componentName: 'Zebra ZD421 Direct Thermal Printer', brand: 'Zebra', quantity: 5, receivedQuantity: 5, unitPrice: 8500000, totalPrice: 42500000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=printer1' },
-    ],
-    totalAmount: 282500000,
-    discountAmount: 0,
-    finalAmount: 282500000,
-    receivedAmount: 186500000,
-    createdByUserId: 'user-2',
-    createdByName: 'Trần Thị B',
-    createdAt: '2024-12-22T09:00:00',
-    updatedAt: '2024-12-28T16:00:00',
-  },
-  {
-    purchaseOrderId: 'po-003',
-    orderCode: 'PO-2024-003',
-    supplierId: 'sup-3',
-    supplierCode: 'NCC-HONEY',
-    supplierName: 'Honeywell Asia Pacific',
-    supplierContact: 'Lê Văn C',
-    warehouseId: 'wh-2',
-    warehouseName: 'Kho Hà Nội',
-    warehouseCode: 'HN-01',
-    orderDate: '2024-12-25T08:00:00',
-    expectedDeliveryDate: '2025-01-05',
-    status: 'CONFIRMED',
-    items: [
-      { itemId: 'item-5', componentId: '5', sku: 'HON-1400G', componentName: 'Máy quét mã vạch Honeywell Voyager 1400g', brand: 'Honeywell', quantity: 100, receivedQuantity: 0, unitPrice: 2800000, totalPrice: 280000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=scanner1' },
-      { itemId: 'item-6', componentId: '6', sku: 'HON-CBL-USB', componentName: 'Cáp USB Honeywell', brand: 'Honeywell', quantity: 100, receivedQuantity: 0, unitPrice: 150000, totalPrice: 15000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=cable1' },
-    ],
-    totalAmount: 295000000,
-    discountAmount: 10000000,
-    finalAmount: 285000000,
-    receivedAmount: 0,
-    createdByUserId: 'user-1',
-    createdByName: 'Nguyễn Văn A',
-    notes: 'Đơn hàng cho dự án BigMart - 100 cửa hàng',
-    createdAt: '2024-12-25T08:00:00',
-    updatedAt: '2024-12-25T08:00:00',
-  },
-  {
-    purchaseOrderId: 'po-004',
-    orderCode: 'PO-2024-004',
-    supplierId: 'sup-4',
-    supplierCode: 'NCC-BASEUS',
-    supplierName: 'Công ty Phụ kiện Baseus',
-    warehouseId: 'wh-1',
-    warehouseName: 'Kho Tổng HCM',
-    warehouseCode: 'HCM-01',
-    orderDate: '2024-12-26T14:00:00',
-    expectedDeliveryDate: '2024-12-30',
-    status: 'PENDING',
-    items: [
-      { itemId: 'item-7', componentId: '7', sku: 'BAS-PWB-10K', componentName: 'Pin dự phòng Baseus 10000mAh', brand: 'Baseus', quantity: 200, receivedQuantity: 0, unitPrice: 350000, totalPrice: 70000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=power1' },
-    ],
-    totalAmount: 70000000,
-    discountAmount: 5000000,
-    finalAmount: 65000000,
-    receivedAmount: 0,
-    createdByUserId: 'user-3',
-    createdByName: 'Lê Văn C',
-    createdAt: '2024-12-26T14:00:00',
-    updatedAt: '2024-12-26T14:00:00',
-  },
-  {
-    purchaseOrderId: 'po-005',
-    orderCode: 'PO-2024-005',
-    supplierId: 'sup-5',
-    supplierCode: 'NCC-CHOLON',
-    supplierName: 'Linh kiện Chợ Lớn',
-    warehouseId: 'wh-1',
-    warehouseName: 'Kho Tổng HCM',
-    warehouseCode: 'HCM-01',
-    orderDate: '2024-12-10T10:00:00',
-    expectedDeliveryDate: '2024-12-12',
-    status: 'CANCELLED',
-    items: [
-      { itemId: 'item-8', componentId: '8', sku: 'SCREEN-TC21', componentName: 'Màn hình thay thế Zebra TC21', brand: 'Zebra', quantity: 10, receivedQuantity: 0, unitPrice: 1500000, totalPrice: 15000000, imageUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=screen1' },
-    ],
-    totalAmount: 15000000,
-    discountAmount: 0,
-    finalAmount: 15000000,
-    receivedAmount: 0,
-    createdByUserId: 'user-2',
-    createdByName: 'Trần Thị B',
-    notes: 'Đã hủy do NCC không có hàng',
-    createdAt: '2024-12-10T10:00:00',
-    updatedAt: '2024-12-11T09:00:00',
-  },
-];
-
-const mockSuppliers = [
-  { value: 'sup-1', label: 'Samsung Vina Electronics' },
-  { value: 'sup-2', label: 'Zebra Corporation Vietnam' },
-  { value: 'sup-3', label: 'Honeywell Asia Pacific' },
-  { value: 'sup-4', label: 'Công ty Phụ kiện Baseus' },
-  { value: 'sup-5', label: 'Linh kiện Chợ Lớn' },
-];
-
-const mockWarehouses = [
-  { value: 'wh-1', label: 'Kho Tổng HCM' },
-  { value: 'wh-2', label: 'Kho Hà Nội' },
-  { value: 'wh-3', label: 'Kho Đà Nẵng' },
-];
-
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -293,64 +128,187 @@ const PurchaseOrderList: React.FC = () => {
 
   // States
   const [loading, setLoading] = useState(false);
-  const [data] = useState<PurchaseOrder[]>(mockPurchaseOrders);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [data, setData] = useState<PurchaseOrderListDto[]>([]);
+  const [statistics, setStatistics] = useState<PurchaseOrderStatisticsDto | null>(null);
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+
+  // Filters
   const [searchText, setSearchText] = useState('');
-  const [statusFilter, setStatusFilter] = useState<POStatus | undefined>();
+  const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | undefined>();
   const [supplierFilter, setSupplierFilter] = useState<string | undefined>();
   const [warehouseFilter, setWarehouseFilter] = useState<string | undefined>();
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
 
+  //Pagination
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  });
+
   // Drawer/Modal states
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
-  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrderDetailDto | null>(null);
   const [activeTab, setActiveTab] = useState('detail');
+  const [receivedItemsData, setReceivedItemsData] = useState<ReceivedItemsResponseDto | null>(null);
+  const [receivedItemsLoading, setReceivedItemsLoading] = useState(false);
 
-  // Computed: Statistics
-  const stats = useMemo(() => {
-    const pending = data.filter(d => d.status === 'PENDING').length;
-    const confirmed = data.filter(d => d.status === 'CONFIRMED').length;
-    const partial = data.filter(d => d.status === 'PARTIAL').length;
-    const delivered = data.filter(d => d.status === 'DELIVERED').length;
-    const thisMonth = data.filter(d => dayjs(d.orderDate).isSame(dayjs(), 'month'));
-    const totalThisMonth = thisMonth.reduce((sum, d) => sum + d.finalAmount, 0);
-    const totalPending = data.filter(d => d.status !== 'CANCELLED' && d.status !== 'DELIVERED')
-      .reduce((sum, d) => sum + (d.finalAmount - d.receivedAmount), 0);
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
 
-    return {
-      pending,
-      confirmed,
-      partial,
-      delivered,
-      total: data.length,
-      totalThisMonth,
-      totalPending,
-      needReceive: confirmed + partial,
-    };
-  }, [data]);
+  // Fetch purchase orders
+  const fetchPurchaseOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await purchaseOrdersService.getPurchaseOrders({
+        page: pagination.current,
+        pageSize: pagination.pageSize,
+        search: searchText || undefined,
+        supplierId: supplierFilter,
+        warehouseId: warehouseFilter,
+        status: statusFilter,
+        fromDate: dateRange?.[0]?.format('YYYY-MM-DD'),
+        toDate: dateRange?.[1]?.format('YYYY-MM-DD'),
+      });
 
-  // Computed: Filtered data
-  const filteredData = useMemo(() => {
-    return data.filter(item => {
-      const matchSearch = !searchText ||
-        item.orderCode.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.supplierName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.createdByName.toLowerCase().includes(searchText.toLowerCase());
+      if (response.success) {
+        setData(response.data || []);
+        setPagination(prev => ({
+          ...prev,
+          total: response.totalItems || 0,
+        }));
+      } else {
+        message.error(response.message || 'Lỗi khi tải danh sách đơn hàng');
+      }
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+      message.error('Không thể tải danh sách đơn hàng');
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.current, pagination.pageSize, searchText, supplierFilter, warehouseFilter, statusFilter, dateRange]);
 
-      const matchStatus = !statusFilter || item.status === statusFilter;
-      const matchSupplier = !supplierFilter || item.supplierId === supplierFilter;
-      const matchWarehouse = !warehouseFilter || item.warehouseId === warehouseFilter;
+  // Fetch statistics
+  const fetchStatistics = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const response = await purchaseOrdersService.getPurchaseOrderStatistics();
+      if (response.success && response.data) {
+        setStatistics(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
 
-      let matchDate = true;
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        const orderDate = dayjs(item.orderDate);
-        matchDate = orderDate.isAfter(dateRange[0].startOf('day')) && orderDate.isBefore(dateRange[1].endOf('day'));
+  // Load data on mount and when filters change
+  useEffect(() => {
+    fetchPurchaseOrders();
+  }, [fetchPurchaseOrders]);
+
+  // Load statistics on mount
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
+
+  // Fetch received items when tab changes to 'received'
+  const fetchReceivedItems = useCallback(async (poId: string) => {
+    setReceivedItemsLoading(true);
+    try {
+      const response = await purchaseOrdersService.getReceivedItems(poId);
+      if (response.success && response.data) {
+        setReceivedItemsData(response.data);
+      } else {
+        message.error(response.message || 'Không thể tải danh sách hàng đã nhận');
+      }
+    } catch (error) {
+      console.error('Error fetching received items:', error);
+      message.error('Lỗi khi tải danh sách hàng đã nhận');
+    } finally {
+      setReceivedItemsLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch received items when switching to 'received' tab
+  useEffect(() => {
+    if (activeTab === 'received' && selectedPO && !receivedItemsData) {
+      fetchReceivedItems(selectedPO.purchaseOrderID);
+    }
+  }, [activeTab, selectedPO, receivedItemsData, fetchReceivedItems]);
+
+  // Load suppliers and warehouses for dropdown filters  
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        // Fetch suppliers for dropdown
+        const suppliersResp = await suppliersService.getSuppliersForSelect();
+        if (suppliersResp.success && suppliersResp.data) {
+          setSuppliers(suppliersResp.data.map(s => ({
+            value: s.supplierID,
+            label: s.supplierName,
+            code: s.supplierCode,
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading suppliers:', error);
       }
 
-      return matchSearch && matchStatus && matchSupplier && matchWarehouse && matchDate;
-    });
-  }, [data, searchText, statusFilter, supplierFilter, warehouseFilter, dateRange]);
+      try {
+        // Fetch warehouses for dropdown
+        const warehousesResp = await warehousesService.getAllWarehouses(false); // only active
+        if (warehousesResp.success && warehousesResp.data) {
+          setWarehouses(warehousesResp.data.map(w => ({
+            value: w.warehouseID,
+            label: w.warehouseName,
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading warehouses:', error);
+      }
+    };
 
-  // Helpers
+    fetchDropdownData();
+  }, []);
+
+  // Computed: Statistics from API
+  const stats = useMemo(() => {
+    if (statistics) {
+      return {
+        pending: statistics.pendingOrders,
+        confirmed: statistics.confirmedOrders,
+        delivered: statistics.deliveredOrders,
+        cancelled: statistics.cancelledOrders,
+        total: statistics.totalOrders,
+        totalThisMonth: statistics.totalAmountThisMonth,
+        totalThisYear: statistics.totalAmountThisYear,
+        ordersThisMonth: statistics.ordersThisMonth,
+        needReceive: statistics.confirmedOrders, // CONFIRMED orders need receiving
+      };
+    }
+
+    // Default values when API not loaded yet
+    return {
+      pending: 0,
+      confirmed: 0,
+      delivered: 0,
+      cancelled: 0,
+      total: 0,
+      totalThisMonth: 0,
+      totalThisYear: 0,
+      ordersThisMonth: 0,
+      needReceive: 0,
+    };
+  }, [statistics]);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
   const formatCurrency = (amount?: number) => {
     if (amount === undefined) return '---';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -361,32 +319,57 @@ const PurchaseOrderList: React.FC = () => {
     message.success('Đã sao chép!');
   };
 
-  // Handlers
-  const handleViewDetail = (record: PurchaseOrder) => {
-    setSelectedPO(record);
-    setActiveTab('detail');
-    setDetailDrawerOpen(true);
+  // View detail - fetch full detail from API
+  const handleViewDetail = async (record: PurchaseOrderListDto) => {
+    try {
+      const response = await purchaseOrdersService.getPurchaseOrderById(record.purchaseOrderID);
+      if (response.success && response.data) {
+        setSelectedPO(response.data);
+        setReceivedItemsData(null); // Reset when opening a new PO
+        setActiveTab('detail');
+        setDetailDrawerOpen(true);
+      } else {
+        message.error('Không thể tải chi tiết đơn hàng');
+      }
+    } catch (error) {
+      console.error('Error fetching PO detail:', error);
+      message.error('Lỗi khi tải chi tiết đơn hàng');
+    }
   };
 
-  const handleApprove = (record: PurchaseOrder) => {
+  // Approve purchase order
+  const handleApprove = async (record: PurchaseOrderListDto | PurchaseOrderDetailDto) => {
     Modal.confirm({
       title: 'Duyệt đơn hàng',
       icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
       content: (
         <div>
-          <p>Bạn có chắc muốn duyệt đơn hàng <strong>{record.orderCode}</strong>?</p>
+          <p>Bạn có chắc muốn duyệt  đơn hàng <strong>{record.orderCode}</strong>?</p>
           <p className="text-gray-500">Sau khi duyệt, đơn hàng sẽ chuyển sang trạng thái "Đã xác nhận" và có thể nhận hàng.</p>
         </div>
       ),
       okText: 'Duyệt đơn',
       cancelText: 'Hủy',
-      onOk: () => {
-        message.success(`Đã duyệt đơn hàng ${record.orderCode}`);
+      onOk: async () => {
+        try {
+          const response = await purchaseOrdersService.confirmPurchaseOrder(record.purchaseOrderID);
+          if (response.success) {
+            message.success(`Đã duyệt đơn hàng ${record.orderCode}`);
+            fetchPurchaseOrders();
+            fetchStatistics();
+          } else {
+            message.error(response.message || 'Không thể duyệt đơn hàng');
+          }
+        } catch (error) {
+          console.error('Error confirming PO:', error);
+          message.error('Lỗi khi duyệt đơn hàng');
+        }
       },
     });
   };
 
-  const handleCancel = (record: PurchaseOrder) => {
+  // Cancel purchase order
+  const handleCancel = async (record: PurchaseOrderListDto | PurchaseOrderDetailDto) => {
     Modal.confirm({
       title: 'Hủy đơn hàng',
       icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
@@ -399,35 +382,75 @@ const PurchaseOrderList: React.FC = () => {
       okText: 'Hủy đơn',
       okButtonProps: { danger: true },
       cancelText: 'Đóng',
-      onOk: () => {
-        message.success(`Đã hủy đơn hàng ${record.orderCode}`);
+      onOk: async () => {
+        try {
+          const response = await purchaseOrdersService.cancelPurchaseOrder(record.purchaseOrderID, 'Hủy đơn bởi người dùng');
+          if (response.success) {
+            message.success(`Đã hủy đơn hàng ${record.orderCode}`);
+            fetchPurchaseOrders();
+            fetchStatistics();
+          } else {
+            message.error(response.message || 'Không thể hủy đơn hàng');
+          }
+        } catch (error) {
+          console.error('Error cancelling PO:', error);
+          message.error('Lỗi khi hủy đơn hàng');
+        }
       },
     });
   };
 
-  const handleReceiving = (record: PurchaseOrder) => {
-    navigate('/admin/purchasing/receiving');
+  // Navigate to receiving page
+  const handleReceiving = (record: PurchaseOrderListDto | PurchaseOrderDetailDto) => {
+    navigate(`/admin/purchasing/receiving?po=${record.purchaseOrderID}`);
   };
 
+  // Delete purchase order
+  const handleDelete = async (id: string, orderCode: string) => {
+    try {
+      const response = await purchaseOrdersService.deletePurchaseOrder(id);
+      if (response.success) {
+        message.success(`Đã xóa đơn hàng ${orderCode}`);
+        fetchPurchaseOrders();
+        fetchStatistics();
+      } else {
+        message.error(response.message || 'Không thể xóa đơn hàng');
+      }
+    } catch (error) {
+      console.error('Error deleting PO:', error);
+      message.error('Lỗi khi xóa đơn hàng');
+    }
+  };
+
+  // Refresh data
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      message.success('Đã làm mới dữ liệu');
-    }, 800);
+    fetchPurchaseOrders();
+    fetchStatistics();
+    message.success('Đã làm mới dữ liệu');
   };
 
+  // Clear all filters
   const handleClearFilters = () => {
     setSearchText('');
     setStatusFilter(undefined);
     setSupplierFilter(undefined);
     setWarehouseFilter(undefined);
     setDateRange(null);
+    setPagination(prev => ({ ...prev, current: 1 }));
     message.info('Đã xóa bộ lọc');
   };
 
+  // Handle pagination change
+  const handleTableChange = (paginationConfig: any) => {
+    setPagination(prev => ({
+      ...prev,
+      current: paginationConfig.current,
+      pageSize: paginationConfig.pageSize,
+    }));
+  };
+
   // Action Menu
-  const getActionMenuItems = (record: PurchaseOrder): MenuProps['items'] => {
+  const getActionMenuItems = (record: PurchaseOrderListDto): MenuProps['items'] => {
     const items: MenuProps['items'] = [
       {
         key: 'view',
@@ -449,6 +472,24 @@ const PurchaseOrderList: React.FC = () => {
           key: 'edit',
           icon: <EditOutlined />,
           label: 'Chỉnh sửa',
+          onClick: () => navigate(`/admin/purchasing/edit/${record.purchaseOrderID}`),
+        },
+        { type: 'divider' },
+        {
+          key: 'delete',
+          icon: <DeleteOutlined />,
+          label: 'Xóa đơn',
+          danger: true,
+          onClick: () => {
+            Modal.confirm({
+              title: 'Xóa đơn hàng',
+              content: `Bạn có chắc muốn xóa đơn hàng ${record.orderCode}?`,
+              okText: 'Xóa',
+              okButtonProps: { danger: true },
+              cancelText: 'Hủy',
+              onOk: () => handleDelete(record.purchaseOrderID, record.orderCode),
+            });
+          },
         }
       );
     }
@@ -493,8 +534,11 @@ const PurchaseOrderList: React.FC = () => {
     return items;
   };
 
-  // Table Columns
-  const columns: ColumnsType<PurchaseOrder> = [
+  // ============================================================================
+  // TABLE COLUMNS
+  // ============================================================================
+
+  const columns: ColumnsType<PurchaseOrderListDto> = [
     {
       title: 'Mã đơn (PO)',
       key: 'code',
@@ -520,15 +564,7 @@ const PurchaseOrderList: React.FC = () => {
       width: 220,
       render: (_, record) => (
         <div className="flex items-center gap-3">
-          <Avatar
-            size={40}
-            icon={<FaUserTie />}
-            className="bg-blue-100 text-blue-600"
-          />
-          <div>
-            <div className="font-medium text-gray-700">{record.supplierName}</div>
-            <Tag className="mt-1">{record.supplierCode}</Tag>
-          </div>
+          <div className="font-medium text-gray-700">{record.supplierName}</div>
         </div>
       ),
     },
@@ -539,10 +575,7 @@ const PurchaseOrderList: React.FC = () => {
       render: (_, record) => (
         <div className="flex items-center gap-2">
           <EnvironmentOutlined className="text-green-500" />
-          <div>
-            <div>{record.warehouseName}</div>
-            <div className="text-xs text-gray-400">{record.warehouseCode}</div>
-          </div>
+          <div className="font-medium">{record.warehouseName}</div>
         </div>
       ),
     },
@@ -573,19 +606,23 @@ const PurchaseOrderList: React.FC = () => {
       width: 120,
       align: 'center',
       render: (_, record) => {
-        const totalOrdered = record.items.reduce((sum, i) => sum + i.quantity, 0);
-        const totalReceived = record.items.reduce((sum, i) => sum + i.receivedQuantity, 0);
-        const percent = Math.round((totalReceived / totalOrdered) * 100);
+        const percent = record.totalQuantity > 0
+          ? Math.round((record.receivedQuantity / record.totalQuantity) * 100)
+          : 0;
+
         return (
-          <Tooltip title={`${totalReceived}/${totalOrdered} sản phẩm đã nhận`}>
-            <div className="text-center">
-              <Badge count={record.items.length} className="mb-1" style={{ backgroundColor: '#1890ff' }} />
-              <Progress
-                percent={percent}
-                size="small"
-                showInfo={false}
-                strokeColor={percent === 100 ? '#52c41a' : '#1890ff'}
-              />
+          <Tooltip title={`${record.receivedQuantity}/${record.totalQuantity} sản phẩm đã nhận`}>
+            <Progress
+              percent={percent}
+              size="small"
+              status={percent === 100 ? 'success' : 'active'}
+              strokeColor={{
+                '0%': '#1890ff',
+                '100%': '#52c41a',
+              }}
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              {record.receivedQuantity}/{record.totalQuantity} sản phẩm
             </div>
           </Tooltip>
         );
@@ -600,9 +637,6 @@ const PurchaseOrderList: React.FC = () => {
       render: (_, record) => (
         <div>
           <div className="font-bold text-gray-800">{formatCurrency(record.finalAmount)}</div>
-          {record.discountAmount > 0 && (
-            <div className="text-xs text-gray-400 line-through">{formatCurrency(record.totalAmount)}</div>
-          )}
         </div>
       ),
     },
@@ -614,7 +648,7 @@ const PurchaseOrderList: React.FC = () => {
       align: 'center',
       filters: Object.entries(PO_STATUS_CONFIG).map(([key, config]) => ({ text: config.label, value: key })),
       onFilter: (value, record) => record.status === value,
-      render: (status: POStatus) => {
+      render: (status: PurchaseOrderStatus) => {
         const config = PO_STATUS_CONFIG[status];
         return (
           <Tag color={config.color} icon={config.icon}>
@@ -631,7 +665,6 @@ const PurchaseOrderList: React.FC = () => {
       responsive: ['xl'],
       render: (name) => (
         <div className="flex items-center gap-1 text-sm">
-          <UserOutlined className="text-gray-400" />
           {name}
         </div>
       ),
@@ -650,8 +683,17 @@ const PurchaseOrderList: React.FC = () => {
     },
   ];
 
-  // Mock history
-  const getHistory = (po: PurchaseOrder): POHistory[] => {
+  // History interface for timeline
+  interface POHistory {
+    id: string;
+    action: string;
+    date: string;
+    user?: string;
+    description: string;
+  }
+
+  // Mock history - generate from PO detail
+  const getHistory = (po: PurchaseOrderDetailDto): POHistory[] => {
     const history: POHistory[] = [
       { id: '1', action: 'Tạo đơn', date: po.createdAt, user: po.createdByName, description: 'Tạo đơn đặt hàng mới' },
     ];
@@ -709,7 +751,7 @@ const PurchaseOrderList: React.FC = () => {
             <Statistic
               title={<span className="text-yellow-700">Chờ duyệt</span>}
               value={stats.pending}
-              valueStyle={{ color: '#faad14', fontWeight: 'bold', fontSize: '28px' }}
+              valueStyle={{ color: '#faad14', fontWeight: 'bold', fontSize: '20px' }}
               prefix={<ClockCircleOutlined />}
               suffix="đơn"
             />
@@ -720,7 +762,7 @@ const PurchaseOrderList: React.FC = () => {
             <Statistic
               title={<span className="text-blue-700">Chờ nhận hàng</span>}
               value={stats.needReceive}
-              valueStyle={{ color: '#1890ff', fontWeight: 'bold', fontSize: '28px' }}
+              valueStyle={{ color: '#1890ff', fontWeight: 'bold', fontSize: '20px' }}
               prefix={<TruckOutlined />}
               suffix="đơn"
             />
@@ -731,7 +773,7 @@ const PurchaseOrderList: React.FC = () => {
             <Statistic
               title={<span className="text-green-700">Đã hoàn thành</span>}
               value={stats.delivered}
-              valueStyle={{ color: '#52c41a', fontWeight: 'bold', fontSize: '28px' }}
+              valueStyle={{ color: '#52c41a', fontWeight: 'bold', fontSize: '20px' }}
               prefix={<CheckCircleOutlined />}
               suffix="đơn"
             />
@@ -786,7 +828,7 @@ const PurchaseOrderList: React.FC = () => {
               className="w-full"
               value={supplierFilter}
               onChange={setSupplierFilter}
-              options={mockSuppliers}
+              options={suppliers}
               optionFilterProp="label"
             />
           </Col>
@@ -797,7 +839,7 @@ const PurchaseOrderList: React.FC = () => {
               className="w-full"
               value={warehouseFilter}
               onChange={setWarehouseFilter}
-              options={mockWarehouses}
+              options={warehouses}
             />
           </Col>
           <Col xs={12} lg={5}>
@@ -813,7 +855,7 @@ const PurchaseOrderList: React.FC = () => {
         {(searchText || statusFilter || supplierFilter || warehouseFilter || dateRange) && (
           <div className="mt-3 flex items-center gap-2">
             <Text type="secondary" className="text-sm">
-              Đang lọc {filteredData.length}/{data.length} đơn hàng
+              Bộ lọc đang áp dụng
             </Text>
             <Button type="link" size="small" onClick={handleClearFilters}>
               Xóa bộ lọc
@@ -826,18 +868,22 @@ const PurchaseOrderList: React.FC = () => {
       <Card className="shadow-sm" bodyStyle={{ padding: 0 }}>
         <Table
           columns={columns}
-          dataSource={filteredData}
-          rowKey="purchaseOrderId"
+          dataSource={data}
+          rowKey="purchaseOrderID"
           loading={loading}
           pagination={{
-            pageSize: 10,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
             showSizeChanger: true,
             showTotal: (total) => `Tổng ${total} đơn hàng`,
+            pageSizeOptions: ['10', '20', '50'],
           }}
+          onChange={handleTableChange}
           scroll={{ x: 1400 }}
           rowClassName={(record) => {
             const isOverdue = record.status !== 'DELIVERED' && record.status !== 'CANCELLED' &&
-              dayjs(record.expectedDeliveryDate).isBefore(dayjs(), 'day');
+              record.expectedDeliveryDate && dayjs(record.expectedDeliveryDate).isBefore(dayjs(), 'day');
             return isOverdue ? 'bg-red-50' : '';
           }}
         />
@@ -862,13 +908,36 @@ const PurchaseOrderList: React.FC = () => {
           selectedPO && (
             <Space>
               <Button icon={<PrinterOutlined />}>In đơn</Button>
+
+              {/* PENDING: Hiển thị Duyệt và Hủy */}
               {selectedPO.status === 'PENDING' && (
-                <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => handleApprove(selectedPO)} className="bg-green-600">
-                  Duyệt đơn
-                </Button>
+                <>
+                  <Button
+                    danger
+                    icon={<CloseCircleOutlined />}
+                    onClick={() => handleCancel(selectedPO)}
+                  >
+                    Hủy đơn
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => handleApprove(selectedPO)}
+                    className="bg-green-600"
+                  >
+                    Duyệt đơn
+                  </Button>
+                </>
               )}
+
+              {/* CONFIRMED hoặc PARTIAL: Hiển thị Nhận hàng */}
               {(selectedPO.status === 'CONFIRMED' || selectedPO.status === 'PARTIAL') && (
-                <Button type="primary" icon={<InboxOutlined />} onClick={() => handleReceiving(selectedPO)} className="bg-blue-600">
+                <Button
+                  type="primary"
+                  icon={<InboxOutlined />}
+                  onClick={() => handleReceiving(selectedPO)}
+                  className="bg-blue-600"
+                >
                   Nhận hàng
                 </Button>
               )}
@@ -887,13 +956,47 @@ const PurchaseOrderList: React.FC = () => {
                 children: (
                   <div className="space-y-6">
                     {/* Status Banner */}
-                    <div className={`p-4 rounded-lg border ${PO_STATUS_CONFIG[selectedPO.status].bgColor} border-gray-200`}>
-                      <div className="flex items-center justify-between">
-                        <Tag color={PO_STATUS_CONFIG[selectedPO.status].color} icon={PO_STATUS_CONFIG[selectedPO.status].icon} className="text-base px-3 py-1">
-                          {PO_STATUS_CONFIG[selectedPO.status].label}
-                        </Tag>
-                        {selectedPO.notes && (
-                          <Text type="secondary" className="text-sm">{selectedPO.notes}</Text>
+                    <div className={`p-5 rounded-xl border ${PO_STATUS_CONFIG[selectedPO.status].bgColor} border-gray-200 transition-all`}>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+
+                        {/* Phần thông tin bên trái */}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-500 font-medium text-sm uppercase tracking-wider">Trạng thái:</span>
+                            <Tag
+                              color={PO_STATUS_CONFIG[selectedPO.status].color}
+                              icon={PO_STATUS_CONFIG[selectedPO.status].icon}
+                              className="text-base px-3 py-1 m-0 rounded-md font-semibold border-0"
+                            >
+                              {PO_STATUS_CONFIG[selectedPO.status].label}
+                            </Tag>
+                          </div>
+
+                          {/* Hiển thị notes nếu có */}
+                          {selectedPO.notes ? (
+                            <div className="flex items-start gap-2 text-gray-600 bg-white/60 p-2 rounded-lg mt-1">
+                              <InfoCircleOutlined className="mt-1 text-blue-400" />
+                              <Text className="text-sm italic">{selectedPO.notes}</Text>
+                            </div>
+                          ) : (
+                            <Text type="secondary" className="text-xs text-gray-400 pl-1">Không có ghi chú bổ sung</Text>
+                          )}
+                        </div>
+
+                        {/* Phần Barcode bên phải */}
+                        {selectedPO.orderCode && (
+                          <div className="flex flex-col items-center gap-1 bg-white p-3 rounded-lg shadow-sm border border-gray-100 min-w-[180px]">
+                            <Barcode
+                              value={selectedPO.orderCode}
+                              format="CODE128"
+                              height={35}
+                              width={1.2} // Giảm width để barcode gọn hơn
+                              fontSize={11}
+                              margin={0}
+                              displayValue={true} // Hiển thị mã số dưới vạch
+                              background="transparent"
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -904,21 +1007,22 @@ const PurchaseOrderList: React.FC = () => {
                       <Descriptions.Item label="Ngày tạo">{dayjs(selectedPO.createdAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
                       <Descriptions.Item label="Nhà cung cấp">
                         <div>
-                          <div className="font-medium">{selectedPO.supplierName}</div>
+                          <div className="font-medium text-blue-600">{selectedPO.supplierName}</div>
                           <Tag className="mt-1">{selectedPO.supplierCode}</Tag>
                         </div>
                       </Descriptions.Item>
                       <Descriptions.Item label="Liên hệ">
                         <div>
-                          <div><UserOutlined className="mr-1" />{selectedPO.supplierContact || '---'}</div>
-                          {selectedPO.supplierPhone && <div className="text-sm text-gray-500 mt-1">📞 {selectedPO.supplierPhone}</div>}
+                          {selectedPO.supplierPhone && <div className="text-sm">{selectedPO.supplierPhone}</div>}
+                          {selectedPO.supplierEmail && <div className="text-sm mt-1">{selectedPO.supplierEmail}</div>}
+                          {!selectedPO.supplierPhone && !selectedPO.supplierEmail && <span>---</span>}
                         </div>
                       </Descriptions.Item>
                       <Descriptions.Item label="Kho nhập">
                         <span><EnvironmentOutlined className="mr-1 text-green-500" />{selectedPO.warehouseName}</span>
                       </Descriptions.Item>
                       <Descriptions.Item label="Ngày giao dự kiến">
-                        <span><CalendarOutlined className="mr-1" />{dayjs(selectedPO.expectedDeliveryDate).format('DD/MM/YYYY')}</span>
+                        <span>{dayjs(selectedPO.expectedDeliveryDate).format('DD/MM/YYYY')}</span>
                       </Descriptions.Item>
                       <Descriptions.Item label="Người tạo"><UserOutlined className="mr-1" />{selectedPO.createdByName}</Descriptions.Item>
                       <Descriptions.Item label="Cập nhật lúc">{dayjs(selectedPO.updatedAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
@@ -929,11 +1033,11 @@ const PurchaseOrderList: React.FC = () => {
                     <List
                       dataSource={selectedPO.items}
                       renderItem={(item) => {
-                        const percent = Math.round((item.receivedQuantity / item.quantity) * 100);
+                        const percent = item.quantity > 0 ? Math.round((item.receivedQuantity / item.quantity) * 100) : 0;
                         return (
                           <List.Item>
                             <List.Item.Meta
-                              avatar={<Avatar shape="square" size={56} src={item.imageUrl} icon={<InboxOutlined />} className="bg-gray-100" />}
+                              avatar={<Avatar shape="square" size={56} src={item.imageURL} icon={<InboxOutlined />} className="bg-gray-100" />}
                               title={
                                 <div className="flex items-center justify-between">
                                   <span>{item.componentName}</span>
@@ -943,8 +1047,7 @@ const PurchaseOrderList: React.FC = () => {
                               description={
                                 <div>
                                   <div className="flex items-center gap-2 mb-2">
-                                    <Tag>{item.sku}</Tag>
-                                    {item.brand && <span className="text-gray-500">{item.brand}</span>}
+                                    <Tag>{item.componentSKU}</Tag>
                                   </div>
                                   <div className="flex items-center gap-4">
                                     <span className="text-sm">SL: <strong>{item.quantity}</strong></span>
@@ -978,16 +1081,286 @@ const PurchaseOrderList: React.FC = () => {
                           <Text strong className="text-lg">Thành tiền:</Text>
                           <Text strong className="text-lg text-blue-600">{formatCurrency(selectedPO.finalAmount)}</Text>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <Text type="secondary">Đã nhận:</Text>
-                          <Text className="text-green-600">{formatCurrency(selectedPO.receivedAmount)}</Text>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <Text type="secondary">Còn lại:</Text>
-                          <Text className="text-orange-500">{formatCurrency(selectedPO.finalAmount - selectedPO.receivedAmount)}</Text>
-                        </div>
+                        {(() => {
+                          // Calculate received amount from items
+                          const receivedAmount = selectedPO.items?.reduce((sum, item) => {
+                            const receivedValue = (item.receivedQuantity || 0) * (item.unitPrice || 0);
+                            return sum + receivedValue;
+                          }, 0) || 0;
+                          const remaining = selectedPO.finalAmount - receivedAmount;
+
+                          return (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <Text type="secondary">Đã nhận:</Text>
+                                <Text className="text-green-600">{formatCurrency(receivedAmount)}</Text>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <Text type="secondary">Còn lại:</Text>
+                                <Text className="text-orange-500">{formatCurrency(remaining)}</Text>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </Card>
+                  </div>
+                ),
+              },
+              {
+                key: 'received',
+                label: (
+                  <span>
+                    <CheckCircleOutlined className="mr-1" />
+                    Hàng đã nhập
+                    <Badge
+                      count={selectedPO.items?.reduce((sum, item) => sum + (item.receivedQuantity || 0), 0) || 0}
+                      className="ml-2"
+                      showZero={false}
+                      style={{ backgroundColor: '#52c41a' }}
+                    />
+                  </span>
+                ),
+                children: (
+                  <div className="space-y-4">
+                    {/* Loading state */}
+                    {receivedItemsLoading && (
+                      <div className="flex justify-center py-8">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                          <Text type="secondary">Đang tải dữ liệu...</Text>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Content when loaded */}
+                    {!receivedItemsLoading && receivedItemsData && (
+                      <>
+                        {/* Header thống kê */}
+                        <div className="grid grid-cols-3 gap-4">
+                          <Card size="small" className="text-center">
+                            <Statistic
+                              title="Tổng sản phẩm đã nhập"
+                              value={receivedItemsData.totalReceivedQuantity}
+                              prefix={<InboxOutlined />}
+                              valueStyle={{ color: '#3f8600', fontSize: '20px' }}
+                            />
+                          </Card>
+                          <Card size="small" className="text-center">
+                            <Statistic
+                              title="Serial đã nhập"
+                              value={receivedItemsData.totalSerializedItems}
+                              prefix={<BarcodeOutlined />}
+                              valueStyle={{ color: '#1890ff', fontSize: '20px' }}
+                            />
+                          </Card>
+                          <Card size="small" className="text-center">
+                            <Statistic
+                              title="Số lượng (không serial)"
+                              value={receivedItemsData.totalNonSerializedItems}
+                              prefix={<AppstoreOutlined />}
+                              valueStyle={{ color: '#722ed1', fontSize: '20px' }}
+                            />
+                          </Card>
+                        </div>
+
+                        {/* Danh sách sản phẩm đã nhập */}
+                        {(() => {
+                          const serializedItems = receivedItemsData.items.filter(item => item.isSerialized);
+                          const nonSerializedItems = receivedItemsData.items.filter(item => !item.isSerialized);
+
+                          return (
+                            <>
+                              {/* Sản phẩm quản lý theo Serial */}
+                              {serializedItems.length > 0 && (
+                                <div className="mb-4">
+                                  <Divider className="!my-2">
+                                    <span className="flex items-center gap-2 text-sm text-blue-600">
+                                      <BarcodeOutlined />
+                                      Sản phẩm quản lý theo Serial ({serializedItems.length})
+                                    </span>
+                                  </Divider>
+                                  <Collapse
+                                    accordion
+                                    items={serializedItems.map(item => ({
+                                      key: item.purchaseOrderDetailID,
+                                      label: (
+                                        <div className="flex items-center justify-between w-full pr-4">
+                                          <div className="flex items-center gap-3">
+                                            <Avatar
+                                              shape="square"
+                                              size={40}
+                                              src={item.imageURL}
+                                              icon={<InboxOutlined />}
+                                              className="bg-gray-100"
+                                            />
+                                            <div>
+                                              <div className="font-medium">{item.componentName}</div>
+                                              <div className="text-xs text-gray-500">
+                                                <Tag color="blue">{item.componentSKU}</Tag>
+                                                <Tag color="purple" className="ml-1">Serial</Tag>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                              <div className="text-sm text-gray-500">Đã nhập</div>
+                                              <div className="font-bold text-green-600">{item.instances.length} serial</div>
+                                            </div>
+                                            <div className="text-right">
+                                              <div className="text-sm text-gray-500">Giá trị</div>
+                                              <div className="font-bold text-blue-600">
+                                                {formatCurrency(item.instances.length * item.unitPrice)}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ),
+                                      children: (
+                                        <div className="pl-4">
+                                          <Alert
+                                            message="Danh sách Serial đã nhập kho"
+                                            description={
+                                              <div className="mt-3">
+                                                <Text type="secondary" className="text-sm mb-2 block">
+                                                  Các serial number/IMEI đã được nhập vào kho cho sản phẩm này
+                                                </Text>
+                                                <List
+                                                  size="small"
+                                                  bordered
+                                                  dataSource={item.instances}
+                                                  renderItem={(instance, idx) => (
+                                                    <List.Item className="hover:bg-blue-50 transition-colors">
+                                                      <div className="flex items-center justify-between w-full">
+                                                        <div className="flex items-center gap-3">
+                                                          <Avatar size="small" className="bg-blue-500">
+                                                            {idx + 1}
+                                                          </Avatar>
+                                                          <div>
+                                                            <div className="flex items-center gap-2">
+                                                              <BarcodeOutlined className="text-blue-500" />
+                                                              <Text strong className="font-mono">
+                                                                {instance.serialNumber}
+                                                              </Text>
+                                                              <Tag color="green">{instance.status}</Tag>
+                                                            </div>
+                                                            {(instance.imei1 || instance.imei2) && (
+                                                              <div className="text-xs text-gray-500 mt-1">
+                                                                {instance.imei1 && <span className="mr-2">IMEI1: <span className="font-mono">{instance.imei1}</span></span>}
+                                                                {instance.imei2 && <span>IMEI2: <span className="font-mono">{instance.imei2}</span></span>}
+                                                              </div>
+                                                            )}
+                                                            {instance.macAddress && (
+                                                              <div className="text-xs text-gray-500">
+                                                                MAC: <span className="font-mono">{instance.macAddress}</span>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                          <div className="text-xs text-gray-500">
+                                                            <EnvironmentOutlined className="mr-1" />
+                                                            {instance.locationCode || receivedItemsData.warehouseName}
+                                                          </div>
+                                                          <div className="text-xs text-gray-400 mt-1">
+                                                            <ClockCircleOutlined className="mr-1" />
+                                                            {dayjs(instance.importDate).format('DD/MM/YYYY HH:mm')}
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    </List.Item>
+                                                  )}
+                                                />
+                                              </div>
+                                            }
+                                            type="info"
+                                            showIcon
+                                            icon={<BarcodeOutlined />}
+                                          />
+                                        </div>
+                                      ),
+                                    }))}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Sản phẩm quản lý theo Số lượng */}
+                              {nonSerializedItems.length > 0 && (
+                                <div className="mb-4">
+                                  <Divider className="!my-2">
+                                    <span className="flex items-center gap-2 text-sm text-green-600">
+                                      <AppstoreOutlined />
+                                      Sản phẩm quản lý theo Số lượng ({nonSerializedItems.length})
+                                    </span>
+                                  </Divider>
+                                  <List
+                                    bordered
+                                    dataSource={nonSerializedItems}
+                                    renderItem={(item) => (
+                                      <List.Item className="hover:bg-green-50 transition-colors">
+                                        <div className="flex items-center justify-between w-full">
+                                          <div className="flex items-center gap-3">
+                                            <Avatar
+                                              shape="square"
+                                              size={48}
+                                              src={item.imageURL}
+                                              icon={<InboxOutlined />}
+                                              className="bg-gray-100"
+                                            />
+                                            <div>
+                                              <div className="font-medium text-gray-800">{item.componentName}</div>
+                                              <div className="text-xs text-gray-500 mt-1">
+                                                <Tag color="green">{item.componentSKU}</Tag>
+                                                <Tag color="orange" className="ml-1">Số lượng</Tag>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-6">
+                                            <div className="text-center">
+                                              <div className="text-xs text-gray-500 mb-1">Đã nhập</div>
+                                              <div className="flex items-center gap-1">
+                                                <span className="text-2xl font-bold text-green-600">{item.receivedQuantity}</span>
+                                                <span className="text-gray-500">/ {item.orderedQuantity}</span>
+                                              </div>
+                                            </div>
+                                            <div className="text-right min-w-[120px]">
+                                              <div className="text-xs text-gray-500 mb-1">Giá trị</div>
+                                              <div className="font-bold text-blue-600 text-lg">
+                                                {formatCurrency(item.receivedQuantity * item.unitPrice)}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </List.Item>
+                                    )}
+                                  />
+                                </div>
+                              )}
+
+                              {receivedItemsData.items.length === 0 && (
+                                <Empty
+                                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                  description="Chưa có sản phẩm nào được nhập vào kho"
+                                />
+                              )}
+                            </>
+                          );
+                        })()}
+                      </>
+                    )}
+
+                    {/* No data yet - prompt to load */}
+                    {!receivedItemsLoading && !receivedItemsData && (
+                      <div className="text-center py-8">
+                        <Button
+                          type="primary"
+                          icon={<ReloadOutlined />}
+                          onClick={() => selectedPO && fetchReceivedItems(selectedPO.purchaseOrderID)}
+                        >
+                          Tải danh sách hàng đã nhận
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ),
               },

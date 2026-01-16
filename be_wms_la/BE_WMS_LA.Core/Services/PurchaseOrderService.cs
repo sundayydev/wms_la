@@ -8,13 +8,20 @@ namespace BE_WMS_LA.Core.Services;
 /// <summary>
 /// Service quản lý đơn mua hàng - xử lý business logic
 /// </summary>
-public class PurchaseOrderService
+public partial class PurchaseOrderService
 {
     private readonly PurchaseOrderRepository _repository;
+    private readonly InventoryRepository _inventoryRepository;
+    private readonly InventoryTransactionRepository _transactionRepository;
 
-    public PurchaseOrderService(PurchaseOrderRepository repository)
+    public PurchaseOrderService(
+        PurchaseOrderRepository repository,
+        InventoryRepository inventoryRepository,
+        InventoryTransactionRepository transactionRepository)
     {
         _repository = repository;
+        _inventoryRepository = inventoryRepository;
+        _transactionRepository = transactionRepository;
     }
 
     #region Purchase Order CRUD
@@ -282,8 +289,8 @@ public class PurchaseOrderService
     public async Task<ApiResponse<PurchaseOrderStatisticsDto>> GetStatisticsAsync()
     {
         var now = DateTime.UtcNow;
-        var startOfMonth = new DateTime(now.Year, now.Month, 1);
-        var startOfYear = new DateTime(now.Year, 1, 1);
+        var startOfMonth = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1), DateTimeKind.Utc);
+        var startOfYear = DateTime.SpecifyKind(new DateTime(now.Year, 1, 1), DateTimeKind.Utc);
 
         var stats = new PurchaseOrderStatisticsDto
         {
@@ -301,6 +308,345 @@ public class PurchaseOrderService
     }
 
     #endregion
+
+    #region Receiving
+
+    /// <summary>
+    /// Nhận hàng từ Purchase Order
+    /// </summary>
+    public async Task<ApiResponse<ReceiveResultDto>> ReceiveItemsAsync(
+        Guid purchaseOrderId,
+        ReceivePurchaseOrderDto dto,
+        Guid? userId = null)
+    {
+        // 1. Get PO with full details
+        var order = await _repository.GetByIdAsync(purchaseOrderId);
+        if (order == null)
+        {
+            return ApiResponse<ReceiveResultDto>.ErrorResponse("Không tìm thấy đơn mua hàng");
+        }
+
+        // 2. Validate status
+        if (order.Status != "CONFIRMED" && order.Status != "PARTIAL")
+        {
+            return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                $"Chỉ có thể nhận hàng cho đơn đã xác nhận. Trạng thái hiện tại: {order.Status}");
+        }
+
+        // 3. Validate items không rỗng
+        if (dto.Items == null || !dto.Items.Any())
+        {
+            return ApiResponse<ReceiveResultDto>.ErrorResponse("Không có sản phẩm để nhận");
+        }
+
+        var receivedDate = dto.ReceivedDate ?? DateTime.UtcNow;
+        var receivedSerials = new List<string>();
+        var productInstances = new List<ProductInstance>();
+        var transactions = new List<InventoryTransaction>();
+
+        // 4. Process each received item
+        foreach (var item in dto.Items)
+        {
+            // Find corresponding PO detail
+            var poDetail = order.Details.FirstOrDefault(d =>
+                d.PurchaseOrderDetailID == item.PurchaseOrderDetailID &&
+                d.DeletedAt == null);
+
+            if (poDetail == null)
+            {
+                return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                    $"Không tìm thấy sản phẩm trong đơn hàng: {item.PurchaseOrderDetailID}");
+            }
+
+            // Validate quantity
+            var remainingQty = poDetail.Quantity - poDetail.ReceivedQuantity;
+            if (item.Quantity > remainingQty)
+            {
+                return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                    $"Số lượng nhận vượt quá số lượng còn lại cho {poDetail.Component.ComponentName}. " +
+                    $"Còn lại: {remainingQty}, yêu cầu: {item.Quantity}");
+            }
+
+            // 4.1 Validate consistency based on Component.IsSerialized
+            var isSerialized = poDetail.Component.IsSerialized;
+            var hasSerial = !string.IsNullOrEmpty(item.SerialNumber);
+
+            if (isSerialized && !hasSerial)
+            {
+                return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                    $"Sản phẩm '{poDetail.Component.ComponentName}' được quản lý theo Serial. " +
+                    $"Vui lòng nhập Serial Number.");
+            }
+
+            if (!isSerialized && hasSerial)
+            {
+                return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                    $"Sản phẩm '{poDetail.Component.ComponentName}' được quản lý theo số lượng, " +
+                    $"không cần nhập Serial Number.");
+            }
+
+            // 4.2 For serialized items: Quantity must be 1
+            if (isSerialized && item.Quantity != 1)
+            {
+                return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                    $"Sản phẩm Serial '{poDetail.Component.ComponentName}' chỉ được nhập từng cái một (Quantity = 1). " +
+                    $"Hiện tại: {item.Quantity}");
+            }
+
+            // For serialized items
+            if (isSerialized)
+            {
+                // Validate serial không trùng (hasSerial is guaranteed true at this point)
+                if (await _inventoryRepository.ExistsBySerialAsync(item.SerialNumber!))
+                {
+                    return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                        $"Serial Number đã tồn tại: {item.SerialNumber}");
+                }
+
+                // Validate IMEI1
+                if (!string.IsNullOrEmpty(item.IMEI1))
+                {
+                    if (await _inventoryRepository.ExistsByImeiAsync(item.IMEI1))
+                    {
+                        return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                            $"IMEI1 đã tồn tại: {item.IMEI1}");
+                    }
+                }
+
+                // Validate IMEI2
+                if (!string.IsNullOrEmpty(item.IMEI2))
+                {
+                    if (await _inventoryRepository.ExistsByImeiAsync(item.IMEI2))
+                    {
+                        return ApiResponse<ReceiveResultDto>.ErrorResponse(
+                            $"IMEI2 đã tồn tại: {item.IMEI2}");
+                    }
+                }
+
+                // Create ProductInstance
+                var instance = new ProductInstance
+                {
+                    InstanceID = Guid.NewGuid(),
+                    ComponentID = poDetail.ComponentID,
+                    VariantID = item.VariantID,
+                    WarehouseID = order.WarehouseID,
+                    SerialNumber = item.SerialNumber!, // Already validated hasSerial is true
+                    ModelNumber = item.ModelNumber,
+                    InboundBoxNumber = item.InboundBoxNumber,
+                    IMEI1 = item.IMEI1?.Trim(),
+                    IMEI2 = item.IMEI2?.Trim(),
+                    MACAddress = item.MACAddress?.Trim(),
+                    Status = "IN_STOCK",
+                    LocationCode = item.LocationCode,
+                    Zone = item.Zone ?? "MAIN",
+                    CurrentOwnerType = "COMPANY",
+                    ActualImportPrice = item.ActualImportPrice ?? poDetail.UnitPrice,
+                    ImportDate = receivedDate,
+                    WarrantyMonths = item.WarrantyMonths ?? 12,
+                    WarrantyStartDate = receivedDate,
+                    WarrantyEndDate = receivedDate.AddMonths(item.WarrantyMonths ?? 12),
+                    Notes = item.Notes,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                productInstances.Add(instance);
+                receivedSerials.Add(item.SerialNumber!); // Already validated hasSerial is true
+
+                // Create transaction for this instance
+                transactions.Add(new InventoryTransaction
+                {
+                    TransactionID = Guid.NewGuid(),
+                    TransactionType = "IMPORT",
+                    ReferenceID = order.PurchaseOrderID,
+                    WarehouseID = order.WarehouseID,
+                    ComponentID = poDetail.ComponentID,
+                    InstanceID = instance.InstanceID,
+                    Quantity = 1,
+                    TransactionDate = receivedDate,
+                    CreatedByUserID = userId,
+                    Notes = $"Nhập từ PO {order.OrderCode} - Serial: {item.SerialNumber}"
+                });
+            }
+            else
+            {
+                // For non-serialized items (consumables, cables, etc.)
+                // 1. Update WarehouseStock
+                await _inventoryRepository.UpsertWarehouseStockAsync(
+                    order.WarehouseID,
+                    poDetail.ComponentID,
+                    item.VariantID,
+                    item.Quantity,
+                    item.LocationCode);
+
+                // 2. Create transaction without instance
+                transactions.Add(new InventoryTransaction
+                {
+                    TransactionID = Guid.NewGuid(),
+                    TransactionType = "IMPORT",
+                    ReferenceID = order.PurchaseOrderID,
+                    WarehouseID = order.WarehouseID,
+                    ComponentID = poDetail.ComponentID,
+                    InstanceID = null,
+                    Quantity = item.Quantity,
+                    TransactionDate = receivedDate,
+                    CreatedByUserID = userId,
+                    Notes = $"Nhập {item.Quantity} từ PO {order.OrderCode}"
+                });
+            }
+
+            // Update received quantity
+            poDetail.ReceivedQuantity += item.Quantity;
+            poDetail.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // 5. Save ProductInstances
+        if (productInstances.Any())
+        {
+            await _inventoryRepository.AddRangeAsync(productInstances);
+        }
+
+        // 6. Save Transactions
+        await _transactionRepository.AddRangeAsync(transactions);
+
+        // 7. Update PO status
+        var allItemsDelivered = order.Details
+            .Where(d => d.DeletedAt == null)
+            .All(d => d.ReceivedQuantity >= d.Quantity);
+
+        order.Status = allItemsDelivered ? "DELIVERED" : "PARTIAL";
+
+        if (allItemsDelivered)
+        {
+            order.ActualDeliveryDate = DateOnly.FromDateTime(receivedDate);
+        }
+
+        order.UpdatedAt = DateTime.UtcNow;
+        await _repository.UpdateAsync(order);
+
+        // 8. Return result
+        var result = new ReceiveResultDto
+        {
+            PurchaseOrderID = order.PurchaseOrderID,
+            OrderCode = order.OrderCode,
+            ReceivedItemsCount = dto.Items.Sum(i => i.Quantity),
+            NewStatus = order.Status,
+            WarehouseName = order.Warehouse.WarehouseName,
+            UpdatedAt = order.UpdatedAt,
+            ReceivedSerials = receivedSerials
+        };
+
+        return ApiResponse<ReceiveResultDto>.SuccessResponse(
+            result,
+            $"Đã nhận {result.ReceivedItemsCount} sản phẩm thành công vào kho {result.WarehouseName}");
+    }
+
+    /// <summary>
+    /// Lấy danh sách chi tiết các sản phẩm đã nhận cho một PO
+    /// </summary>
+    public async Task<ApiResponse<ReceivedItemsResponseDto>> GetReceivedItemsAsync(Guid purchaseOrderId)
+    {
+        var order = await _repository.GetByIdAsync(purchaseOrderId);
+        if (order == null)
+        {
+            return ApiResponse<ReceivedItemsResponseDto>.ErrorResponse("Không tìm thấy đơn mua hàng");
+        }
+
+        // Get all transactions for this PO
+        var transactions = await _transactionRepository.GetByReferenceAsync(purchaseOrderId);
+
+        // Get all InstanceIDs from transactions that have instances
+        var instanceIds = transactions
+            .Where(t => t.InstanceID != null)
+            .Select(t => t.InstanceID!.Value)
+            .Distinct()
+            .ToList();
+
+        // Get all ProductInstances with their full data
+        var instances = new Dictionary<Guid, ProductInstance>();
+        if (instanceIds.Any())
+        {
+            var instanceList = await _inventoryRepository.GetByIdsAsync(instanceIds);
+            instances = instanceList.ToDictionary(i => i.InstanceID);
+        }
+
+        var response = new ReceivedItemsResponseDto
+        {
+            PurchaseOrderID = order.PurchaseOrderID,
+            OrderCode = order.OrderCode,
+            WarehouseName = order.Warehouse.WarehouseName,
+        };
+
+        // Debug info for troubleshooting - will be removed later
+        var debugMsg = $"Transactions found: {transactions.Count}, InstanceIDs: {instanceIds.Count}, Instances loaded: {instances.Count}";
+
+        var activeDetails = order.Details.Where(d => d.DeletedAt == null).ToList();
+        var items = new List<ReceivedItemDetailDto>();
+
+        foreach (var detail in activeDetails)
+        {
+            if (detail.ReceivedQuantity == 0) continue;
+
+            var itemDto = new ReceivedItemDetailDto
+            {
+                PurchaseOrderDetailID = detail.PurchaseOrderDetailID,
+                ComponentID = detail.ComponentID,
+                ComponentSKU = detail.Component.SKU,
+                ComponentName = detail.Component.ComponentName,
+                ImageURL = detail.Component.ImageURL,
+                IsSerialized = detail.Component.IsSerialized,
+                OrderedQuantity = detail.Quantity,
+                ReceivedQuantity = detail.ReceivedQuantity,
+                UnitPrice = detail.UnitPrice,
+            };
+
+            // For serialized items, get ProductInstance details
+            if (detail.Component.IsSerialized)
+            {
+                // Get InstanceIDs for this component from transactions
+                var componentInstanceIds = transactions
+                    .Where(t => t.ComponentID == detail.ComponentID && t.InstanceID != null)
+                    .Select(t => t.InstanceID!.Value)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var instanceId in componentInstanceIds)
+                {
+                    if (instances.TryGetValue(instanceId, out var instance))
+                    {
+                        itemDto.Instances.Add(new ReceivedInstanceDto
+                        {
+                            InstanceID = instance.InstanceID,
+                            SerialNumber = instance.SerialNumber,
+                            IMEI1 = instance.IMEI1,
+                            IMEI2 = instance.IMEI2,
+                            MACAddress = instance.MACAddress,
+                            Status = instance.Status,
+                            LocationCode = instance.LocationCode,
+                            Zone = instance.Zone,
+                            ImportDate = instance.ImportDate,
+                            Notes = instance.Notes,
+                        });
+                    }
+                }
+
+                response.TotalSerializedItems += itemDto.Instances.Count;
+            }
+            else
+            {
+                response.TotalNonSerializedItems += detail.ReceivedQuantity;
+            }
+
+            response.TotalReceivedQuantity += detail.ReceivedQuantity;
+            items.Add(itemDto);
+        }
+
+        response.Items = items;
+        return ApiResponse<ReceivedItemsResponseDto>.SuccessResponse(response, debugMsg);
+    }
+
+    #endregion
+
 
     #region Private Methods
 
@@ -326,6 +672,8 @@ public class PurchaseOrderService
 
     private static PurchaseOrderListDto MapToListDto(PurchaseOrder order)
     {
+        var activeDetails = order.Details.Where(d => d.DeletedAt == null).ToList();
+
         return new PurchaseOrderListDto
         {
             PurchaseOrderID = order.PurchaseOrderID,
@@ -339,8 +687,10 @@ public class PurchaseOrderService
             Status = order.Status,
             TotalAmount = order.TotalAmount,
             FinalAmount = order.FinalAmount,
-            ItemCount = order.Details.Count(d => d.DeletedAt == null),
-            ReceivedItemCount = order.Details.Count(d => d.DeletedAt == null && d.ReceivedQuantity >= d.Quantity),
+            ItemCount = activeDetails.Count,
+            ReceivedItemCount = activeDetails.Count(d => d.ReceivedQuantity >= d.Quantity),
+            TotalQuantity = activeDetails.Sum(d => d.Quantity),
+            ReceivedQuantity = activeDetails.Sum(d => d.ReceivedQuantity),
             CreatedByName = order.CreatedByUser?.FullName,
             CreatedAt = order.CreatedAt
         };
@@ -385,7 +735,8 @@ public class PurchaseOrderService
                     UnitPrice = d.UnitPrice,
                     TotalPrice = d.TotalPrice,
                     ReceivedQuantity = d.ReceivedQuantity,
-                    Notes = d.Notes
+                    Notes = d.Notes,
+                    IsSerialized = d.Component.IsSerialized
                 })
                 .ToList()
         };

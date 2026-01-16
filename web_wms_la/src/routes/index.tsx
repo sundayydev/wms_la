@@ -14,7 +14,7 @@ import CategoryList from '../pages/Inventory/CategoryList';
 import InventoryHistory from '../pages/Inventory/InventoryHistory';
 import PurchaseOrderList from '../pages/Purchasing/PurchaseOrderList';
 import PurchaseOrderCreate from '../pages/Purchasing/PurchaseOrderCreate';
-import Receiving from '../pages/Purchasing/Receiving';
+import Receiving from '../pages/Purchasing/Receiving/Receiving';
 import RepairList from '../pages/Repair/RepairList';
 import PaymentList from '../pages/Finance/PaymentList';
 import DebtList from '../pages/Finance/DebtList';
