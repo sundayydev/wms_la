@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BE_WMS_LA.Domain.Models;
@@ -94,6 +94,8 @@ public class PurchaseOrder
     public virtual User? CreatedByUser { get; set; }
 
     public virtual ICollection<PurchaseOrderDetail> Details { get; set; } = new List<PurchaseOrderDetail>();
+
+    public virtual ICollection<PurchaseOrderHistory> History { get; set; } = new List<PurchaseOrderHistory>();
 
     #endregion
 }

@@ -342,6 +342,64 @@ export interface POStats {
     deliveredToday: number;
 }
 
+// ====================
+// History Types
+// ====================
+
+/**
+ * Action types cho Purchase Order History
+ */
+export type PurchaseOrderActionType =
+    | 'CREATED'
+    | 'CONFIRMED'
+    | 'RECEIVING_STARTED'
+    | 'PARTIAL_RECEIVED'
+    | 'FULLY_RECEIVED'
+    | 'COMPLETED'
+    | 'CANCELLED'
+    | 'UPDATED'
+    | 'PRINTED'
+    | 'EMAIL_SENT';
+
+/**
+ * DTO hiển thị lịch sử hoạt động của đơn mua hàng
+ * Theo dõi ai làm gì và khi nào
+ */
+export interface PurchaseOrderHistoryDto {
+    historyID: string;
+    purchaseOrderID: string;
+    /** Loại hành động: CREATED, CONFIRMED, RECEIVING_STARTED, etc. */
+    action: PurchaseOrderActionType | string;
+    /** Trạng thái cũ */
+    oldStatus?: string;
+    /** Trạng thái mới */
+    newStatus?: string;
+    /** Người thực hiện */
+    performedByUserID?: string;
+    performedByUserName?: string;
+    performedByEmail?: string;
+    /** Thời gian thực hiện */
+    performedAt: string;
+    /** Mô tả chi tiết */
+    description?: string;
+    /** Metadata bổ sung (JSON) */
+    metadata?: string;
+    /** IP Address (cho security audit) */
+    ipAddress?: string;
+}
+
+/**
+ * DTO tạo history record mới
+ */
+export interface CreatePurchaseOrderHistoryDto {
+    purchaseOrderID: string;
+    action: PurchaseOrderActionType | string;
+    oldStatus?: string;
+    newStatus?: string;
+    description?: string;
+    metadata?: string;
+}
+
 // Response Types
 export type PurchaseOrderListResponse = PaginatedResponse<PurchaseOrderListDto>;
 export type PurchaseOrderDetailResponse = ApiResponse<PurchaseOrderDetailDto>;
@@ -351,3 +409,5 @@ export type PurchaseOrderDeleteResponse = ApiResponse<boolean>;
 export type PurchaseOrderStatisticsResponse = ApiResponse<PurchaseOrderStatisticsDto>;
 export type ReceiveResultResponse = ApiResponse<ReceiveResultDto>;
 export type ReceivedItemsResponse = ApiResponse<ReceivedItemsResponseDto>;
+export type PurchaseOrderHistoryResponse = ApiResponse<PurchaseOrderHistoryDto[]>;
+export type PurchaseOrderHistoryCreateResponse = ApiResponse<PurchaseOrderHistoryDto>;

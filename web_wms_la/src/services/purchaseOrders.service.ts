@@ -161,6 +161,37 @@ export const getReceivedItems = async (
     return response.data;
 };
 
+// ====================
+// History Management
+// ====================
+
+/**
+ * Lấy lịch sử hoạt động của đơn mua hàng
+ * @param id ID đơn mua hàng
+ */
+export const getPurchaseOrderHistory = async (
+    id: string
+): Promise<import('../types/type.purchaseOrder').PurchaseOrderHistoryResponse> => {
+    const response = await apiClient.get<import('../types/type.purchaseOrder').PurchaseOrderHistoryResponse>(
+        `${BASE_URL}/${id}/history`
+    );
+    return response.data;
+};
+
+/**
+ * Tạo record lịch sử thủ công (dùng cho admin/audit)
+ * @param data Dữ liệu history
+ */
+export const createPurchaseOrderHistory = async (
+    data: import('../types/type.purchaseOrder').CreatePurchaseOrderHistoryDto
+): Promise<import('../types/type.purchaseOrder').PurchaseOrderHistoryCreateResponse> => {
+    const response = await apiClient.post<import('../types/type.purchaseOrder').PurchaseOrderHistoryCreateResponse>(
+        `${BASE_URL}/history`,
+        data
+    );
+    return response.data;
+};
+
 // Default export
 const purchaseOrdersService = {
     getPurchaseOrders,
@@ -176,6 +207,8 @@ const purchaseOrdersService = {
     getPurchaseOrderStatistics,
     receiveItems,
     getReceivedItems,
+    getPurchaseOrderHistory,
+    createPurchaseOrderHistory,
 };
 
 export default purchaseOrdersService;

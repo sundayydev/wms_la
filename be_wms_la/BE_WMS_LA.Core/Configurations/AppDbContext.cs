@@ -32,6 +32,7 @@ public class AppDbContext : DbContext
     // Purchase Orders
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails { get; set; } = null!;
+    public DbSet<PurchaseOrderHistory> PurchaseOrderHistories { get; set; } = null!;
 
     // Sales Orders
     public DbSet<SalesOrder> SalesOrders { get; set; } = null!;
@@ -206,6 +207,18 @@ public class AppDbContext : DbContext
             .WithMany(po => po.Details)
             .HasForeignKey(pod => pod.PurchaseOrderID)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PurchaseOrderHistory>()
+            .HasOne(poh => poh.PurchaseOrder)
+            .WithMany(po => po.History)
+            .HasForeignKey(poh => poh.PurchaseOrderID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PurchaseOrderHistory>()
+            .HasOne(poh => poh.PerformedByUser)
+            .WithMany()
+            .HasForeignKey(poh => poh.PerformedByUserID)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // =====================================================
         // Sales Order Relationships

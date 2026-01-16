@@ -46,6 +46,7 @@ builder.Services.AddScoped<ProductRepository>();
 builder.Services.AddScoped<ComponentCompatibilityRepository>();
 builder.Services.AddScoped<CustomerRepository>();
 builder.Services.AddScoped<PurchaseOrderRepository>();
+builder.Services.AddScoped<PurchaseOrderHistoryRepository>();
 builder.Services.AddScoped<InventoryRepository>();
 builder.Services.AddScoped<KnowledgeBaseRepository>();
 builder.Services.AddScoped<InventoryTransactionRepository>();

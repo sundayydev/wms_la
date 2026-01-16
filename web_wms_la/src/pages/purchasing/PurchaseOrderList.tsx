@@ -25,7 +25,6 @@ import {
   Modal,
   Dropdown,
   Empty,
-  Popconfirm,
   Tabs,
   Collapse,
   Alert,
@@ -36,7 +35,6 @@ import {
   EyeOutlined,
   PrinterOutlined,
   FileExcelOutlined,
-  ShoppingCartOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
@@ -56,19 +54,17 @@ import {
   CopyOutlined,
   BoxPlotOutlined,
   StopOutlined,
-  SendOutlined,
   InfoCircleOutlined,
   BarcodeOutlined,
-  ShopOutlined,
-  PhoneOutlined,
   AppstoreOutlined,
   SyncOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import dayjs from 'dayjs';
-import { useNavigate, Link } from 'react-router-dom';
-import { FaFileInvoice, FaBoxOpen, FaUserTie } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaFileInvoice } from 'react-icons/fa';
 import purchaseOrdersService from '../../services/purchaseOrders.service';
 import suppliersService from '../../services/suppliers.service';
 import warehousesService from '../../services/warehouses.service';
@@ -78,23 +74,18 @@ import type {
   PurchaseOrderStatus,
   PurchaseOrderStatisticsDto,
   ReceivedItemsResponseDto,
+  PurchaseOrderHistoryDto,
 } from '../../types/type.purchaseOrder';
 import Barcode from 'react-barcode';
 
 const { RangePicker } = DatePicker;
-const { Text, Title, Paragraph } = Typography;
+const { Text } = Typography;
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-interface POHistory {
-  id: string;
-  action: string;
-  date: string;
-  user: string;
-  description: string;
-}
+// POHistory interface removed - using PurchaseOrderHistoryDto instead
 
 interface SupplierOption {
   value: string;
@@ -154,6 +145,8 @@ const PurchaseOrderList: React.FC = () => {
   const [activeTab, setActiveTab] = useState('detail');
   const [receivedItemsData, setReceivedItemsData] = useState<ReceivedItemsResponseDto | null>(null);
   const [receivedItemsLoading, setReceivedItemsLoading] = useState(false);
+  const [historyData, setHistoryData] = useState<PurchaseOrderHistoryDto[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // ============================================================================
   // DATA FETCHING
@@ -241,6 +234,31 @@ const PurchaseOrderList: React.FC = () => {
     }
   }, [activeTab, selectedPO, receivedItemsData, fetchReceivedItems]);
 
+  // Fetch history when tab changes to 'history'
+  const fetchHistory = useCallback(async (poId: string) => {
+    setHistoryLoading(true);
+    try {
+      const response = await purchaseOrdersService.getPurchaseOrderHistory(poId);
+      if (response.success && response.data) {
+        setHistoryData(response.data);
+      } else {
+        message.error(response.message || 'Không thể tải lịch sử đơn hàng');
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      message.error('Lỗi khi tải lịch sử đơn hàng');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch history when switching to 'history' tab
+  useEffect(() => {
+    if (activeTab === 'history' && selectedPO && historyData.length === 0) {
+      fetchHistory(selectedPO.purchaseOrderID);
+    }
+  }, [activeTab, selectedPO, historyData, fetchHistory]);
+
   // Load suppliers and warehouses for dropdown filters  
   useEffect(() => {
     const fetchDropdownData = async () => {
@@ -326,6 +344,7 @@ const PurchaseOrderList: React.FC = () => {
       if (response.success && response.data) {
         setSelectedPO(response.data);
         setReceivedItemsData(null); // Reset when opening a new PO
+        setHistoryData([]); // Reset history data
         setActiveTab('detail');
         setDetailDrawerOpen(true);
       } else {
@@ -683,33 +702,31 @@ const PurchaseOrderList: React.FC = () => {
     },
   ];
 
-  // History interface for timeline
-  interface POHistory {
-    id: string;
-    action: string;
-    date: string;
-    user?: string;
-    description: string;
-  }
+  // Helper function to get timeline color based on action
+  const getTimelineColor = (action: string, index: number): string => {
+    if (index === 0) return 'green'; // First action (created) is green
+    if (action === 'CANCELLED') return 'red';
+    if (action === 'FULLY_RECEIVED' || action === 'COMPLETED') return 'green';
+    if (action === 'CONFIRMED') return 'blue';
+    if (action === 'PARTIAL_RECEIVED') return 'cyan';
+    return 'blue';
+  };
 
-  // Mock history - generate from PO detail
-  const getHistory = (po: PurchaseOrderDetailDto): POHistory[] => {
-    const history: POHistory[] = [
-      { id: '1', action: 'Tạo đơn', date: po.createdAt, user: po.createdByName, description: 'Tạo đơn đặt hàng mới' },
-    ];
-    if (po.status !== 'PENDING') {
-      history.push({ id: '2', action: 'Duyệt đơn', date: dayjs(po.createdAt).add(1, 'hour').toISOString(), user: 'Admin', description: 'Duyệt và xác nhận đơn hàng' });
-    }
-    if (po.status === 'PARTIAL') {
-      history.push({ id: '3', action: 'Nhận hàng', date: po.updatedAt, user: 'Thủ kho', description: 'Nhận một phần hàng hóa' });
-    }
-    if (po.status === 'DELIVERED') {
-      history.push({ id: '3', action: 'Hoàn thành', date: po.updatedAt, user: 'Thủ kho', description: 'Đã nhận đủ hàng hóa' });
-    }
-    if (po.status === 'CANCELLED') {
-      history.push({ id: '3', action: 'Hủy đơn', date: po.updatedAt, user: 'Admin', description: po.notes || 'Đơn hàng đã bị hủy' });
-    }
-    return history;
+  // Helper function to get action label in Vietnamese
+  const getActionLabel = (action: string): string => {
+    const labels: Record<string, string> = {
+      'CREATED': 'Tạo đơn',
+      'CONFIRMED': 'Duyệt đơn',
+      'RECEIVING_STARTED': 'Bắt đầu nhận hàng',
+      'PARTIAL_RECEIVED': 'Nhận một phần',
+      'FULLY_RECEIVED': 'Nhận đủ hàng',
+      'COMPLETED': 'Hoàn thành',
+      'CANCELLED': 'Hủy đơn',
+      'UPDATED': 'Cập nhật',
+      'PRINTED': 'In đơn hàng',
+      'EMAIL_SENT': 'Gửi email',
+    };
+    return labels[action] || action;
   };
 
   // ============================================================================
@@ -1174,7 +1191,7 @@ const PurchaseOrderList: React.FC = () => {
                               {/* Sản phẩm quản lý theo Serial */}
                               {serializedItems.length > 0 && (
                                 <div className="mb-4">
-                                  <Divider className="!my-2">
+                                  <Divider className="my-2!">
                                     <span className="flex items-center gap-2 text-sm text-blue-600">
                                       <BarcodeOutlined />
                                       Sản phẩm quản lý theo Serial ({serializedItems.length})
@@ -1366,24 +1383,93 @@ const PurchaseOrderList: React.FC = () => {
               },
               {
                 key: 'history',
-                label: <span><HistoryOutlined className="mr-1" />Lịch sử</span>,
-                children: (
-                  <Timeline
-                    items={getHistory(selectedPO).map((h, idx) => ({
-                      color: idx === 0 ? 'green' : h.action === 'Hủy đơn' ? 'red' : 'blue',
-                      children: (
-                        <div>
-                          <div className="font-medium">{h.action}</div>
-                          <div className="text-sm text-gray-500">{h.description}</div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            {dayjs(h.date).format('DD/MM/YYYY HH:mm')} - {h.user}
-                          </div>
-                        </div>
-                      ),
-                    }))}
-                  />
+                label: (
+                  <span>
+                    <HistoryOutlined className="mr-1" />
+                    Lịch sử
+                  </span>
                 ),
-              },
+                children: (
+                  <div className="h-full flex flex-col">
+                    {historyLoading ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <SyncOutlined spin className="text-3xl text-blue-500 mb-3" />
+                        <Text type="secondary">Đang tải dữ liệu lịch sử...</Text>
+                      </div>
+                    ) : historyData.length === 0 ? (
+                      <div className="py-8">
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có lịch sử hoạt động" />
+                      </div>
+                    ) : (
+                      // Thêm max-height và overflow để tạo vùng cuộn nếu danh sách dài
+                      <div className="max-h-[500px] overflow-y-auto px-4 py-2 custom-scrollbar">
+                        <Timeline
+                          mode="left"
+                          items={historyData.map((h, idx) => ({
+                            color: getTimelineColor(h.action, idx),
+                            // Tùy chọn: Thêm dot icon nếu muốn custom icon cho từng loại action
+                            // dot: getActionIcon(h.action), 
+                            children: (
+                              <div className="pb-4 group">
+                                {/* Header: Action & Time */}
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1">
+                                  <Text strong className="text-base text-gray-800">
+                                    {getActionLabel(h.action)}
+                                  </Text>
+                                  <div className="text-xs text-gray-400 flex items-center gap-1 mt-1 sm:mt-0">
+                                    <ClockCircleOutlined />
+                                    {dayjs(h.performedAt).format('DD/MM/YYYY HH:mm')}
+                                  </div>
+                                </div>
+
+                                {/* Description */}
+                                {h.description && (
+                                  <div className="text-gray-600 mb-2 leading-relaxed">
+                                    {h.description}
+                                  </div>
+                                )}
+
+                                {/* User Info & Metadata Control */}
+                                <div className="flex items-center flex-wrap gap-2 mt-2">
+                                  {h.performedByUserName && (
+                                    <Tag icon={<UserOutlined />} color="default" className="m-0 text-xs border-transparent bg-gray-100 text-gray-500">
+                                      {h.performedByUserName}
+                                    </Tag>
+                                  )}
+
+                                  {/* Metadata hiển thị gọn gàng hơn */}
+                                  {h.metadata && (
+                                    <Collapse
+                                      ghost
+                                      size="small"
+                                      className="w-full mt-1 [&_.ant-collapse-header]:p-0 [&_.ant-collapse-content-box]:p-0"
+                                      items={[
+                                        {
+                                          key: 'meta',
+                                          label: (
+                                            <span className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                                              <CodeOutlined /> Chi tiết kỹ thuật
+                                            </span>
+                                          ),
+                                          children: (
+                                            <div className="mt-2 bg-gray-50 p-2 rounded border border-gray-200 text-xs font-mono text-gray-600 break-all">
+                                              {h.metadata}
+                                            </div>
+                                          ),
+                                        },
+                                      ]}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            ),
+                          }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ),
+              }
             ]}
           />
         )}

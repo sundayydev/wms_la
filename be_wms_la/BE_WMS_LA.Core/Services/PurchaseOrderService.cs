@@ -13,15 +13,18 @@ public partial class PurchaseOrderService
     private readonly PurchaseOrderRepository _repository;
     private readonly InventoryRepository _inventoryRepository;
     private readonly InventoryTransactionRepository _transactionRepository;
+    private readonly PurchaseOrderHistoryRepository _historyRepository;
 
     public PurchaseOrderService(
         PurchaseOrderRepository repository,
         InventoryRepository inventoryRepository,
-        InventoryTransactionRepository transactionRepository)
+        InventoryTransactionRepository transactionRepository,
+        PurchaseOrderHistoryRepository historyRepository)
     {
         _repository = repository;
         _inventoryRepository = inventoryRepository;
         _transactionRepository = transactionRepository;
+        _historyRepository = historyRepository;
     }
 
     #region Purchase Order CRUD
@@ -161,6 +164,20 @@ public partial class PurchaseOrderService
         }
 
         await _repository.AddAsync(order);
+
+        // ✅ Ghi lịch sử: Tạo đơn
+        await _historyRepository.AddAsync(new PurchaseOrderHistory
+        {
+            HistoryID = Guid.NewGuid(),
+            PurchaseOrderID = order.PurchaseOrderID,
+            Action = Domain.Constants.PurchaseOrderAction.CREATED,
+            OldStatus = null,
+            NewStatus = "PENDING",
+            PerformedByUserID = createdByUserId,
+            PerformedAt = DateTime.UtcNow,
+            Description = $"Tạo đơn đặt hàng mới - {order.Details.Count} sản phẩm, tổng tiền {order.FinalAmount:N0} VNĐ"
+        });
+
         return await GetByIdAsync(order.PurchaseOrderID);
     }
 
@@ -249,6 +266,7 @@ public partial class PurchaseOrderService
                 $"Không thể chuyển từ trạng thái '{order.Status}' sang '{dto.Status}'");
         }
 
+        var oldStatus = order.Status;
         order.Status = dto.Status;
         if (dto.ActualDeliveryDate.HasValue)
         {
@@ -256,6 +274,36 @@ public partial class PurchaseOrderService
         }
 
         await _repository.UpdateAsync(order);
+
+        // ✅ Ghi lịch sử: Thay đổi trạng thái
+        var action = dto.Status switch
+        {
+            "CONFIRMED" => Domain.Constants.PurchaseOrderAction.CONFIRMED,
+            "CANCELLED" => Domain.Constants.PurchaseOrderAction.CANCELLED,
+            "DELIVERED" => Domain.Constants.PurchaseOrderAction.COMPLETED,
+            _ => Domain.Constants.PurchaseOrderAction.UPDATED
+        };
+
+        var description = dto.Status switch
+        {
+            "CONFIRMED" => "Đã duyệt và xác nhận đơn hàng",
+            "CANCELLED" => !string.IsNullOrEmpty(dto.Notes) ? $"Hủy đơn: {dto.Notes}" : "Đã hủy đơn hàng",
+            "DELIVERED" => "Đánh dấu đã giao hàng hoàn tất",
+            _ => $"Cập nhật trạng thái từ {oldStatus} sang {dto.Status}"
+        };
+
+        await _historyRepository.AddAsync(new PurchaseOrderHistory
+        {
+            HistoryID = Guid.NewGuid(),
+            PurchaseOrderID = order.PurchaseOrderID,
+            Action = action,
+            OldStatus = oldStatus,
+            NewStatus = dto.Status,
+            PerformedByUserID = null, // TODO: Get from HttpContext
+            PerformedAt = DateTime.UtcNow,
+            Description = description
+        });
+
         return await GetByIdAsync(order.PurchaseOrderID);
     }
 
@@ -514,6 +562,7 @@ public partial class PurchaseOrderService
             .Where(d => d.DeletedAt == null)
             .All(d => d.ReceivedQuantity >= d.Quantity);
 
+        var oldStatus = order.Status;
         order.Status = allItemsDelivered ? "DELIVERED" : "PARTIAL";
 
         if (allItemsDelivered)
@@ -523,6 +572,29 @@ public partial class PurchaseOrderService
 
         order.UpdatedAt = DateTime.UtcNow;
         await _repository.UpdateAsync(order);
+
+        // ✅ Ghi lịch sử: Nhận hàng
+        var action = allItemsDelivered
+            ? Domain.Constants.PurchaseOrderAction.FULLY_RECEIVED
+            : Domain.Constants.PurchaseOrderAction.PARTIAL_RECEIVED;
+
+        var totalItems = dto.Items.Sum(i => i.Quantity);
+        var description = allItemsDelivered
+            ? $"Hoàn thành nhận hàng - {totalItems} sản phẩm"
+            : $"Nhận một phần hàng - {totalItems} sản phẩm";
+
+        await _historyRepository.AddAsync(new PurchaseOrderHistory
+        {
+            HistoryID = Guid.NewGuid(),
+            PurchaseOrderID = order.PurchaseOrderID,
+            Action = action,
+            OldStatus = oldStatus,
+            NewStatus = order.Status,
+            PerformedByUserID = userId,
+            PerformedAt = DateTime.UtcNow,
+            Description = description,
+            Metadata = $"{{\"receivedItemsCount\": {totalItems}, \"serializedItems\": {receivedSerials.Count}}}"
+        });
 
         // 8. Return result
         var result = new ReceiveResultDto
@@ -740,6 +812,105 @@ public partial class PurchaseOrderService
                 })
                 .ToList()
         };
+    }
+
+    #endregion
+
+    #region History Management
+
+    /// <summary>
+    /// Lấy lịch sử hoạt động của đơn mua hàng
+    /// </summary>
+    public async Task<ApiResponse<List<PurchaseOrderHistoryDto>>> GetHistoryAsync(Guid purchaseOrderId)
+    {
+        var order = await _repository.GetByIdAsync(purchaseOrderId);
+        if (order == null)
+        {
+            return ApiResponse<List<PurchaseOrderHistoryDto>>.ErrorResponse("Không tìm thấy đơn mua hàng");
+        }
+
+        var histories = await _historyRepository.GetByPurchaseOrderIdAsync(purchaseOrderId);
+
+        var historyDtos = histories.Select(h => new PurchaseOrderHistoryDto
+        {
+            HistoryID = h.HistoryID,
+            PurchaseOrderID = h.PurchaseOrderID,
+            Action = h.Action,
+            OldStatus = h.OldStatus,
+            NewStatus = h.NewStatus,
+            PerformedByUserID = h.PerformedByUserID,
+            PerformedByUserName = h.PerformedByUser?.FullName,
+            PerformedByEmail = h.PerformedByUser?.Email,
+            PerformedAt = h.PerformedAt,
+            Description = h.Description,
+            Metadata = h.Metadata,
+            IpAddress = h.IpAddress
+        }).ToList();
+
+        return ApiResponse<List<PurchaseOrderHistoryDto>>.SuccessResponse(
+            historyDtos,
+            $"Lấy lịch sử thành công ({historyDtos.Count} bản ghi)");
+    }
+
+    /// <summary>
+    /// Tạo record lịch sử
+    /// </summary>
+    public async Task<ApiResponse<PurchaseOrderHistoryDto>> CreateHistoryAsync(
+        CreatePurchaseOrderHistoryDto dto,
+        Guid? userId = null,
+        string? ipAddress = null,
+        string? userAgent = null)
+    {
+        // Validate PurchaseOrder exists
+        var order = await _repository.GetByIdAsync(dto.PurchaseOrderID);
+        if (order == null)
+        {
+            return ApiResponse<PurchaseOrderHistoryDto>.ErrorResponse("Không tìm thấy đơn mua hàng");
+        }
+
+        var history = new PurchaseOrderHistory
+        {
+            HistoryID = Guid.NewGuid(),
+            PurchaseOrderID = dto.PurchaseOrderID,
+            Action = dto.Action,
+            OldStatus = dto.OldStatus,
+            NewStatus = dto.NewStatus,
+            PerformedByUserID = userId,
+            PerformedAt = DateTime.UtcNow,
+            Description = dto.Description,
+            Metadata = dto.Metadata,
+            IpAddress = ipAddress,
+            UserAgent = userAgent
+        };
+
+        await _historyRepository.AddAsync(history);
+
+        // Return the created history with user info
+        var resultHistory = await _historyRepository.GetByIdAsync(history.HistoryID);
+        if (resultHistory == null)
+        {
+            return ApiResponse<PurchaseOrderHistoryDto>.ErrorResponse("Không thể tạo lịch sử");
+        }
+
+        var historyDto = new PurchaseOrderHistoryDto
+        {
+            HistoryID = resultHistory.HistoryID,
+            PurchaseOrderID = resultHistory.PurchaseOrderID,
+            Action = resultHistory.Action,
+            OldStatus = resultHistory.OldStatus,
+            NewStatus = resultHistory.NewStatus,
+            PerformedByUserID = resultHistory.PerformedByUserID,
+            PerformedByUserName = resultHistory.PerformedByUser?.FullName,
+            PerformedByEmail = resultHistory.PerformedByUser?.Email,
+            PerformedAt = resultHistory.PerformedAt,
+            Description = resultHistory.Description,
+            Metadata = resultHistory.Metadata,
+            IpAddress = resultHistory.IpAddress
+        };
+
+        return ApiResponse<PurchaseOrderHistoryDto>.SuccessResponse(
+            historyDto,
+            "Tạo lịch sử thành công");
     }
 
     #endregion

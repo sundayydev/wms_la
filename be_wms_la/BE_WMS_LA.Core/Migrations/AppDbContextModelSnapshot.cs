@@ -1761,6 +1761,57 @@ namespace BE_WMS_LA.Core.Migrations
                     b.ToTable("PurchaseOrderDetails");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrderHistory", b =>
+                {
+                    b.Property<Guid>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("OldStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("PerformedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PerformedByUserID")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PurchaseOrderID")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("PerformedByUserID");
+
+                    b.HasIndex("PurchaseOrderID");
+
+                    b.ToTable("PurchaseOrderHistory");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Repair", b =>
                 {
                     b.Property<Guid>("RepairID")
@@ -2844,6 +2895,24 @@ namespace BE_WMS_LA.Core.Migrations
                     b.Navigation("PurchaseOrder");
                 });
 
+            modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrderHistory", b =>
+                {
+                    b.HasOne("BE_WMS_LA.Domain.Models.User", "PerformedByUser")
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BE_WMS_LA.Domain.Models.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("History")
+                        .HasForeignKey("PurchaseOrderID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PerformedByUser");
+
+                    b.Navigation("PurchaseOrder");
+                });
+
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Repair", b =>
                 {
                     b.HasOne("BE_WMS_LA.Domain.Models.Component", "Component")
@@ -3144,6 +3213,8 @@ namespace BE_WMS_LA.Core.Migrations
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.PurchaseOrder", b =>
                 {
                     b.Navigation("Details");
+
+                    b.Navigation("History");
                 });
 
             modelBuilder.Entity("BE_WMS_LA.Domain.Models.Repair", b =>

@@ -10,7 +10,6 @@ import {
   Form,
   Switch,
   message,
-  Tooltip,
   Row,
   Col,
   Tabs,
@@ -627,7 +626,7 @@ const SupplierList: React.FC = () => {
                 </Row>
 
                 <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
-                  <span className="font-semibold text-blue-700 block mb-3 flex items-center gap-2">
+                  <span className="font-semibold text-blue-700 block mb-3 items-center gap-2">
                     <EnvironmentOutlined /> Địa chỉ
                   </span>
                   <Form.Item name="address" className="mb-3">
@@ -650,7 +649,7 @@ const SupplierList: React.FC = () => {
             children: (
               <>
                 <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-100">
-                  <span className="font-semibold text-green-700 block mb-3 flex items-center gap-2">
+                  <span className="font-semibold text-green-700 block mb-3 items-center gap-2">
                     <UserOutlined /> Người liên hệ
                   </span>
                   <Row gutter={16}>
@@ -673,7 +672,7 @@ const SupplierList: React.FC = () => {
                 </div>
 
                 <div className="bg-purple-50 p-4 rounded-lg mb-4 border border-purple-100">
-                  <span className="font-semibold text-purple-700 block mb-3 flex items-center gap-2">
+                  <span className="font-semibold text-purple-700 block mb-3 items-center gap-2">
                     <BankOutlined /> Tài khoản ngân hàng
                   </span>
                   <Row gutter={16}>
@@ -788,7 +787,7 @@ const SupplierList: React.FC = () => {
                 </Divider>
                 <Row gutter={16}>
                   <Col span={12}>
-                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                    <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-blue-200">
                       <Statistic
                         title={<span className="text-blue-700 font-semibold">Sản phẩm cung cấp</span>}
                         value={selectedSupplier.productCount}
@@ -798,7 +797,7 @@ const SupplierList: React.FC = () => {
                     </Card>
                   </Col>
                   <Col span={12}>
-                    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <Card className="bg-linear-to-br from-green-50 to-green-100 border-green-200">
                       <Statistic
                         title={<span className="text-green-700 font-semibold">Đơn đặt hàng</span>}
                         value={selectedSupplier.purchaseOrderCount}
@@ -822,7 +821,7 @@ const SupplierList: React.FC = () => {
               <>
                 {/* Contact Info */}
                 <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-100">
-                  <span className="font-semibold text-green-700 block mb-3 flex items-center gap-2">
+                  <span className="font-semibold text-green-700 block mb-3 items-center gap-2">
                     <UserOutlined /> Thông tin liên hệ
                   </span>
                   <Descriptions column={2} size="small" bordered>
@@ -850,7 +849,7 @@ const SupplierList: React.FC = () => {
 
                 {/* Bank Info */}
                 <div className="bg-purple-50 p-4 rounded-lg mb-4 border border-purple-100">
-                  <span className="font-semibold text-purple-700 block mb-3 flex items-center gap-2">
+                  <span className="font-semibold text-purple-700 block mb-3 items-center gap-2">
                     <BankOutlined /> Thông tin ngân hàng
                   </span>
                   <Descriptions column={2} size="small" bordered>

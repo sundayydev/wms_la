@@ -345,4 +345,68 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     #endregion
+
+    #region History Management
+
+    /// <summary>
+    /// Lấy lịch sử hoạt động của đơn mua hàng
+    /// </summary>
+    /// <param name="id">ID đơn mua hàng</param>
+    [HttpGet("{id:guid}/history")]
+    [EndpointSummary("Lịch sử đơn mua hàng")]
+    [EndpointDescription("Xem lịch sử tất cả các thay đổi, ai tạo, ai duyệt, ai nhận hàng")]
+    [ProducesResponseType<ApiResponse<List<PurchaseOrderHistoryDto>>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetHistory(Guid id)
+    {
+        var result = await _purchaseOrderService.GetHistoryAsync(id);
+        if (!result.Success)
+        {
+            return NotFound(result);
+        }
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo record lịch sử thủ công (dùng cho admin/audit)
+    /// </summary>
+    /// <param name="dto">Thông tin history cần tạo</param>
+    [HttpPost("history")]
+    [EndpointSummary("Tạo lịch sử thủ công")]
+    [EndpointDescription("Tạo record lịch sử thủ công cho mục đích audit (chỉ dành cho admin)")]
+    [ProducesResponseType<ApiResponse<PurchaseOrderHistoryDto>>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateHistory([FromBody] CreatePurchaseOrderHistoryDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(ApiResponse<object>.ErrorResponse("Dữ liệu không hợp lệ", errors));
+        }
+
+        // Lấy user ID từ claims
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userId = null;
+        if (Guid.TryParse(userIdClaim, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        // Lấy IP Address
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = Request.Headers["User-Agent"].ToString();
+
+        var result = await _purchaseOrderService.CreateHistoryAsync(dto, userId, ipAddress, userAgent);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return CreatedAtAction(nameof(GetHistory), new { id = dto.PurchaseOrderID }, result);
+    }
+
+    #endregion
 }

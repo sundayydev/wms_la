@@ -218,3 +218,81 @@ public class PurchaseOrderStatisticsDto
 }
 
 #endregion
+
+#region History DTOs
+
+/// <summary>
+/// DTO hiển thị lịch sử hoạt động của đơn mua hàng
+/// </summary>
+public class PurchaseOrderHistoryDto
+{
+    public Guid HistoryID { get; set; }
+    public Guid PurchaseOrderID { get; set; }
+
+    /// <summary>
+    /// Loại hành động: CREATED, CONFIRMED, RECEIVING_STARTED, PARTIAL_RECEIVED, FULLY_RECEIVED, etc.
+    /// </summary>
+    public string Action { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Trạng thái cũ
+    /// </summary>
+    public string? OldStatus { get; set; }
+
+    /// <summary>
+    /// Trạng thái mới
+    /// </summary>
+    public string? NewStatus { get; set; }
+
+    /// <summary>
+    /// Người thực hiện
+    /// </summary>
+    public Guid? PerformedByUserID { get; set; }
+    public string? PerformedByUserName { get; set; }
+    public string? PerformedByEmail { get; set; }
+
+    /// <summary>
+    /// Thời gian thực hiện
+    /// </summary>
+    public DateTime PerformedAt { get; set; }
+
+    /// <summary>
+    /// Mô tả chi tiết
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Metadata bổ sung (JSON)
+    /// </summary>
+    public string? Metadata { get; set; }
+
+    /// <summary>
+    /// IP Address (cho security audit)
+    /// </summary>
+    public string? IpAddress { get; set; }
+}
+
+/// <summary>
+/// DTO tạo history record mới
+/// </summary>
+public class CreatePurchaseOrderHistoryDto
+{
+    [Required]
+    public Guid PurchaseOrderID { get; set; }
+
+    [Required]
+    [StringLength(50)]
+    public string Action { get; set; } = string.Empty;
+
+    [StringLength(50)]
+    public string? OldStatus { get; set; }
+
+    [StringLength(50)]
+    public string? NewStatus { get; set; }
+
+    public string? Description { get; set; }
+
+    public string? Metadata { get; set; }
+}
+
+#endregion
