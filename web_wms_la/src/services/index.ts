@@ -71,6 +71,10 @@ export * from './inventory.service';
 export { default as purchaseOrdersService } from './purchaseOrders.service';
 export * from './purchaseOrders.service';
 
+// Product Instances Service
+export { default as productInstancesService } from './productInstances.service';
+export * from './productInstances.service';
+
 // Types
 export type * from '../types/api.types';
 export type * from '../types/type.supplier';
@@ -79,3 +83,4 @@ export type * from '../types/type.category';
 export type * from '../types/type.customer';
 export type * from '../types/type.inventory';
 export type * from '../types/type.purchaseOrder';
+export type * from '../types/type.productInstance';

@@ -1,132 +1,21 @@
 // ====================
 // Inventory Types (ProductInstance)
 // ====================
-
-import type { ApiResponse, PaginatedResponse } from './api.types';
-
-export type InstanceStatus =
-    | 'IN_STOCK'
-    | 'SOLD'
-    | 'WARRANTY'
-    | 'REPAIR'
-    | 'BROKEN'
-    | 'TRANSFERRING'
-    | 'DEMO'
-    | 'SCRAPPED'
-    | 'LOST';
+// ⚠️ DEPRECATED: This file is deprecated and kept for backward compatibility only.
+// Please use ../types/type.productInstance.ts for new code.
+// This file re-exports everything from type.productInstance.ts
+// ====================
 
 /**
- * DTO hiển thị danh sách tồn kho
+ * @deprecated Import from type.productInstance.ts instead
  */
-export interface ProductInstanceListDto {
-    instanceID: string;
-    serialNumber: string;
-    imei?: string;
-    componentID: string;
-    componentName: string;
-    sku: string;
-    warehouseID: string;
-    warehouseName: string;
-    status: InstanceStatus;
-    purchasePrice?: number;
-    warrantyEndDate?: string;
-    customerID?: string;
-    customerName?: string;
-    createdAt: string;
-}
+export * from './type.productInstance';
+
+// Legacy types for backward compatibility (if needed)
+import type { ApiResponse } from './api.types';
 
 /**
- * DTO chi tiết thiết bị
- */
-export interface ProductInstanceDetailDto {
-    instanceID: string;
-    serialNumber: string;
-    imei?: string;
-    componentID: string;
-    componentName: string;
-    sku: string;
-    warehouseID: string;
-    warehouseName: string;
-    status: InstanceStatus;
-    purchasePrice?: number;
-    sellingPrice?: number;
-    warrantyStartDate?: string;
-    warrantyEndDate?: string;
-    purchaseOrderID?: string;
-    purchaseOrderCode?: string;
-    customerID?: string;
-    customerName?: string;
-    soldDate?: string;
-    notes?: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
-/**
- * DTO tạo mới thiết bị (nhập kho)
- */
-export interface CreateProductInstanceDto {
-    serialNumber: string;
-    imei?: string;
-    componentID: string;
-    warehouseID: string;
-    purchasePrice?: number;
-    warrantyMonths?: number;
-    purchaseOrderID?: string;
-    notes?: string;
-}
-
-/**
- * DTO nhập hàng hàng loạt
- */
-export interface BulkCreateProductInstanceDto {
-    serialNumbers: string[];
-    componentID: string;
-    warehouseID: string;
-    purchasePrice?: number;
-    warrantyMonths?: number;
-    purchaseOrderID?: string;
-}
-
-/**
- * DTO cập nhật thiết bị
- */
-export interface UpdateProductInstanceDto {
-    imei?: string;
-    warehouseID?: string;
-    purchasePrice?: number;
-    warrantyEndDate?: string;
-    notes?: string;
-}
-
-/**
- * DTO cập nhật trạng thái thiết bị
- */
-export interface UpdateInstanceStatusDto {
-    status: InstanceStatus;
-    notes?: string;
-}
-
-/**
- * DTO bán thiết bị
- */
-export interface SellInstanceDto {
-    customerID: string;
-    sellingPrice: number;
-    soldDate?: string;
-    notes?: string;
-}
-
-/**
- * DTO chuyển kho
- */
-export interface TransferInstanceDto {
-    targetWarehouseID: string;
-    notes?: string;
-}
-
-/**
- * Tham số bộ lọc danh sách tồn kho
+ * @deprecated Use ProductInstanceFilterParams from type.productInstance.ts
  */
 export interface InventoryFilterParams {
     page?: number;
@@ -134,11 +23,11 @@ export interface InventoryFilterParams {
     search?: string;
     componentId?: string;
     warehouseId?: string;
-    status?: InstanceStatus;
+    status?: string;
 }
 
 /**
- * Thống kê tồn kho
+ * @deprecated Use ProductInstanceStatisticsDto from type.productInstance.ts
  */
 export interface InventoryStatistics {
     totalInstances: number;
@@ -151,7 +40,7 @@ export interface InventoryStatistics {
 }
 
 /**
- * Thống kê tồn kho theo kho (Inventory view)
+ * @deprecated No longer used
  */
 export interface InventoryByWarehouseDto {
     warehouseID: string;
@@ -162,22 +51,102 @@ export interface InventoryByWarehouseDto {
 }
 
 /**
- * Kết quả nhập hàng hàng loạt
+ * @deprecated No longer used
  */
 export interface BulkCreateResultDto {
     successCount: number;
     failedCount: number;
     failedSerials: string[];
-    createdInstances: ProductInstanceDetailDto[];
+    createdInstances: any[];
 }
 
-// Response Types
-export type InventoryListResponse = PaginatedResponse<ProductInstanceListDto>;
-export type InventoryDetailResponse = ApiResponse<ProductInstanceDetailDto>;
-export type InventoryCreateResponse = ApiResponse<ProductInstanceDetailDto>;
+/**
+ * @deprecated No longer used
+ */
+export interface BulkCreateProductInstanceDto {
+    serialNumbers: string[];
+    componentID: string;
+    warehouseID: string;
+    purchasePrice?: number;
+    warrantyMonths?: number;
+    purchaseOrderID?: string;
+}
+
+/**
+ * @deprecated No longer used
+ */
+export interface SellInstanceDto {
+    customerID: string;
+    sellingPrice: number;
+    soldDate?: string;
+    notes?: string;
+}
+
+/**
+ * @deprecated No longer used
+ */
+export interface TransferInstanceDto {
+    targetWarehouseID: string;
+    notes?: string;
+}
+
+/**
+ * @deprecated No longer used
+ */
+export interface UpdateInstanceStatusDto {
+    status: string;
+    notes?: string;
+}
+
+// Response Types - re-export from new types
+import type {
+    ProductInstanceListResponse,
+    ProductInstanceDetailResponse,
+    ProductInstanceDeleteResponse,
+    ProductInstanceStatisticsResponse,
+} from './type.productInstance';
+
+/**
+ * @deprecated Use ProductInstanceListResponse
+ */
+export type InventoryListResponse = ProductInstanceListResponse;
+
+/**
+ * @deprecated Use ProductInstanceDetailResponse
+ */
+export type InventoryDetailResponse = ProductInstanceDetailResponse;
+
+/**
+ * @deprecated Use ProductInstanceDetailResponse
+ */
+export type InventoryCreateResponse = ProductInstanceDetailResponse;
+
+/**
+ * @deprecated Use ProductInstanceDetailResponse
+ */
 export type InventoryBulkCreateResponse = ApiResponse<BulkCreateResultDto>;
-export type InventoryUpdateResponse = ApiResponse<ProductInstanceDetailDto>;
-export type InventoryDeleteResponse = ApiResponse<boolean>;
+
+/**
+ * @deprecated Use ProductInstanceDetailResponse
+ */
+export type InventoryUpdateResponse = ProductInstanceDetailResponse;
+
+/**
+ * @deprecated Use ProductInstanceDeleteResponse
+ */
+export type InventoryDeleteResponse = ProductInstanceDeleteResponse;
+
+/**
+ * @deprecated Use ProductInstanceStatisticsResponse
+ */
 export type InventoryStatisticsResponse = ApiResponse<InventoryStatistics>;
+
+/**
+ * @deprecated No longer used
+ */
 export type InventoryByWarehouseResponse = ApiResponse<InventoryByWarehouseDto[]>;
+
+/**
+ * @deprecated No longer used
+ */
 export type InventoryCheckSerialResponse = ApiResponse<boolean>;

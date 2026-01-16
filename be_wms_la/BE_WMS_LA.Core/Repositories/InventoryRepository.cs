@@ -527,4 +527,81 @@ public class InventoryRepository
     }
 
     #endregion
+
+    #region History & Lifecycle
+
+    /// <summary>
+    /// Lấy lịch sử giao dịch của ProductInstance
+    /// (Nhập kho, Xuất kho, Chuyển kho, Điều chỉnh)
+    /// </summary>
+    public async Task<List<InventoryTransaction>> GetTransactionsByInstanceIdAsync(Guid instanceId)
+    {
+        return await _context.InventoryTransactions
+            .Where(t => t.InstanceID == instanceId)
+            .Include(t => t.Warehouse)
+            .Include(t => t.Component)
+            .Include(t => t.CreatedByUser)
+            .OrderByDescending(t => t.TransactionDate)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Lấy lịch sử sửa chữa/bảo hành của ProductInstance
+    /// </summary>
+    public async Task<List<Repair>> GetRepairsByInstanceIdAsync(Guid instanceId)
+    {
+        return await _context.Repairs
+            .Where(r => r.InstanceID == instanceId)
+            .Include(r => r.Customer)
+            .Include(r => r.Technician)
+            .Include(r => r.Component)
+            .OrderByDescending(r => r.RepairDate)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Lấy lịch sử chuyển kho liên quan đến ProductInstance
+    /// (Dựa trên StockTransferDetail nếu có)
+    /// </summary>
+    public async Task<List<StockTransfer>> GetTransfersByInstanceIdAsync(Guid instanceId)
+    {
+        // Lấy tất cả StockTransfer có chứa InstanceID này
+        // Note: Cần có bảng StockTransferDetail với InstanceID
+        // Nếu chưa có, có thể query qua InventoryTransaction với TransactionType = TRANSFER
+        var transfers = await _context.InventoryTransactions
+            .Where(t => t.InstanceID == instanceId && t.TransactionType == "TRANSFER" && t.ReferenceID != null)
+            .Select(t => t.ReferenceID!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        if (!transfers.Any())
+        {
+            return new List<StockTransfer>();
+        }
+
+        return await _context.StockTransfers
+            .Where(st => transfers.Contains(st.TransferID))
+            .Include(st => st.FromWarehouse)
+            .Include(st => st.ToWarehouse)
+            .Include(st => st.CreatedByUser)
+            .Include(st => st.ReceivedByUser)
+            .OrderByDescending(st => st.TransferDate)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Lấy audit logs liên quan đến ProductInstance
+    /// (Thay đổi trạng thái, vị trí, thông tin...)
+    /// </summary>
+    public async Task<List<AuditLog>> GetAuditLogsByInstanceIdAsync(Guid instanceId)
+    {
+        return await _context.AuditLogs
+            .Where(al => al.EntityType == "ProductInstance" && al.EntityID == instanceId)
+            .Include(al => al.User)
+            .Include(al => al.Warehouse)
+            .OrderByDescending(al => al.CreatedAt)
+            .ToListAsync();
+    }
+
+    #endregion
 }

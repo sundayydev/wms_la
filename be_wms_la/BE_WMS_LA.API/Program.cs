@@ -63,6 +63,7 @@ builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<ProductInstanceService>();
 builder.Services.AddScoped<KnowledgeBaseService>();
 
 // --- CẤU HÌNH MINIO ---
