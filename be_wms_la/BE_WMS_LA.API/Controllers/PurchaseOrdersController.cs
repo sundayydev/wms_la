@@ -181,6 +181,45 @@ public class PurchaseOrdersController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Nhận hàng
+    /// </summary>
+    /// <param name="id">ID đơn mua hàng</param>
+    /// <param name="dto">Thông tin nhận hàng</param>
+    [HttpPost("{id}/receive")]
+    [EndpointSummary("Nhận hàng")]
+    [EndpointDescription("Nhận hàng theo đơn mua hàng")]
+    [ProducesResponseType<ApiResponse<PurchaseOrderDetailDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReceiveItems(Guid id, [FromBody] ReceivePurchaseOrderDto dto)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userGuid = string.IsNullOrEmpty(userId) ? null : Guid.Parse(userId);
+        var result = await _purchaseOrderService.ReceiveItemsAsync(id, dto, userGuid);
+        if (!result.Success)
+            return BadRequest(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách sản phẩm đã nhận (bao gồm chi tiết serial)
+    /// </summary>
+    /// <param name="id">ID đơn mua hàng</param>
+    [HttpGet("{id:guid}/received-items")]
+    [EndpointSummary("Danh sách hàng đã nhận")]
+    [EndpointDescription("Lấy chi tiết các sản phẩm đã nhập kho từ đơn mua hàng, bao gồm danh sách serial numbers")]
+    [ProducesResponseType<ApiResponse<ReceivedItemsResponseDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetReceivedItems(Guid id)
+    {
+        var result = await _purchaseOrderService.GetReceivedItemsAsync(id);
+        if (!result.Success)
+        {
+            return NotFound(result);
+        }
+        return Ok(result);
+    }
+
     #endregion
 
     #region Status Management

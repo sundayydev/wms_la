@@ -60,26 +60,40 @@ public class ProductService
 
         var totalItems = await query.CountAsync();
 
-        var products = await query
+        // Get component IDs for warehouse stock lookup
+        var pagedComponents = await query
             .OrderByDescending(c => c.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(c => new ProductListDto
-            {
-                ComponentID = c.ComponentID,
-                SKU = c.SKU,
-                ComponentName = c.ComponentName,
-                CategoryName = c.Category != null ? c.Category.CategoryName : null,
-                ImageURL = c.ImageURL,
-                Unit = c.Unit,
-                BasePrice = c.BasePrice,
-                SellPrice = c.SellPrice,
-                IsSerialized = c.IsSerialized,
-                VariantCount = c.Variants.Count(v => v.DeletedAt == null),
-                TotalStock = c.ProductInstances.Count(i => i.DeletedAt == null && i.Status == "IN_STOCK"),
-                CreatedAt = c.CreatedAt
-            })
             .ToListAsync();
+
+        var componentIds = pagedComponents.Select(c => c.ComponentID).ToList();
+
+        // Get warehouse stock for non-serialized products
+        var warehouseStocks = await _context.WarehouseStocks
+            .Where(ws => componentIds.Contains(ws.ComponentID))
+            .GroupBy(ws => ws.ComponentID)
+            .Select(g => new { ComponentID = g.Key, TotalStock = g.Sum(ws => ws.QuantityOnHand) })
+            .ToDictionaryAsync(x => x.ComponentID, x => x.TotalStock);
+
+        var products = pagedComponents.Select(c => new ProductListDto
+        {
+            ComponentID = c.ComponentID,
+            SKU = c.SKU,
+            ComponentName = c.ComponentName,
+            CategoryName = c.Category != null ? c.Category.CategoryName : null,
+            ImageURL = c.ImageURL,
+            Unit = c.Unit,
+            BasePrice = c.BasePrice,
+            SellPrice = c.SellPrice,
+            IsSerialized = c.IsSerialized,
+            VariantCount = c.Variants.Count(v => v.DeletedAt == null),
+            // Serialized: count from ProductInstances, Non-serialized: sum from WarehouseStock
+            TotalStock = c.IsSerialized
+                ? c.ProductInstances.Count(i => i.DeletedAt == null && i.Status == "IN_STOCK")
+                : warehouseStocks.GetValueOrDefault(c.ComponentID, 0),
+            CreatedAt = c.CreatedAt
+        }).ToList();
 
         return ApiResponse<List<ProductListDto>>.SuccessResponse(products, $"Lấy danh sách thành công ({totalItems} kết quả)");
     }
@@ -130,7 +144,16 @@ public class ProductService
             return ApiResponse<ProductDetailDto>.ErrorResponse("Không tìm thấy sản phẩm");
         }
 
-        var dto = MapToDetailDto(component);
+        // Get warehouse stock for non-serialized product
+        var warehouseStock = 0;
+        if (!component.IsSerialized)
+        {
+            warehouseStock = await _context.WarehouseStocks
+                .Where(ws => ws.ComponentID == component.ComponentID)
+                .SumAsync(ws => ws.QuantityOnHand);
+        }
+
+        var dto = MapToDetailDto(component, warehouseStock);
         return ApiResponse<ProductDetailDto>.SuccessResponse(dto);
     }
 
@@ -151,7 +174,16 @@ public class ProductService
             return ApiResponse<ProductDetailDto>.ErrorResponse("Không tìm thấy sản phẩm");
         }
 
-        var dto = MapToDetailDto(component);
+        // Get warehouse stock for non-serialized product
+        var warehouseStock = 0;
+        if (!component.IsSerialized)
+        {
+            warehouseStock = await _context.WarehouseStocks
+                .Where(ws => ws.ComponentID == component.ComponentID)
+                .SumAsync(ws => ws.QuantityOnHand);
+        }
+
+        var dto = MapToDetailDto(component, warehouseStock);
         return ApiResponse<ProductDetailDto>.SuccessResponse(dto);
     }
 
@@ -494,13 +526,42 @@ public class ProductService
     /// </summary>
     public async Task<ApiResponse<object>> GetStatisticsAsync()
     {
+        // Count products by type
+        var totalProducts = await _context.Components.CountAsync(c => c.DeletedAt == null);
+        var serializedProducts = await _context.Components.CountAsync(c => c.DeletedAt == null && c.IsSerialized);
+        var nonSerializedProducts = totalProducts - serializedProducts;
+
+        // Serialized product stats (from ProductInstances)
+        var totalInstances = await _context.ProductInstances.CountAsync(i => i.DeletedAt == null);
+        var instancesInStock = await _context.ProductInstances.CountAsync(i => i.DeletedAt == null && i.Status == "IN_STOCK");
+        var instancesSold = await _context.ProductInstances.CountAsync(i => i.DeletedAt == null && i.Status == "SOLD");
+
+        // Non-serialized product stats (from WarehouseStock)
+        var warehouseStockTotal = await _context.WarehouseStocks.SumAsync(ws => ws.QuantityOnHand);
+        var warehouseStockReserved = await _context.WarehouseStocks.SumAsync(ws => ws.QuantityReserved);
+
         var stats = new
         {
-            TotalProducts = await _context.Components.CountAsync(c => c.DeletedAt == null),
+            // Products
+            TotalProducts = totalProducts,
+            SerializedProducts = serializedProducts,
+            NonSerializedProducts = nonSerializedProducts,
             TotalVariants = await _context.ComponentVariants.CountAsync(v => v.DeletedAt == null),
-            TotalInstances = await _context.ProductInstances.CountAsync(i => i.DeletedAt == null),
-            InStock = await _context.ProductInstances.CountAsync(i => i.DeletedAt == null && i.Status == "IN_STOCK"),
-            Sold = await _context.ProductInstances.CountAsync(i => i.DeletedAt == null && i.Status == "SOLD"),
+
+            // Serialized inventory (ProductInstances)
+            TotalInstances = totalInstances,
+            InstancesInStock = instancesInStock,
+            InstancesSold = instancesSold,
+
+            // Non-serialized inventory (WarehouseStock)
+            WarehouseStockTotal = warehouseStockTotal,
+            WarehouseStockAvailable = warehouseStockTotal - warehouseStockReserved,
+            WarehouseStockReserved = warehouseStockReserved,
+
+            // Combined totals
+            TotalInStock = instancesInStock + warehouseStockTotal,
+
+            // By category
             ByCategory = await _context.Components
                 .Where(c => c.DeletedAt == null && c.CategoryID != null)
                 .Include(c => c.Category)
@@ -575,7 +636,7 @@ public class ProductService
 
     #region Private Methods
 
-    private ProductDetailDto MapToDetailDto(Component component)
+    private static ProductDetailDto MapToDetailDto(Component component, int warehouseStock = 0)
     {
         return new ProductDetailDto
         {
@@ -616,7 +677,10 @@ public class ProductService
             CreatedAt = component.CreatedAt,
             UpdatedAt = component.UpdatedAt,
             VariantCount = component.Variants.Count,
-            TotalStock = component.ProductInstances.Count(i => i.Status == "IN_STOCK"),
+            // Serialized: count from ProductInstances, Non-serialized: use warehouseStock param
+            TotalStock = component.IsSerialized
+                ? component.ProductInstances.Count(i => i.Status == "IN_STOCK")
+                : warehouseStock,
             Variants = component.Variants
                 .OrderBy(v => v.SortOrder)
                 .Select(v => MapVariantToDto(v))
@@ -624,7 +688,7 @@ public class ProductService
         };
     }
 
-    private ProductVariantDto MapVariantToDto(ComponentVariant variant)
+    private static ProductVariantDto MapVariantToDto(ComponentVariant variant)
     {
         return new ProductVariantDto
         {

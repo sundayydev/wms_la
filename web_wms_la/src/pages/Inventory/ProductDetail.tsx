@@ -49,6 +49,7 @@ import {
   InboxOutlined,
   PlusOutlined,
   ApiOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
@@ -129,8 +130,9 @@ const ProductDetail: React.FC = () => {
 
     setAddingCompatible(true);
     try {
-      const updatedList = await addCompatibleProducts(id, selectedProductIds);
-      setCompatibleProducts(updatedList);
+      await addCompatibleProducts(id, selectedProductIds);
+      // Reload danh sách sau khi thêm
+      await loadCompatibleProducts();
       setCompatibleModalVisible(false);
       setSelectedProductIds([]);
       message.success(`Đã thêm ${selectedProductIds.length} sản phẩm vào danh sách tương thích`);
@@ -146,8 +148,9 @@ const ProductDetail: React.FC = () => {
     if (!id) return;
 
     try {
-      const updatedList = await removeCompatibleProduct(id, compatibleId);
-      setCompatibleProducts(updatedList);
+      await removeCompatibleProduct(id, compatibleId);
+      // Reload danh sách sau khi xóa
+      await loadCompatibleProducts();
       message.success('Đã xóa sản phẩm khỏi danh sách tương thích');
     } catch (error: any) {
       message.error(error.message || 'Không thể xóa sản phẩm tương thích');
@@ -913,13 +916,36 @@ const ProductDetail: React.FC = () => {
                 >
                   <List.Item.Meta
                     avatar={
-                      <Avatar
-                        src={item.imageURL}
-                        icon={!item.imageURL && <AppstoreOutlined />}
-                        shape="square"
-                        size={48}
-                        style={{ backgroundColor: '#f0f0f0' }}
-                      />
+                      item.imageURL ? (
+                        <Image
+                          src={item.imageURL}
+                          alt={item.name}
+                          width={48}
+                          height={48}
+                          style={{
+                            objectFit: 'cover',
+                            borderRadius: 4,
+                            border: '1px solid #f0f0f0',
+                            cursor: 'pointer'
+                          }}
+                          preview={{
+                            mask: (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                <PictureOutlined style={{ fontSize: 16 }} />
+                                <span style={{ fontSize: 11 }}>Xem ảnh</span>
+                              </div>
+                            ),
+                          }}
+                          fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgesANyIGdIYAAAAJcEhZcwAADsQAAA7EAZUrDhsAAA=="
+                        />
+                      ) : (
+                        <Avatar
+                          icon={<AppstoreOutlined />}
+                          shape="square"
+                          size={48}
+                          style={{ backgroundColor: '#f0f0f0' }}
+                        />
+                      )
                     }
                     title={
                       <Link

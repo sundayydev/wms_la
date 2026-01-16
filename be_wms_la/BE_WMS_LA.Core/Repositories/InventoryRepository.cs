@@ -94,6 +94,19 @@ public class InventoryRepository
     }
 
     /// <summary>
+    /// Lấy nhiều ProductInstances theo danh sách IDs
+    /// </summary>
+    public async Task<List<ProductInstance>> GetByIdsAsync(List<Guid> ids)
+    {
+        return await _context.ProductInstances
+            .Include(pi => pi.Component)
+            .Include(pi => pi.Variant)
+            .Include(pi => pi.Warehouse)
+            .Where(pi => ids.Contains(pi.InstanceID) && pi.DeletedAt == null)
+            .ToListAsync();
+    }
+
+    /// <summary>
     /// Kiểm tra serial đã tồn tại
     /// </summary>
     public async Task<bool> ExistsBySerialAsync(string serial, Guid? excludeId = null)
@@ -304,6 +317,213 @@ public class InventoryRepository
             .ToListAsync();
 
         return result.Select(x => (x.WarehouseId, x.WarehouseName, x.TotalCount, x.InStockCount, x.TotalValue)).ToList();
+    }
+
+    #endregion
+
+    #region WarehouseStock Operations
+
+    /// <summary>
+    /// Lấy tồn kho theo kho + sản phẩm + biến thể
+    /// </summary>
+    public async Task<WarehouseStock?> GetWarehouseStockAsync(
+        Guid warehouseId,
+        Guid componentId,
+        Guid? variantId)
+    {
+        return await _context.WarehouseStocks
+            .Include(ws => ws.Warehouse)
+            .Include(ws => ws.Component)
+            .Include(ws => ws.Variant)
+            .FirstOrDefaultAsync(ws =>
+                ws.WarehouseID == warehouseId &&
+                ws.ComponentID == componentId &&
+                ws.VariantID == variantId);
+    }
+
+    /// <summary>
+    /// Lấy tất cả tồn kho theo kho
+    /// </summary>
+    public async Task<List<WarehouseStock>> GetWarehouseStocksByWarehouseAsync(Guid warehouseId)
+    {
+        return await _context.WarehouseStocks
+            .Include(ws => ws.Component)
+            .Include(ws => ws.Variant)
+            .Where(ws => ws.WarehouseID == warehouseId)
+            .OrderBy(ws => ws.Component.ComponentName)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Lấy tất cả tồn kho theo sản phẩm
+    /// </summary>
+    public async Task<List<WarehouseStock>> GetWarehouseStocksByComponentAsync(Guid componentId)
+    {
+        return await _context.WarehouseStocks
+            .Include(ws => ws.Warehouse)
+            .Include(ws => ws.Variant)
+            .Where(ws => ws.ComponentID == componentId)
+            .OrderBy(ws => ws.Warehouse.WarehouseName)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Thêm hoặc cập nhật tồn kho (Upsert)
+    /// </summary>
+    public async Task<WarehouseStock> UpsertWarehouseStockAsync(
+        Guid warehouseId,
+        Guid componentId,
+        Guid? variantId,
+        int quantityChange,
+        string? locationCode = null)
+    {
+        var stock = await GetWarehouseStockAsync(warehouseId, componentId, variantId);
+
+        if (stock == null)
+        {
+            // Create new
+            stock = new WarehouseStock
+            {
+                StockID = Guid.NewGuid(),
+                WarehouseID = warehouseId,
+                ComponentID = componentId,
+                VariantID = variantId,
+                QuantityOnHand = quantityChange,
+                QuantityReserved = 0,
+                DefaultLocationCode = locationCode,
+                LastStockUpdate = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _context.WarehouseStocks.AddAsync(stock);
+        }
+        else
+        {
+            // Update existing
+            stock.QuantityOnHand += quantityChange;
+            stock.LastStockUpdate = DateTime.UtcNow;
+            stock.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrEmpty(locationCode) && string.IsNullOrEmpty(stock.DefaultLocationCode))
+            {
+                stock.DefaultLocationCode = locationCode;
+            }
+
+            _context.WarehouseStocks.Update(stock);
+        }
+
+        await _context.SaveChangesAsync();
+        return stock;
+    }
+
+    /// <summary>
+    /// Thêm tồn kho mới
+    /// </summary>
+    public async Task<WarehouseStock> AddWarehouseStockAsync(WarehouseStock stock)
+    {
+        stock.CreatedAt = DateTime.UtcNow;
+        stock.UpdatedAt = DateTime.UtcNow;
+        stock.LastStockUpdate = DateTime.UtcNow;
+
+        await _context.WarehouseStocks.AddAsync(stock);
+        await _context.SaveChangesAsync();
+
+        return stock;
+    }
+
+    /// <summary>
+    /// Cập nhật tồn kho
+    /// </summary>
+    public async Task<WarehouseStock> UpdateWarehouseStockAsync(WarehouseStock stock)
+    {
+        stock.UpdatedAt = DateTime.UtcNow;
+        stock.LastStockUpdate = DateTime.UtcNow;
+
+        _context.WarehouseStocks.Update(stock);
+        await _context.SaveChangesAsync();
+
+        return stock;
+    }
+
+    /// <summary>
+    /// Tăng số lượng tồn kho
+    /// </summary>
+    public async Task<bool> IncreaseStockAsync(
+        Guid warehouseId,
+        Guid componentId,
+        Guid? variantId,
+        int quantity)
+    {
+        await UpsertWarehouseStockAsync(warehouseId, componentId, variantId, quantity);
+        return true;
+    }
+
+    /// <summary>
+    /// Giảm số lượng tồn kho
+    /// </summary>
+    public async Task<bool> DecreaseStockAsync(
+        Guid warehouseId,
+        Guid componentId,
+        Guid? variantId,
+        int quantity)
+    {
+        var stock = await GetWarehouseStockAsync(warehouseId, componentId, variantId);
+        if (stock == null || stock.QuantityAvailable < quantity)
+        {
+            return false;
+        }
+
+        stock.QuantityOnHand -= quantity;
+        stock.LastStockUpdate = DateTime.UtcNow;
+        stock.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Đặt trước tồn kho (reserve)
+    /// </summary>
+    public async Task<bool> ReserveStockAsync(
+        Guid warehouseId,
+        Guid componentId,
+        Guid? variantId,
+        int quantity)
+    {
+        var stock = await GetWarehouseStockAsync(warehouseId, componentId, variantId);
+        if (stock == null || stock.QuantityAvailable < quantity)
+        {
+            return false;
+        }
+
+        stock.QuantityReserved += quantity;
+        stock.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Hủy đặt trước tồn kho (unreserve)
+    /// </summary>
+    public async Task<bool> UnreserveStockAsync(
+        Guid warehouseId,
+        Guid componentId,
+        Guid? variantId,
+        int quantity)
+    {
+        var stock = await GetWarehouseStockAsync(warehouseId, componentId, variantId);
+        if (stock == null || stock.QuantityReserved < quantity)
+        {
+            return false;
+        }
+
+        stock.QuantityReserved -= quantity;
+        stock.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     #endregion

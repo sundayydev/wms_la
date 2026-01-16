@@ -1,7 +1,5 @@
 import apiClient from '../config/api.config';
 import type {
-    PurchaseOrderListDto,
-    PurchaseOrderDetailDto,
     CreatePurchaseOrderDto,
     UpdatePurchaseOrderDto,
     UpdatePurchaseOrderStatusDto,
@@ -13,7 +11,6 @@ import type {
     PurchaseOrderDeleteResponse,
     PurchaseOrderStatisticsResponse,
 } from '../types/type.purchaseOrder';
-import type { ApiResponse } from '../types/api.types';
 
 const BASE_URL = '/PurchaseOrders';
 
@@ -131,6 +128,39 @@ export const getPurchaseOrderStatistics = async (): Promise<PurchaseOrderStatist
     return response.data;
 };
 
+// ====================
+// Receiving
+// ====================
+
+/**
+ * Nhận hàng từ đơn mua hàng
+ * @param id ID đơn mua hàng
+ * @param data Dữ liệu nhận hàng
+ */
+export const receiveItems = async (
+    id: string,
+    data: import('../types/type.purchaseOrder').ReceivePurchaseOrderDto
+): Promise<import('../types/type.purchaseOrder').ReceiveResultResponse> => {
+    const response = await apiClient.post<import('../types/type.purchaseOrder').ReceiveResultResponse>(
+        `${BASE_URL}/${id}/receive`,
+        data
+    );
+    return response.data;
+};
+
+/**
+ * Lấy danh sách sản phẩm đã nhận (bao gồm chi tiết serial)
+ * @param id ID đơn mua hàng
+ */
+export const getReceivedItems = async (
+    id: string
+): Promise<import('../types/type.purchaseOrder').ReceivedItemsResponse> => {
+    const response = await apiClient.get<import('../types/type.purchaseOrder').ReceivedItemsResponse>(
+        `${BASE_URL}/${id}/received-items`
+    );
+    return response.data;
+};
+
 // Default export
 const purchaseOrdersService = {
     getPurchaseOrders,
@@ -144,6 +174,8 @@ const purchaseOrdersService = {
     cancelPurchaseOrder,
     markAsDelivered,
     getPurchaseOrderStatistics,
+    receiveItems,
+    getReceivedItems,
 };
 
 export default purchaseOrdersService;

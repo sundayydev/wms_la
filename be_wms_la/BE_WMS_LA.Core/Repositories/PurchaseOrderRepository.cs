@@ -250,7 +250,8 @@ public class PurchaseOrderRepository
     /// </summary>
     public async Task<int> CountNewThisMonthAsync()
     {
-        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var now = DateTime.UtcNow;
+        var startOfMonth = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1), DateTimeKind.Utc);
         return await _context.PurchaseOrders
             .CountAsync(po => po.DeletedAt == null && po.CreatedAt >= startOfMonth);
     }
